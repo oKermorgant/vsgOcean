@@ -1,0 +1,271 @@
+<?xml version="1.0"?>
+<!--
+  Converted by urdfbase. The following could not be carried across:
+  - 4 link(s) have no mass in the source (bluerov2/mpu, bluerov2/lsm, bluerov2/camera_optical, …). SDF would weigh each at 1 kg by default, so they are written with a negligible one instead — 0.001 kg
+  - read back and compared with the source — 4 thing(s) were added:
+  -   bluerov2/mpu: an inertial block appeared, 0.001 kg — the format required one
+  -   bluerov2/lsm: an inertial block appeared, 0.001 kg — the format required one
+  -   bluerov2/camera_optical: an inertial block appeared, 0.001 kg — the format required one
+  -   bluerov2/sonar: an inertial block appeared, 0.001 kg — the format required one
+-->
+<sdf version="1.9">
+  <model name="bluerov2">
+    <link name="bluerov2/base_link">
+      <inertial>
+        <pose>0 0 -0.116178631882836 0 0 0</pose>
+        <mass>14.8</mass>
+        <inertia>
+          <ixx>5.2539</ixx><ixy>0.0144</ixy><ixz>0.3341</ixz>
+          <iyy>7.942</iyy><iyz>0.026</iyz><izz>6.9123</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/base_link_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_noprop.glb</uri></mesh>
+        </geometry>
+      </visual>
+      <collision name="bluerov2/base_link_collision_0">
+        <pose>0 0 -0.029044657970709 0 0 0</pose>
+        <geometry>
+          <box><size>0.464714527531344 0.29044657970709 0.116178631882836</size></box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="bluerov2/thruster1">
+      <pose relative_to="thruster1">0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0.0175 0 0 0 0 0</pose>
+        <mass>0.07</mass>
+        <inertia>
+          <ixx>0.00008750000000000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00005089583333333334</iyy><iyz>0</iyz><izz>0.00005089583333333334</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/thruster1_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_propcw.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="bluerov2/thruster2">
+      <pose relative_to="thruster2">0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0.0175 0 0 0 0 0</pose>
+        <mass>0.07</mass>
+        <inertia>
+          <ixx>0.00008750000000000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00005089583333333334</iyy><iyz>0</iyz><izz>0.00005089583333333334</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/thruster2_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_propcw.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="bluerov2/thruster3">
+      <pose relative_to="thruster3">0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0.0175 0 0 0 0 0</pose>
+        <mass>0.07</mass>
+        <inertia>
+          <ixx>0.00008750000000000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00005089583333333334</iyy><iyz>0</iyz><izz>0.00005089583333333334</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/thruster3_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_propccw.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="bluerov2/thruster4">
+      <pose relative_to="thruster4">0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0.0175 0 0 0 0 0</pose>
+        <mass>0.07</mass>
+        <inertia>
+          <ixx>0.00008750000000000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00005089583333333334</iyy><iyz>0</iyz><izz>0.00005089583333333334</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/thruster4_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_propccw.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="bluerov2/thruster5">
+      <pose relative_to="thruster5">0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0.0175 0 0 0 0 0</pose>
+        <mass>0.07</mass>
+        <inertia>
+          <ixx>0.00008750000000000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00005089583333333334</iyy><iyz>0</iyz><izz>0.00005089583333333334</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/thruster5_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_propcw.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="bluerov2/thruster6">
+      <pose relative_to="thruster6">0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0.0175 0 0 0 0 0</pose>
+        <mass>0.07</mass>
+        <inertia>
+          <ixx>0.00008750000000000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00005089583333333334</iyy><iyz>0</iyz><izz>0.00005089583333333334</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/thruster6_visual_0">
+        <geometry>
+          <mesh><uri>meshes/bluerov2_propccw.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="bluerov2/mpu">
+      <pose relative_to="mpu">0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.000001</iyy><iyz>0</iyz><izz>0.000001</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="bluerov2/lsm">
+      <pose relative_to="lsm">0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.000001</iyy><iyz>0</iyz><izz>0.000001</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="bluerov2/camera">
+      <pose relative_to="tilt">0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.015</mass>
+        <inertia>
+          <ixx>0.001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.001</iyy><iyz>0</iyz><izz>0.001</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="bluerov2/camera_optical">
+      <pose relative_to="camera_optical">0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.000001</iyy><iyz>0</iyz><izz>0.000001</izz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="bluerov2/sonar">
+      <pose relative_to="sonar">0 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.000001</iyy><iyz>0</iyz><izz>0.000001</izz>
+        </inertia>
+      </inertial>
+      <visual name="bluerov2/sonar_visual_0">
+        <pose>0 0 -0.022 0 0 0</pose>
+        <geometry>
+          <mesh><uri>meshes/ping360_sonar.glb</uri><scale>0.01 0.01 0.01</scale></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <joint name="thruster1" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/thruster1</child>
+      <pose relative_to="bluerov2/base_link">0.1355 -0.1 -0.0725 0 0 0.7853981634</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+      </axis>
+    </joint>
+    <joint name="thruster2" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/thruster2</child>
+      <pose relative_to="bluerov2/base_link">0.1355 0.1 -0.0725 0 0 -0.7853981634</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+      </axis>
+    </joint>
+    <joint name="thruster3" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/thruster3</child>
+      <pose relative_to="bluerov2/base_link">-0.1475 -0.1 -0.0725 0 0 2.3561944902</pose>
+      <axis>
+        <xyz>-1 0 0</xyz>
+      </axis>
+    </joint>
+    <joint name="thruster4" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/thruster4</child>
+      <pose relative_to="bluerov2/base_link">-0.1475 0.1 -0.0725 0 0 -2.3561944902</pose>
+      <axis>
+        <xyz>-1 0 0</xyz>
+      </axis>
+    </joint>
+    <joint name="thruster5" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/thruster5</child>
+      <pose relative_to="bluerov2/base_link">0.0025 -0.1105 -0.005 0 -1.5707963268 0</pose>
+      <axis>
+        <xyz>1 0 0</xyz>
+      </axis>
+    </joint>
+    <joint name="thruster6" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/thruster6</child>
+      <pose relative_to="bluerov2/base_link">0.0025 0.1105 -0.005 0 -1.5707963268 0</pose>
+      <axis>
+        <xyz>-1 0 0</xyz>
+      </axis>
+    </joint>
+    <joint name="mpu" type="fixed">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/mpu</child>
+      <pose relative_to="bluerov2/base_link">0.1 0 0 0 0 -1.57079635</pose>
+    </joint>
+    <joint name="lsm" type="fixed">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/lsm</child>
+      <pose relative_to="bluerov2/base_link">0.1 0 0 0 0 -1.57079635</pose>
+    </joint>
+    <joint name="tilt" type="revolute">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/camera</child>
+      <pose relative_to="bluerov2/base_link">0.16999999999999998 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-1.0471975666666666</lower><upper>1.0471975666666666</upper>
+          <effort>100</effort>
+          <velocity>5</velocity>
+        </limit>
+        <dynamics>
+          <damping>0.8</damping><friction>0</friction>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name="camera_optical" type="fixed">
+      <parent>bluerov2/camera</parent>
+      <child>bluerov2/camera_optical</child>
+      <pose relative_to="bluerov2/camera">0 0 0 -1.57079635 0 -1.57079635</pose>
+    </joint>
+    <joint name="sonar" type="fixed">
+      <parent>bluerov2/base_link</parent>
+      <child>bluerov2/sonar</child>
+      <pose relative_to="bluerov2/base_link">0.135 0.108 0.118 0 0 0</pose>
+    </joint>
+  </model>
+</sdf>
