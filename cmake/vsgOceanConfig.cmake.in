@@ -1,0 +1,13 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# vsg is a public dependency of the vsgOcean target
+find_dependency(vsg)
+
+# sdformat is a private link dependency when the installed vsgOcean was built with SDF support
+if(@VSGOCEAN_WITH_SDF@)
+    find_dependency(sdformat 16.1)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/vsgOceanTargets.cmake")
