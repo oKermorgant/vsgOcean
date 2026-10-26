@@ -69,23 +69,27 @@ vsgocean_embed_shader(underwater.frag)
 
 # vsgOcean library
 set(VSGOCEAN_LIBRARY_SOURCES
-    src/Environment.cpp
-    src/EnvironmentControls.cpp
-    src/EnvironmentGui.cpp
-    src/HorizonController.cpp
-    src/Hud.cpp
-    src/Model.cpp
-    src/OceanSurface.cpp
-    src/RenderTarget.cpp
-    src/Scene.cpp
-    src/Sky.cpp
-    src/Underwater.cpp
-    src/UriResolver.cpp
-    src/Wavefield.cpp
+    # core: environment state and the scene model tree
+    src/core/Environment.cpp
+    src/core/Model.cpp
+    src/core/UriResolver.cpp
+    src/core/Wavefield.cpp
+    # scene: environment rendering, per-camera render pipelines
+    src/scene/OceanSurface.cpp
+    src/scene/RenderPipeline.cpp
+    src/scene/RenderTarget.cpp
+    src/scene/Scene.cpp
+    src/scene/Sky.cpp
+    src/scene/Underwater.cpp
+    # ui: runtime controls, GUI panel, HUD, camera controller
+    src/ui/EnvironmentControls.cpp
+    src/ui/EnvironmentGui.cpp
+    src/ui/HorizonController.cpp
+    src/ui/Hud.cpp
     ${VSGOCEAN_EMBEDDED_SHADERS}
 )
 if(VSGOCEAN_WITH_SDF)
-    list(APPEND VSGOCEAN_LIBRARY_SOURCES src/SDFLoader.cpp)
+    list(APPEND VSGOCEAN_LIBRARY_SOURCES src/scene/SDFLoader.cpp)
 endif()
 
 add_library(vsgOcean ${VSGOCEAN_LIBRARY_SOURCES})

@@ -4,10 +4,11 @@
 #    include <vsgXchange/all.h>
 #endif
 
-#include <vsgOcean/EnvironmentControls.h>
-#include <vsgOcean/EnvironmentGui.h>
-#include <vsgOcean/HorizonController.h>
-#include <vsgOcean/Scene.h>
+#include <vsgOcean/ui/EnvironmentControls.h>
+#include <vsgOcean/scene/RenderPipeline.h>
+#include <vsgOcean/ui/EnvironmentGui.h>
+#include <vsgOcean/ui/HorizonController.h>
+#include <vsgOcean/scene/Scene.h>
 
 /// Resolve a model path (relative to the example models directory) against the source
 /// tree, unless resources are embedded in the build directory.
@@ -425,15 +426,40 @@ int main(int argc, char** argv)
             std::cout << "No. of tiles loaded " << loadPagedLOD.numTiles << " in " << time << "ms." << std::endl;
         }
 
-        // the scene renders into an offscreen target, composited to the window with the
-        // underwater light transport; the sky, lighting, models, ocean surface and
-        // underwater pass are all owned by the scene
         // runtime UI: the help HUD (key bindings) always visible in a corner, the
-        // environment sliders behind the H key
+        // environment sliders behind the H key. Two sensor cameras render to texture
+        // - the ROV camera underwater, the boat camera on the surface - displayed as
+        // previews in the panel; actual sensor simulation comes later
+        const VkExtent2D sensorExtent{640, 480};
+        auto device = window->getOrCreateDevice();
+        const auto colorFormat = window->surfaceFormat().format;
+        const auto depthFormat = window->depthFormat();
+        auto makeSensorCamera = [sensorExtent]() {
+            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.05, 200.0),
+                                       vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 0.0), vsg::dvec3(0.0, 1.0, 0.0), vsg::dvec3(0.0, 0.0, 1.0)),
+                                       vsg::ViewportState::create(sensorExtent));
+        };
+
+        vsg::ref_ptr<vsgOcean::RenderPipeline> rovPipeline, boatPipeline;
+        if (vsg_scene->model("bluerov2")) rovPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
+        if (vsg_scene->model("aquabot")) boatPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
+
+        std::vector<std::pair<std::string, vsg::ref_ptr<vsg::ImageView>>> cameraViews;
+        if (rovPipeline) cameraViews.emplace_back("ROV camera (underwater)", rovPipeline->outputView());
+        if (boatPipeline) cameraViews.emplace_back("boat camera (surface)", boatPipeline->outputView());
+
         auto overlay = vsg::Group::create();
         if (auto hud = vsgOcean::createEnvironmentHud(controls, options, window->extent2D())) overlay->addChild(hud);
-        if (auto gui = vsgOcean::createEnvironmentGui(window, viewer, controls)) overlay->addChild(gui);
+        if (auto gui = vsgOcean::createEnvironmentGui(window, viewer, controls, cameraViews)) overlay->addChild(gui);
         auto commandGraph = vsgOcean::createCommandGraph(window, viewer, camera, vsg_scene, overlay);
+
+        // the sensor pipelines render into the same command graph, before the window
+        for (const auto& pipeline : {rovPipeline, boatPipeline})
+        {
+            if (!pipeline) continue;
+            commandGraph->addChild(pipeline->sceneRenderGraph());
+            commandGraph->addChild(pipeline->sensorRenderGraph());
+        }
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         if (overrideEye) lookAt->eye = vsg::dvec3(eyeX, eyeY, eyeZ);
@@ -520,6 +546,14 @@ int main(int argc, char** argv)
                 // at its origin, the hull bottom 0.026 m above)
                 const auto angle = 2.0 * vsg::PI * t / 60.0;
                 vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), -0.3)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
+
+                // the boat camera rides its vehicle, looking along the direction of travel
+                if (boatPipeline)
+                {
+                    const auto lookAt = boatPipeline->compositeNode()->cast<vsg::View>()->camera->viewMatrix.cast<vsg::LookAt>();
+                    lookAt->eye = vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), 1.2);
+                    lookAt->center = lookAt->eye + vsg::dvec3(-std::sin(angle), std::cos(angle), -0.15) * 5.0;
+                }
             }
 
             if (vsg_scene->model("bluerov2"))
@@ -527,6 +561,15 @@ int main(int argc, char** argv)
                 // the ROV circles below the surface (Z < 0), at its own pace
                 const auto angle = -2.0 * vsg::PI * t / 40.0;
                 vsg_scene->setPose("bluerov2", vsg::translate(vsg::dvec3(6.0 * std::cos(angle), 6.0 * std::sin(angle), -3.0)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
+
+                // the ROV camera rides its vehicle, slightly above the body, looking
+                // along the direction of travel
+                if (rovPipeline)
+                {
+                    const auto lookAt = rovPipeline->compositeNode()->cast<vsg::View>()->camera->viewMatrix.cast<vsg::LookAt>();
+                    lookAt->eye = vsg::dvec3(6.0 * std::cos(angle), 6.0 * std::sin(angle), -2.85);
+                    lookAt->center = lookAt->eye + vsg::dvec3(std::sin(angle), -std::cos(angle), 0.0) * 5.0;
+                }
             }
 
             // steering pods of the surface vehicle: rotation about the local Z axis of the pod
@@ -559,6 +602,11 @@ int main(int argc, char** argv)
             // refresh the sky, sun-driven lighting and ocean surface from the
             // environment, camera and simulation time
             vsg_scene->update(camera, t);
+
+            // refresh the sensor pipelines with their own cameras (each computes its
+            // own submersion, so the ROV camera renders underwater)
+            if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->compositeNode()->cast<vsg::View>()->camera.get(), t);
+            if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->compositeNode()->cast<vsg::View>()->camera.get(), t);
 
             viewer->recordAndSubmit();
 

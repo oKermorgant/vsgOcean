@@ -157,8 +157,8 @@
         </inertia>
       </inertial>
       <sensor name="camera" type="camera">
-      <camera>
         <override_frame_id>bluerov2/camera_optical</override_frame_id>
+      <camera>
         <horizontal_fov>1.047</horizontal_fov>
         <image>
           <width>640</width>

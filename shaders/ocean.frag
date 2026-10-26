@@ -3,6 +3,7 @@
 
 layout(location = 0) in vec3 worldPosition;
 layout(location = 1) in vec3 worldNormal;
+layout(location = 2) in vec3 cameraEye; // world position of the camera of this view
 layout(location = 0) out vec4 fragColor;
 
 layout(std140, set = 0, binding = 0) uniform Ocean
@@ -11,7 +12,7 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 waterColor;      // rgb: water body colour from the Jerlov water type, a: mean attenuation (1/m)
     vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: assumed water depth [m]
-    vec4 cameraEye;       // xyz: camera position in world space
+    vec4 seaLevel;        // w: mean sea level (m)
     vec4 amplitude[8];
     vec4 wavenumber[8];
     vec4 omega[8];
@@ -29,7 +30,7 @@ void main()
 {
     const vec3 sunDirection = normalize(ocean.sunDirection.xyz);
     const vec3 n = normalize(worldNormal);
-    const vec3 toEye = normalize(ocean.cameraEye.xyz - worldPosition);
+    const vec3 toEye = normalize(cameraEye - worldPosition);
 
     // day factor matching the scene lighting: dim at night
     const float day = smoothstep(-0.05, 0.25, sunDirection.z);

@@ -2,13 +2,14 @@
 #version 450
 
 layout(location = 0) in vec2 ndc;
+layout(location = 1) in vec3 nearPoint;
+layout(location = 2) in vec3 farPoint;
 layout(location = 0) out vec4 fragColor;
 
 layout(std140, set = 0, binding = 0) uniform Environment
 {
     vec4 sunDirection;    // xyz: unit vector towards the sun
     vec4 fogColorDensity; // rgb: fog color, a: fog density
-    mat4 inverseViewProjection;
     vec4 stars[32];       // xyz: local direction, w: brightness; w = 0 when the slot is unused
     vec4 water;           // rgb: Jerlov water color, a: mean attenuation (1/m)
     vec4 submersion;      // x: camera depth below the surface (m), 0 when above the water
@@ -104,10 +105,9 @@ vec3 underwaterColor(vec3 direction, vec3 sunDirection)
 
 void main()
 {
-    // view ray from the inverse view projection: direction from the camera through the pixel
-    const vec4 nearPoint = env.inverseViewProjection * vec4(ndc, -1.0, 1.0);
-    const vec4 farPoint = env.inverseViewProjection * vec4(ndc, 1.0, 1.0);
-    const vec3 direction = normalize(farPoint.xyz / farPoint.w - nearPoint.xyz / nearPoint.w);
+    // view ray from the endpoints interpolated across the fullscreen triangle
+    // (per camera, through the push constants)
+    const vec3 direction = normalize(farPoint - nearPoint);
 
     // angular size of a pixel on the sky, used to anti-alias the sun edge and star points
     const float pixelAngle = length(fwidth(direction));

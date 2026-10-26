@@ -18,8 +18,9 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 sunDirection;    // xyz: unit vector towards the sun
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 waterColor;      // rgb: water body colour from the Jerlov water type
-    vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: unused
-    vec4 cameraEye;       // xyz: camera position in world space, w: mean sea level
+    vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: assumed water depth [m]
+    vec4 seaLevel;        // w: mean sea level (m) above the origin; the camera state comes
+                          // through push constants, so one surface renders from any camera
     vec4 amplitude[8];
     vec4 wavenumber[8];
     vec4 omega[8];
@@ -31,6 +32,7 @@ layout(location = 0) in vec3 position; // grid point on the mean water level (z 
 
 layout(location = 0) out vec3 worldPosition;
 layout(location = 1) out vec3 worldNormal;
+layout(location = 2) out vec3 cameraEye; // world position of the camera of this view
 
 void main()
 {
@@ -78,7 +80,10 @@ void main()
     }
 
     // the mean water level offset (sea level)
-    p.z += ocean.cameraEye.w;
+    p.z += ocean.seaLevel.w;
+
+    // the camera position of this view, from the modelview push constant
+    cameraEye = vec3(inverse(pc.modelview) * vec4(0.0, 0.0, 0.0, 1.0));
 
     worldPosition = p;
     worldNormal = normalize(N);
