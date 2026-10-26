@@ -147,6 +147,12 @@ namespace vsgOcean
                 if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
                 float steepness = static_cast<float>(wavefield->steepness());
                 if (ImGui::SliderFloat("wave steepness", &steepness, 0.0f, 1.0f)) wavefield->setSteepness(steepness);
+                int number = static_cast<int>(wavefield->number());
+                if (ImGui::SliderInt("wave components", &number, 1, static_cast<int>(vsgOcean::Wavefield::maxWaves))) wavefield->setNumber(static_cast<size_t>(number));
+                float scale = static_cast<float>(wavefield->scale());
+                if (ImGui::SliderFloat("wave scale", &scale, 1.0f, 4.0f)) wavefield->setScale(scale);
+                float angle = static_cast<float>(vsg::degrees(wavefield->angle()));
+                if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
             }
 
             float fog = static_cast<float>(environment->fogDensity());

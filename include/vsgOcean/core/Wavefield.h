@@ -53,23 +53,25 @@ namespace vsgOcean
 
         // --- parameters (Gazebo semantics, SI units, angles in radians) ---
 
-        /// Number of component waves. Default 3.
+        /// Number of component waves. Default 8 (all the shader slots).
         void setNumber(size_t number);
         size_t number() const { return number_; }
 
-        /// Scale between the mean and the largest / smallest component waves. Default 1.1.
+        /// Scale between the mean and the largest / smallest component waves, as in asv_wave_sim. Default 2.
         void setScale(double scale);
         double scale() const { return scale_; }
 
-        /// Angle between the mean wave direction and the largest / smallest components. Default 0.4.
+        /// Angle between the mean wave direction and the components, as in asv_wave_sim. Default 2pi/10.
         void setAngle(double angle);
         double angle() const { return angle_; }
 
-        /// Steepness parameter in [0, 1] controlling the Gerstner chop (0: rolling sine waves). Default 0.8.
+        /// Steepness parameter in [0, 1] controlling the Gerstner chop (0: rolling sine waves). Default 1.
         void setSteepness(double steepness);
         double steepness() const { return steepness_; }
 
-        /// Amplitude of the mean wave in metres, used by the CWR model. Default 0.4.
+        /// Amplitude of the mean wave in metres, used by the CWR model. The combined sea
+        /// is higher: with the default 8 octave-spaced components, the dominant swell is
+        /// 8x the mean amplitude. Default 0.1.
         void setAmplitude(double amplitude);
         double amplitude() const { return amplitude_; }
 
@@ -125,11 +127,11 @@ namespace vsgOcean
         void recalculatePms();
         void recalculateCwr();
 
-        size_t number_ = 3;
-        double scale_ = 1.1;
-        double angle_ = 0.4;
-        double steepness_ = 0.8;
-        double amplitude_ = 0.4;
+        size_t number_ = 8;
+        double scale_ = 2.0;
+        double angle_ = 0.2 * vsg::PI;
+        double steepness_ = 1.0;
+        double amplitude_ = 0.1;
         double period_ = 5.0;
         double phase_ = 0.0;
         double direction_ = 0.0;

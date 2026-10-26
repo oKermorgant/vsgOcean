@@ -30,7 +30,7 @@ namespace vsgOcean
     public:
         /// size: extent of the surface grid in metres (centred at the origin),
         /// cells: number of grid cells per side
-        explicit OceanSurface(double size = 1200.0, uint32_t cells = 256);
+        explicit OceanSurface(double size = 1200.0, uint32_t cells = 512);
 
         /// The wave field of the surface (the Gazebo wave model), tunable at any time.
         vsg::ref_ptr<Wavefield> wavefield() const { return wavefield_; }

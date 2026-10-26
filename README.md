@@ -10,7 +10,7 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 - **SDF loading** *(optional, requires [sdformat](https://github.com/gazebosim/sdformat))*: SDF worlds and models become the scene model, with poses resolved through SDF semantic poses, `package://` / `model://` / `file://` URI resolution, and mesh scales.
 - **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime.
 - **Sky**: analytic shader sky (day/night cycle from the sun elevation, constellations at night), with scene lighting that follows the sun.
-- **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model.
+- **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the component count, scale and angle are tunable (GUI sliders or `--wave-*`).
 - **Underwater rendering**: when the camera dives below the waves (right-drag to move it), the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the view distance to each object (red is absorbed first), in-scatter towards the water colour, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
 - **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic.
 
@@ -41,7 +41,8 @@ cmake --build build -j
 
 # customise
 ./vsgOcean_example --sun 20 200 --no-sun-cycle   # static sun at 20 deg elevation, azimuth 200
-./vsgOcean_example --wind 8 45 --wave-amplitude 0.6 --wave-period 6
+./vsgOcean_example --wind 8 45 --wave-amplitude 0.2 --wave-period 6
+./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
 ./vsgOcean_example --jerlov 8                    # turbid coastal water (Coastal9)
 ./vsgOcean_example --fog 0.01
 ./vsgOcean_example --debug --eye 12 5 -40        # validation layers, camera near the wreck
@@ -95,6 +96,6 @@ vsgOcean is MIT-licensed. The following third-party work is included or derived,
 
 A large part of the development was carried out with **[Mistral Code](https://mistral.ai)**, Mistral AI's agentic coding assistant.
 
-Projects consulted as rendering references but **not** included: [osgOcean](https://github.com/kbale/osgOcean) (LGPL-3), [Stonefish](https://github.com/patrykcieslak/stonefish) (GPL-3), [Vulkan-Spectral-Ocean](https://github.com/micaalle/Vulkan-Spectral-Ocean) (MIT), [boating_gz](https://github.com/kermorgant/boating_gz).
+Projects consulted as rendering references but **not** included: [osgOcean](https://github.com/kbale/osgOcean) (LGPL-3), [Stonefish](https://github.com/patrykcieslak/stonefish) (GPL-3), [Vulkan-Spectral-Ocean](https://github.com/micaalle/Vulkan-Spectral-Ocean) (MIT).
 
 Per-file attribution is kept in the headers of the derived sources (`src/Wavefield.cpp`, `shaders/ocean.vert`).

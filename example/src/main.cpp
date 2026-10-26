@@ -201,10 +201,15 @@ int main(int argc, char** argv)
         if (arguments.read("--jerlov", jerlov)) overrideJerlov = true;
         if (arguments.read("--fog", fogDensity)) overrideFog = true;
 
-        // waves: the mean component wave of the Gazebo wave model (boating_gz / asv_wave_sim)
-        const double waveAmplitude = arguments.value(0.4, "--wave-amplitude");
+        // waves: the mean component wave of the Gazebo wave model (boating_gz / asv_wave_sim);
+        // the component count, scale and angle follow asv_wave_sim's defaults, so the
+        // sea is irregular and short-crested rather than a single wave train
+        const double waveAmplitude = arguments.value(0.1, "--wave-amplitude");
         const double wavePeriod = arguments.value(5.0, "--wave-period");
-        const double waveSteepness = arguments.value(0.8, "--wave-steepness");
+        const double waveSteepness = arguments.value(1.0, "--wave-steepness");
+        const int waveNumber = arguments.value(8, "--wave-number");
+        const double waveScale = arguments.value(2.0, "--wave-scale");
+        const double waveAngle = arguments.value(36.0, "--wave-angle");
 
         if (arguments.errors()) return arguments.writeErrorMessages(std::cerr);
 
@@ -264,6 +269,9 @@ int main(int argc, char** argv)
         wavefield->setAmplitude(waveAmplitude);
         wavefield->setPeriod(wavePeriod);
         wavefield->setSteepness(waveSteepness);
+        wavefield->setNumber(static_cast<size_t>(waveNumber));
+        wavefield->setScale(waveScale);
+        wavefield->setAngle(vsg::radians(waveAngle));
 
         // geolocation of the scene: taken from the SDF world when available,
         // Pornichet (France) hard-coded otherwise
