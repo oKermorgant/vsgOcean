@@ -26,6 +26,8 @@ namespace vsgOcean
 
     void HorizonController::apply(vsg::ButtonPressEvent& event)
     {
+        if (inputBlocked && inputBlocked()) return;
+
         // left drag orbits, right drag translates
         if (event.mask & (vsg::BUTTON_MASK_1 | vsg::BUTTON_MASK_2))
         {
@@ -69,6 +71,7 @@ namespace vsgOcean
     void HorizonController::apply(vsg::ScrollWheelEvent& event)
     {
         if (!lookAt_) return;
+        if (inputBlocked && inputBlocked()) return;
 
         // scroll up moves towards the view centre, scroll down away from it
         const auto offset = lookAt_->eye - lookAt_->center;

@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgOcean/Environment.h>
 
+#include <array>
 #include <cmath>
 
 namespace vsgOcean
@@ -27,7 +28,7 @@ namespace vsgOcean
 
         // Approximate per-channel (R 650nm, G 530nm, B 470nm) values after Jerlov's optical
         // classification of marine waters (N. G. Jerlov, Marine Optics, 1976).
-        static const JerlovData jerlovTable[] = {
+        constexpr std::array<JerlovData, 9> jerlovTable{{
             /* OceanicI    */ {"OceanicI", {0.29f, 0.051f, 0.033f}, {0.00f, 0.18f, 0.42f}},
             /* OceanicIA   */ {"OceanicIA", {0.29f, 0.056f, 0.040f}, {0.00f, 0.19f, 0.40f}},
             /* OceanicIB   */ {"OceanicIB", {0.30f, 0.065f, 0.050f}, {0.01f, 0.21f, 0.38f}},
@@ -37,21 +38,7 @@ namespace vsgOcean
             /* Coastal3    */ {"Coastal3", {0.58f, 0.203f, 0.246f}, {0.08f, 0.32f, 0.23f}},
             /* Coastal5    */ {"Coastal5", {0.70f, 0.290f, 0.349f}, {0.12f, 0.34f, 0.20f}},
             /* Coastal9    */ {"Coastal9", {1.35f, 0.642f, 0.730f}, {0.20f, 0.36f, 0.18f}},
-        };
-    }
-
-    Environment::Environment() :
-        sunElevation_(35.0),
-        sunAzimuth_(135.0),
-        fogDensity_(0.001),
-        fogColor_(0.65f, 0.72f, 0.80f),
-        windSpeed_(5.0),
-        windDirection_(0.0),
-        jerlovType_(JerlovType::OceanicI),
-        submersionDepth_(0.0),
-        latitude_(0.0),
-        longitude_(0.0)
-    {
+        }};
     }
 
     void Environment::setSunElevation(double degrees)
@@ -101,6 +88,11 @@ namespace vsgOcean
     void Environment::setSubmersionDepth(double metres)
     {
         submersionDepth_ = std::max(metres, 0.0);
+    }
+
+    void Environment::setSeaLevel(double metres)
+    {
+        seaLevel_ = metres;
     }
 
     std::string Environment::jerlovName() const

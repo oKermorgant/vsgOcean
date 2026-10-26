@@ -16,23 +16,41 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    /// Underwater rendering: a fullscreen pass blended over the scene when the camera is
-    /// below the water surface, adding the Jerlov in-scatter towards the water colour.
-    /// Drawn last, after the ocean surface; a no-op (alpha 0) when the camera is above water.
+    /// Underwater rendering composite: a fullscreen pass that draws the offscreen scene
+    /// to the window, applying per pixel (from the scene depth buffer) the atmospheric
+    /// fog by view distance - the models use the standard vsg shaders, which have no fog
+    /// of their own - and, when the camera is below the water surface, the Jerlov
+    /// underwater light transport: the water path length follows the view distance to
+    /// each object, and the transmittance is per channel (red is absorbed first).
+    /// A pass-through of the sky where there is no scene geometry.
     ///
-    /// Created and updated by Scene together with the sky and the ocean surface; tune the
-    /// water type through the Environment Jerlov type.
+    /// The pass samples the offscreen color and depth views of the render target built by
+    /// vsgOcean::createCommandGraph, which also wires it into the command graph and into
+    /// the Scene (Scene::update refreshes it from the environment and camera).
     class VSG_OCEAN_EXPORT Underwater : public vsg::Inherit<vsg::Group, Underwater>
     {
     public:
-        Underwater();
+        /// color and depth: the offscreen scene attachments the pass composites
+        Underwater(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth);
 
-        /// Refresh the pass from the environment (Jerlov water colour, submersion depth,
-        /// sun height). Call every frame, before record.
-        void update(const Environment& environment);
+        /// Point the pass at new offscreen attachments (after a render target rebuild):
+        /// swaps the sampled views and releases the descriptor set, so the next
+        /// compile (vsg::CompileManager) rebinds them.
+        void setSceneTextures(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth);
+
+        /// Refresh the pass from the environment (Jerlov water type, submersion depth)
+        /// and the camera (eye, inverse view projection, render extent). Call every
+        /// frame, before record.
+        void update(const Environment& environment, const vsg::Camera* camera);
 
     protected:
-        // uniform block layout: [0] water color + mean attenuation, [1] depth + sun height
+        // uniform block: [0..3] inverse view projection, [4] eye + submersion depth,
+        // [5] water color + mean attenuation, [6] per-channel attenuation + sun height,
+        // [7] render extent + sea level, [8] fog color + density
         vsg::ref_ptr<vsg::vec4Array> uniform_;
+
+        vsg::ref_ptr<vsg::DescriptorImage> colorDescriptor_;
+        vsg::ref_ptr<vsg::DescriptorImage> depthDescriptor_;
+        vsg::ref_ptr<vsg::DescriptorSet> descriptorSet_;
     };
 }

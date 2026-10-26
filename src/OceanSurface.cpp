@@ -74,10 +74,10 @@ namespace vsgOcean
         auto rasterization = vsg::RasterizationState::create();
         rasterization->cullMode = VK_CULL_MODE_NONE;
 
-        // a transparent pass: blended over the scene beneath the surface, no depth writes,
-        // so it must be drawn after the opaque scene content
+        // a transparent pass: blended over the scene beneath the surface, drawn after the
+        // opaque scene so nothing renders after it. It writes depth: the composite pass
+        // then fogs it by its true view distance, like every other scene object
         auto depthStencil = vsg::DepthStencilState::create();
-        depthStencil->depthWriteEnable = VK_FALSE;
 
         auto blend = vsg::ColorBlendState::create();
         blend->configureAttachments(true);
@@ -130,12 +130,12 @@ namespace vsgOcean
         (*uniform_)[3] = vsg::vec4(static_cast<float>(t), static_cast<float>(wavefield_->tau()),
                                   static_cast<float>(wavefield_->amplitudes().size()), 5.0f); // 5 m assumed water depth
 
-        vsg::vec4 eye(0.0f, 0.0f, 0.0f, 1.0f);
+        vsg::vec4 eye(0.0f, 0.0f, 0.0f, static_cast<float>(environment.seaLevel()));
         if (camera)
         {
             if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
             {
-                eye = vsg::vec4(static_cast<float>(lookAt->eye.x), static_cast<float>(lookAt->eye.y), static_cast<float>(lookAt->eye.z), 1.0f);
+                eye = vsg::vec4(static_cast<float>(lookAt->eye.x), static_cast<float>(lookAt->eye.y), static_cast<float>(lookAt->eye.z), static_cast<float>(environment.seaLevel()));
             }
         }
         (*uniform_)[4] = eye;

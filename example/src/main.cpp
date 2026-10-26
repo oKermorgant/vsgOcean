@@ -4,6 +4,8 @@
 #    include <vsgXchange/all.h>
 #endif
 
+#include <vsgOcean/EnvironmentControls.h>
+#include <vsgOcean/EnvironmentGui.h>
 #include <vsgOcean/HorizonController.h>
 #include <vsgOcean/Scene.h>
 
@@ -55,6 +57,7 @@ int main(int argc, char** argv)
 
         // create windowTraits using the any command line arugments to configure settings
         auto windowTraits = vsg::WindowTraits::create(arguments);
+        windowTraits->debugLayer = arguments.read("--debug"); // Vulkan validation layers
 
         // if we want to redirect std::cout and std::cerr to the vsg::Logger call vsg::Logger::redirect_stdout()
         if (arguments.read({"--redirect-std", "-r"})) vsg::Logger::instance()->redirect_std();
@@ -99,7 +102,6 @@ int main(int argc, char** argv)
         auto pathFilename = arguments.value<vsg::Path>("", "-p");
         auto loadLevels = arguments.value(0, "--load-levels");
         auto maxPagedLOD = arguments.value(0, "--maxPagedLOD");
-        auto LODScale = arguments.value<double>(1.0, "--LODScale");
 
         auto horizonMountainHeight = arguments.value(0.0, "--hmh");
         auto nearFarRatio = arguments.value<double>(0.001, "--nfr");
@@ -184,7 +186,8 @@ int main(int argc, char** argv)
         // should animations be automatically played
         auto autoPlay = !arguments.read({"--no-auto-play", "--nop"});
 
-        // demo: animate the sun through a full day (1 simulated hour per second)
+        // demo: animate the sun through a full day (1 simulated hour per second);
+        // paused at runtime through the environment controls (key or GUI)
         auto sunCycle = !arguments.read("--no-sun-cycle");
 
         // environment and wave settings, applied to the scene after it is loaded
@@ -203,6 +206,11 @@ int main(int argc, char** argv)
         const double waveSteepness = arguments.value(0.8, "--wave-steepness");
 
         if (arguments.errors()) return arguments.writeErrorMessages(std::cerr);
+
+        // debugging: start the camera at a given position (e.g. underwater); parsed
+        // before the positional scene arguments are collected
+        double eyeX = 0.0, eyeY = 0.0, eyeZ = 0.0;
+        const bool overrideEye = arguments.read("--eye", eyeX, eyeY, eyeZ);
 
         // take the scene files from the remaining positional arguments, falling back to all example models
         std::vector<vsg::Path> sceneFilenames;
@@ -392,8 +400,17 @@ int main(int argc, char** argv)
             }
         }
 
-        // camera controller: horizon-level orbit (left drag), translate (right drag), dolly (wheel)
-        viewer->addEventHandler(vsgOcean::HorizonController::create(camera));
+        // environment keyboard controls (sun, water, waves); also carries the input
+        // capture flag consumed by the camera controller and the GUI
+        auto controls = vsgOcean::EnvironmentControls::create(vsg_scene);
+        controls->sunCycleEnabled = sunCycle;
+        viewer->addEventHandler(controls);
+
+        // camera controller: horizon-level orbit (left drag), translate (right drag), dolly (wheel);
+        // ignores input while the GUI captures it
+        auto cameraController = vsgOcean::HorizonController::create(camera);
+        cameraController->inputBlocked = [controls]() { return controls->guiCapturesInput; };
+        viewer->addEventHandler(cameraController);
 
         // if required preload specific number of PagedLOD levels.
         if (loadLevels > 0)
@@ -408,15 +425,19 @@ int main(int argc, char** argv)
             std::cout << "No. of tiles loaded " << loadPagedLOD.numTiles << " in " << time << "ms." << std::endl;
         }
 
-        auto view = vsg::View::create(camera);
-        view->LODScale = LODScale;
-        // the scene carries its own sky, sun-driven lighting and transparent ocean
-        // surface, added to the view in the right drawing order
-        view->addChild(vsg_scene);
-
-        auto renderGraph = vsg::RenderGraph::create(window, view);
-        auto commandGraph = vsg::CommandGraph::create(window, renderGraph);
+        // the scene renders into an offscreen target, composited to the window with the
+        // underwater light transport; the sky, lighting, models, ocean surface and
+        // underwater pass are all owned by the scene
+        // runtime UI: the help HUD (key bindings) always visible in a corner, the
+        // environment sliders behind the H key
+        auto overlay = vsg::Group::create();
+        if (auto hud = vsgOcean::createEnvironmentHud(controls, options, window->extent2D())) overlay->addChild(hud);
+        if (auto gui = vsgOcean::createEnvironmentGui(window, viewer, controls)) overlay->addChild(gui);
+        auto commandGraph = vsgOcean::createCommandGraph(window, viewer, camera, vsg_scene, overlay);
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
+
+        if (overrideEye) lookAt->eye = vsg::dvec3(eyeX, eyeY, eyeZ);
+
 
         if (instrumentation) viewer->assignInstrumentation(instrumentation);
 
@@ -457,7 +478,7 @@ int main(int argc, char** argv)
             vsg::setAffinity(affinity);
         }
 
-        viewer->compile(resourceHints);
+        const auto compileResult = viewer->compile(resourceHints);
 
         if (maxPagedLOD > 0)
         {
@@ -529,7 +550,7 @@ int main(int argc, char** argv)
             }
 
             // demo: the sun moves slowly through the sky, 1 simulated hour per second
-            if (sunCycle)
+            if (controls->sunCycleEnabled)
             {
                 const auto dayPhase = 2.0 * vsg::PI * std::fmod(t, 24.0) / 24.0;
                 environment->setSunElevation(60.0 * std::sin(dayPhase));

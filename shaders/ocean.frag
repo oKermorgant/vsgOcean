@@ -60,11 +60,9 @@ void main()
 
     vec3 color = mix(water, sky, fresnel) + specular * sunColor;
 
-    // distance haze towards the fog color, making the surface opaque with distance
-    const float distance = length(ocean.cameraEye.xyz - worldPosition);
-    const float haze = 1.0 - exp(-ocean.fogColorDensity.a * distance * 10.0);
-    color = mix(color, ocean.fogColorDensity.rgb, haze);
-    alpha = max(alpha, haze);
+    // the atmospheric fog by distance is applied on the whole scene by the composite
+    // pass, which uses this surface's depth (the surface writes depth: it is drawn
+    // after the opaque scene, so nothing is drawn after it in the scene pass)
 
     // dithering to avoid banding in the gradients on 8 bit framebuffers
     color += (ign(gl_FragCoord.xy) - 0.5) / 255.0;

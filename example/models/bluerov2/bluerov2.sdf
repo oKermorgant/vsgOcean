@@ -156,6 +156,25 @@
           <iyy>0.001</iyy><iyz>0</iyz><izz>0.001</izz>
         </inertia>
       </inertial>
+      <sensor name="camera" type="camera">
+      <camera>
+        <override_frame_id>bluerov2/camera_optical</override_frame_id>
+        <horizontal_fov>1.047</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>400</height>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>100</far>
+        </clip>
+      </camera>
+      <always_on>1</always_on>
+      <update_rate>20</update_rate>
+      <visualize>true</visualize>
+      <topic>bluerov2/image</topic>
+      <enable_metrics>false</enable_metrics>
+    </sensor>
     </link>
     <link name="bluerov2/camera_optical">
       <pose relative_to="camera_optical">0 0 0 0 0 0</pose>

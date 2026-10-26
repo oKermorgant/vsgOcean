@@ -21,6 +21,14 @@ message(STATUS "Found vsg: ${vsg_DIR}")
 find_package(vsgXchange REQUIRED)
 message(STATUS "Found vsgXchange: ${vsgXchange_DIR}")
 
+# optional GUI (environment sliders, key bindings help), through vsgImGui
+find_package(vsgImGui QUIET)
+message(STATUS "Found vsgImGui: ${vsgImGui_DIR}")
+
+# GUI support (set to OFF to build a core without the ImGui dependency); the
+# environment key bindings are always available
+option(VSGOCEAN_WITH_GUI "Build the environment tuning GUI (requires vsgImGui)" ${vsgImGui_FOUND})
+
 # SDF support (set to OFF to build a core without any robot-description dependency)
 option(VSGOCEAN_WITH_SDF "Build vsgOcean with SDF scene support (requires sdformat)" ${sdformat_FOUND})
 if(VSGOCEAN_WITH_SDF)
@@ -62,9 +70,13 @@ vsgocean_embed_shader(underwater.frag)
 # vsgOcean library
 set(VSGOCEAN_LIBRARY_SOURCES
     src/Environment.cpp
+    src/EnvironmentControls.cpp
+    src/EnvironmentGui.cpp
     src/HorizonController.cpp
+    src/Hud.cpp
     src/Model.cpp
     src/OceanSurface.cpp
+    src/RenderTarget.cpp
     src/Scene.cpp
     src/Sky.cpp
     src/Underwater.cpp
@@ -96,6 +108,11 @@ target_link_libraries(vsgOcean
 if(VSGOCEAN_WITH_SDF)
     target_compile_definitions(vsgOcean PUBLIC VSGOCEAN_WITH_SDF)
     target_link_libraries(vsgOcean PRIVATE sdformat::sdformat)
+endif()
+
+if(VSGOCEAN_WITH_GUI)
+    target_compile_definitions(vsgOcean PRIVATE VSGOCEAN_WITH_GUI)
+    target_link_libraries(vsgOcean PRIVATE vsgImGui::vsgImGui)
 endif()
 
 # Install and export the library so that find_package(vsgOcean) works from an install tree

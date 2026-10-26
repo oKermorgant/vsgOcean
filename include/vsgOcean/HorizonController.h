@@ -16,6 +16,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsg/all.h>
 
+#include <functional>
+
 namespace vsgOcean
 {
     /// Camera controller with a stable horizon, intended as the default for vsgOcean scenes:
@@ -26,6 +28,9 @@ namespace vsgOcean
     /// - right drag translates the view (pan in the camera plane, scaled by the distance
     ///   to the view centre)
     /// - the wheel dollies towards / away from the view centre
+    ///
+    /// inputBlocked, when set, is consulted on mouse press and wheel events; the camera
+    /// ignores input while it returns true (e.g. while a GUI captures the mouse).
     class VSG_OCEAN_EXPORT HorizonController : public vsg::Inherit<vsg::Visitor, HorizonController>
     {
     public:
@@ -37,6 +42,9 @@ namespace vsgOcean
 
         /// dolly speed: zoom factor per wheel notch
         double dollyScale = 1.1;
+
+        /// consulted on mouse and wheel input; the camera ignores events while it returns true
+        std::function<bool()> inputBlocked;
 
         explicit HorizonController(vsg::ref_ptr<vsg::Camera> camera);
 

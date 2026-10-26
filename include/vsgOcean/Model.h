@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/Frame.h>
 
 #include <map>
+#include <vector>
 #include <string>
 
 namespace vsgOcean
@@ -60,11 +61,16 @@ namespace vsgOcean
 
         /// Registered child frames by name (frames of submodels not included).
         const std::map<std::string, vsg::ref_ptr<Frame>>& frames() const { return frames_; }
-
         /// Direct submodels by name.
         const std::map<std::string, vsg::ref_ptr<Model>>& models() const { return models_; }
 
+        /// World pose of a named frame of this model or of its submodels, given this
+        /// model's world pose. Returns false when the frame is unknown.
+        [[nodiscard]] bool frameWorldPose(const std::string& frameName, const vsg::dmat4& worldOfModel, vsg::dmat4& pose) const;
+
     protected:
+        /// matrix of a frame relative to this model's base frame, climbing its parent frames
+        [[nodiscard]] bool frameChain(const std::string& frameName, vsg::dmat4& chain) const;
         std::map<std::string, vsg::ref_ptr<Frame>> frames_;
         std::map<std::string, std::string> frameParents_;
         std::map<std::string, vsg::ref_ptr<Model>> models_;

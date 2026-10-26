@@ -22,18 +22,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    Wavefield::Wavefield() :
-        number_(3),
-        scale_(1.1),
-        angle_(0.4),
-        steepness_(0.8),
-        amplitude_(0.4),
-        period_(5.0),
-        phase_(0.0),
-        direction_(0.0),
-        model_(Model::CWR),
-        gain_(1.0),
-        tau_(2.0)
+    Wavefield::Wavefield()
     {
         recalculate();
     }

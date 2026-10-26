@@ -43,7 +43,7 @@ namespace vsgOcean
             Coastal9
         };
 
-        Environment();
+        Environment() = default;
 
         // --- sky ---
 
@@ -56,7 +56,7 @@ namespace vsgOcean
         double sunAzimuth() const { return sunAzimuth_; }
 
         /// Unit vector pointing towards the sun, computed from elevation and azimuth (+Z up).
-        vsg::dvec3 sunDirection() const;
+        [[nodiscard]] vsg::dvec3 sunDirection() const;
 
         /// Atmospheric fog density; 0 disables fogging. Default 0.001.
         void setFogDensity(double density);
@@ -83,13 +83,18 @@ namespace vsgOcean
         JerlovType jerlovType() const { return jerlovType_; }
 
         /// Name of the current Jerlov water type (e.g. "Coastal5"), for logging and UIs.
-        std::string jerlovName() const;
+        [[nodiscard]] std::string jerlovName() const;
 
         /// Camera depth below the water surface in metres, 0 when above the water. Transient
         /// per-frame state: it is computed by Scene::update() from the camera position and the
         /// wave field, and consumed by the sky, lighting and underwater rendering.
         void setSubmersionDepth(double metres);
         double submersionDepth() const { return submersionDepth_; }
+
+        /// Mean water level (sea level) in metres above the origin z = 0. Default 0.
+        /// Raises or lowers the ocean surface, and the underwater rendering with it.
+        void setSeaLevel(double metres);
+        double seaLevel() const { return seaLevel_; }
 
         // --- geolocation ---
         // The horizontal frame convention of vsgOcean: +X East, +Y North, +Z Up.
@@ -104,21 +109,22 @@ namespace vsgOcean
 
         /// Approximate per-channel diffuse attenuation coefficients (1/m) of the current Jerlov
         /// water type, after Jerlov's optical classification tables; used by underwater rendering.
-        vsg::vec3 underwaterAttenuation() const;
+        [[nodiscard]] vsg::vec3 underwaterAttenuation() const;
 
         /// Approximate water colour of the current Jerlov water type.
-        vsg::vec3 underwaterColor() const;
+        [[nodiscard]] vsg::vec3 underwaterColor() const;
 
     protected:
-        double sunElevation_;
-        double sunAzimuth_;
-        double fogDensity_;
-        vsg::vec3 fogColor_;
-        double windSpeed_;
-        double windDirection_;
-        JerlovType jerlovType_;
-        double submersionDepth_;
-        double latitude_;
-        double longitude_;
+        double sunElevation_ = 35.0;
+        double sunAzimuth_ = 135.0;
+        double fogDensity_ = 0.001;
+        vsg::vec3 fogColor_ = {0.65f, 0.72f, 0.80f}; // light blue grey
+        double windSpeed_ = 5.0;
+        double windDirection_ = 0.0;
+        JerlovType jerlovType_ = JerlovType::OceanicI;
+        double submersionDepth_ = 0.0;
+        double seaLevel_ = 0.0;
+        double latitude_ = 0.0;
+        double longitude_ = 0.0;
     };
 }

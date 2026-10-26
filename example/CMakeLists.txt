@@ -5,7 +5,7 @@ add_executable(vsgOcean_example src/main.cpp)
 
 target_compile_definitions(vsgOcean_example PRIVATE vsgXchange_FOUND)
 
-# Link libraries - using target-based linking
+# Link libraries - using target-based linking; the GUI, when built, comes with vsgOcean
 target_link_libraries(vsgOcean_example PRIVATE
     vsgOcean::vsgOcean
     vsgXchange::vsgXchange

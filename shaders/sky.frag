@@ -43,11 +43,15 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     sky += dusk * pow(1.0 - up, 4.0) * pow(towardsSun, 4.0) * vec3(0.9, 0.45, 0.15) * 0.8;
 
     // sun disc with an edge smoothed over the pixel footprint, and a smooth glow,
-    // fading as the sun sinks below the horizon
-    const float sunAngle = acos(clamp(dot(direction, sunDirection), -1.0, 1.0));
+    // fading as the sun sinks below the horizon. Worked in 1 - cos(angle) space:
+    // acos() near 1.0 has catastrophic precision in fp32, which showed up as a
+    // blocky, flickering sun disc and star points
     const float sunRadius = 0.01; // radians, about twice the real sun
-    const float edge = max(pixelAngle * 1.5, 0.002);
-    const float sunDisc = 1.0 - smoothstep(sunRadius - edge, sunRadius + edge, sunAngle);
+    const float cosSun = 1.0 - clamp(dot(direction, sunDirection), -1.0, 1.0); // ~= angle^2 / 2
+    const float discCenter = 0.5 * sunRadius * sunRadius;
+    const float discEdge = max(pixelAngle * 1.5, 0.002) * sunRadius;
+    const float sunDisc = 1.0 - smoothstep(discCenter - discEdge, discCenter + discEdge, cosSun);
+    const float sunAngle = sqrt(2.0 * cosSun); // precise enough for the wide glow
     const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
@@ -62,9 +66,9 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
             const vec4 star = env.stars[i];
             if (star.w <= 0.0 || star.z <= 0.0) continue; // unused slots and stars below the horizon
 
-            const float angle = acos(clamp(dot(direction, star.xyz), -1.0, 1.0));
-            const float sigma = max(pixelAngle * 1.5, 0.0008);
-            sky += night * star.w * exp(-0.5 * pow(angle / sigma, 2.0)) * vec3(0.92, 0.94, 1.0) * 1.2;
+            const float cosStar = 1.0 - clamp(dot(direction, star.xyz), -1.0, 1.0); // ~= angle^2 / 2
+            const float sigma = max(pixelAngle * 1.5, 0.0015); // radians; at least ~3 pixels
+            sky += night * star.w * exp(-cosStar / (sigma * sigma)) * vec3(0.92, 0.94, 1.0) * 1.2;
         }
     }
 
@@ -90,7 +94,8 @@ vec3 underwaterColor(vec3 direction, vec3 sunDirection)
     vec3 water = waterColor * (0.1 + 0.9 * light) * (0.45 + 0.55 * up);
 
     // the sun glowing down through the water
-    const float sunAngle = acos(clamp(dot(direction, sunDirection), -1.0, 1.0));
+    const float cosSun = 1.0 - clamp(dot(direction, sunDirection), -1.0, 1.0);
+    const float sunAngle = sqrt(2.0 * cosSun);
     const vec3 sunColor = vec3(0.6, 0.95, 1.0);
     water += exp(-sunAngle / 0.3) * sunColor * 0.4 * light * max(sunDirection.z, 0.0);
 

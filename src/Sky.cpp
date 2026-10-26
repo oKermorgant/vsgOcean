@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgOcean/Sky.h>
 
+#include <array>
 #include <vsg/commands/BindVertexBuffers.h>
 #include <vsg/commands/Draw.h>
 
@@ -32,7 +33,7 @@ namespace vsgOcean
         };
 
         // Orion, Ursa Major (the Big Dipper), Cassiopeia and Taurus
-        const CelestialStar starCatalog[] = {
+        constexpr std::array<CelestialStar, 23> starCatalog{{
             {5.919, 7.407, 0.45}, {5.242, -8.202, 0.18}, {5.418, 6.350, 1.64},     // Betelgeuse, Rigel, Bellatrix
             {5.679, -9.670, 2.07}, {5.679, -1.943, 1.74}, {5.604, -1.202, 1.69},  // Saiph, Alnitak, Alnilam
             {5.533, -0.299, 2.25},                                               // Mintaka
@@ -42,7 +43,7 @@ namespace vsgOcean
             {0.153, 59.150, 2.28}, {0.675, 56.537, 2.24}, {0.945, 60.717, 2.47},  // Caph, Schedar, Gamma Cas
             {1.430, 60.235, 2.68}, {1.907, 63.670, 3.38},                          // Ruchbah, Segin
             {4.599, 16.509, 0.87}, {5.438, 28.608, 1.65}, {4.330, 15.627, 3.65},  // Aldebaran, Elnath, Gamma Tau
-            {5.628, 21.143, 3.00}};                                                // Zeta Tau
+            {5.628, 21.143, 3.00}}};                                               // Zeta Tau
 
         constexpr size_t maxStars = 32;      // must match the stars array of the shader
         constexpr double localSiderealTime = 5.7; // hours, chosen so the constellations are well placed

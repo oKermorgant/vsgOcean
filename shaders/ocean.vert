@@ -19,7 +19,7 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 waterColor;      // rgb: water body colour from the Jerlov water type
     vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: unused
-    vec4 cameraEye;       // xyz: camera position in world space
+    vec4 cameraEye;       // xyz: camera position in world space, w: mean sea level
     vec4 amplitude[8];
     vec4 wavenumber[8];
     vec4 omega[8];
@@ -76,6 +76,9 @@ void main()
         B += vec3(-qkac * dxy, -qkac * d.y * d.y, -kas * d.y);
         N += vec3(d.x * kas, d.y * kas, -qkac);
     }
+
+    // the mean water level offset (sea level)
+    p.z += ocean.cameraEye.w;
 
     worldPosition = p;
     worldNormal = normalize(N);

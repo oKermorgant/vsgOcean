@@ -11,7 +11,7 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 - **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime.
 - **Sky**: analytic shader sky (day/night cycle from the sun elevation, constellations at night), with scene lighting that follows the sun.
 - **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model.
-- **Underwater rendering**: when the camera dives below the waves (right-drag to move the camera), the scene is rendered underwater — Jerlov per-channel light filtering, in-scatter fading towards the water colour, and an underwater sky — all driven by the water type.
+- **Underwater rendering**: when the camera dives below the waves (right-drag to move it), the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the view distance to each object (red is absorbed first), in-scatter towards the water colour, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
 
 The example application renders an islands scene with a surface vehicle (aquabot) and an ROV (BlueROV2), animated in real time, with a day/night cycle and moving waves.
 
@@ -23,6 +23,7 @@ Dependencies:
 - [VulkanSceneGraph](https://github.com/vsg-dev/VulkanSceneGraph) (vsg) ≥ 1.1
 - [vsgXchange](https://github.com/vsg-dev/vsgXchange) (model loading)
 - [sdformat](https://github.com/gazebosim/sdformat) ≥ 16 *(optional)* — SDF support is enabled automatically when sdformat is found; build with `-DVSGOCEAN_WITH_SDF=OFF` to force it off
+- [vsgImGui](https://github.com/vsg-dev/vsgImGui) *(optional)* — the environment tuning GUI is enabled automatically when vsgImGui is found; build with `-DVSGOCEAN_WITH_GUI=OFF` to force it off
 - A Vulkan-capable GPU and driver
 
 ```bash
@@ -42,14 +43,40 @@ cmake --build build -j
 ./vsgOcean_example --wind 8 45 --wave-amplitude 0.6 --wave-period 6
 ./vsgOcean_example --jerlov 8                    # turbid coastal water (Coastal9)
 ./vsgOcean_example --fog 0.01
+./vsgOcean_example --debug --eye 12 5 -40        # validation layers, camera near the wreck
 ```
 
-Left drag orbits the camera (stable horizon, no roll), right drag translates, the wheel dollies in and out.
+### Runtime controls
+
+The environment can be tuned at runtime (`vsgOcean::EnvironmentControls`, a library
+feature also usable headless through the keyboard):
+
+| input | action |
+| --- | --- |
+| left drag / right drag / wheel | orbit (stable horizon) / translate / dolly |
+| Up, Down | sun elevation |
+| Left, Right | sun azimuth |
+| Page Up, Page Down | sea level |
+| A / D, Q / E, W / S | wave amplitude, wave period, wind speed |
+| Z / C | Jerlov water type |
+| P | ocean surface on / off |
+| Space | day cycle animation on / off |
+| Tab | cycle the tracked model (camera follows) |
+| H | sliders panel on / off (hidden by default) |
+
+The key bindings are always visible in a small HUD in a corner of the window. When
+vsgOcean is built with vsgImGui, the **H** key also toggles a panel with the same
+parameters as sliders plus a dropdown selecting the tracked model; the font for the
+HUD is loaded from the system (override with the `VSGOCEAN_FONT` environment
+variable).
 
 ## Roadmap
 
-- Underwater rendering refinements: caustics and distance-based light attenuation (depth-buffer post-processing)
-- Lights mounted on the models
+- Underwater rendering refinements
+    - marine snow
+    - wavelength-dependent absorption
+    - caustics
+- Arbitrary (coloured?) light sources
 - Spectral (FFT) wave synthesis on top of the same wave-field interface
 - Multi-camera / sensor rendering (offscreen render-to-image for ROS integration)
 - A separate ROS wrapper package (tf-driven poses, image topics)
