@@ -85,10 +85,6 @@ namespace vsgOcean
         jerlovType_ = type;
     }
 
-    void Environment::setSubmersionDepth(double metres)
-    {
-        submersionDepth_ = std::max(metres, 0.0);
-    }
 
     void Environment::setSeaLevel(double metres)
     {

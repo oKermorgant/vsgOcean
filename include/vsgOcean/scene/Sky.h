@@ -14,6 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgOcean/core/Export.h>
 #include <vsgOcean/core/Environment.h>
+#include <vsgOcean/core/Wavefield.h>
 
 namespace vsgOcean
 {
@@ -31,7 +32,7 @@ namespace vsgOcean
         /// Refresh the sky state from the environment. Call every frame, before record.
         /// The camera state comes through push constants at record time, so one sky
         /// node renders correctly from any number of cameras.
-        void update(const Environment& environment);
+        void update(const Environment& environment, double t, const Wavefield* wavefield = nullptr);
 
     protected:
         // uniform block: [0] sun direction, [1] fog color + density, [2..33] stars of the

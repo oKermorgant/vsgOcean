@@ -72,9 +72,9 @@ namespace vsgOcean
 
         // environment uniform block: [0] sun direction, [1] fog color + density,
         // [2..33] stars of the night sky, [34] Jerlov water color + mean attenuation,
-        // [35] camera submersion depth. The camera state (inverse view projection) comes
+        // [35] wave params, [36..67] component waves. The camera state comes
         // through push constants, so one sky node renders correctly from any camera
-        environmentUniform_ = vsg::vec4Array::create(2 + maxStars + 2);
+        environmentUniform_ = vsg::vec4Array::create(2 + maxStars + 2 + 4 * Wavefield::maxWaves);
         environmentUniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
 
         vsg::DescriptorSetLayoutBindings environmentBindings{
@@ -126,17 +126,35 @@ namespace vsgOcean
         addChild(stateGroup);
     }
 
-    void Sky::update(const Environment& environment)
+    void Sky::update(const Environment& environment, double t, const Wavefield* wavefield)
     {
         const auto sun = environment.sunDirection();
         (*environmentUniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), 0.0f);
         (*environmentUniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogDensity()));
 
-        // the water the camera is submerged in, if any (Jerlov type)
+        // the water (Jerlov type); the underwater mode is evaluated per camera, in-shader
         const auto attenuation = environment.underwaterAttenuation();
         const float meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
         (*environmentUniform_)[2 + maxStars] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
-        (*environmentUniform_)[2 + maxStars + 1] = vsg::vec4(static_cast<float>(environment.submersionDepth()), 0.0f, 0.0f, 0.0f);
+
+        // the wave field, so each camera evaluates its own submersion below the waves;
+        // a null wave field (no ocean surface) keeps every camera above the water
+        const bool waves = wavefield != nullptr;
+        const size_t number = waves ? std::min(wavefield->amplitudes().size(), Wavefield::maxWaves) : 0;
+        (*environmentUniform_)[2 + maxStars + 1] = vsg::vec4(static_cast<float>(t),
+                                                            static_cast<float>(waves ? wavefield->tau() : 1.0),
+                                                            static_cast<float>(waves ? environment.seaLevel() : -1e6),
+                                                            static_cast<float>(number));
+
+        for (size_t i = 0; i < Wavefield::maxWaves; ++i)
+        {
+            const bool valid = i < number;
+            (*environmentUniform_)[2 + maxStars + 2 + i] = vsg::vec4(static_cast<float>(valid ? wavefield->amplitudes()[i] : 0.0), 0.0f, 0.0f, 0.0f);
+            (*environmentUniform_)[2 + maxStars + 2 + Wavefield::maxWaves + i] = vsg::vec4(static_cast<float>(valid ? wavefield->wavenumbers()[i] : 0.0), 0.0f, 0.0f, 0.0f);
+            (*environmentUniform_)[2 + maxStars + 2 + 2 * Wavefield::maxWaves + i] = vsg::vec4(static_cast<float>(valid ? wavefield->angularFrequencies()[i] : 0.0), 0.0f, 0.0f, 0.0f);
+            const auto waveDirection = valid ? wavefield->directions()[i] : vsg::dvec2(0.0, 0.0);
+            (*environmentUniform_)[2 + maxStars + 2 + 3 * Wavefield::maxWaves + i] = vsg::vec4(static_cast<float>(waveDirection.x), static_cast<float>(waveDirection.y), 0.0f, 0.0f);
+        }
 
         // the constellations, placed in the local sky at the scene geolocation
         size_t starIndex = 0;

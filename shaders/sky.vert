@@ -11,6 +11,7 @@ layout(location = 0) in vec3 position; // clip space position of a fullscreen tr
 layout(location = 0) out vec2 ndc;
 layout(location = 1) out vec3 nearPoint; // world position on the near plane
 layout(location = 2) out vec3 farPoint;  // world position on the far plane
+layout(location = 3) out vec3 cameraEye; // world position of the camera of this view
 
 void main()
 {
@@ -24,6 +25,7 @@ void main()
     const vec4 farH = inverseViewProjection * vec4(position.xy, 1.0, 1.0);
     nearPoint = nearH.xyz / nearH.w;
     farPoint = farH.xyz / farH.w;
+    cameraEye = vec3(inverse(pc.modelview) * vec4(0.0, 0.0, 0.0, 1.0));
 
     gl_Position = vec4(position.xy, 0.0, 1.0);
 }

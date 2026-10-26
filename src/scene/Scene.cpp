@@ -121,24 +121,14 @@ namespace vsgOcean
 
     void Scene::update(const vsg::Camera* camera, double t)
     {
-        // the camera is submerged when it is below the wave field at its position; the
-        // mean sea level raises the surface, and disabling the surface also disables
-        // the underwater rendering
-        double submersion = 0.0;
-        if (surfaceEnabled() && camera && camera->viewMatrix)
-        {
-            if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
-            {
-                const double waveHeight = environment_->seaLevel() + surface_->wavefield()->height(lookAt->eye.x, lookAt->eye.y, t);
-                submersion = waveHeight - lookAt->eye.z; // positive below the surface
-            }
-        }
-        environment_->setSubmersionDepth(submersion);
-
-        sky_->update(*environment_);
+        // the sky evaluates its own underwater mode per camera, in-shader (each
+        // render pipeline's camera gets its own submersion below the wave field)
+        sky_->update(*environment_, t, surfaceEnabled() ? surface_->wavefield() : nullptr);
 
         // scene lighting follows the sun: bright and neutral at noon, dim and warm at
-        // dawn and dusk, almost dark at night
+        // dawn and dusk, almost dark at night. The shared lights are camera
+        // independent: the per-camera water filtering of the scene happens in each
+        // pipeline's composite (per-pixel Beer-Lambert over the view path)
         const auto sun = environment_->sunDirection();
         const double day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
         const double dayFactor = day * day * (3.0 - 2.0 * day); // smoothstep
@@ -148,32 +138,23 @@ namespace vsgOcean
         sunLight_->color = vsg::mix(vsg::vec3(1.0f, 0.55f, 0.25f), vsg::vec3(1.0f, 0.97f, 0.90f), static_cast<float>(dayFactor));
         ambientLight_->intensity = static_cast<float>(0.03 + 0.07 * dayFactor);
 
-        // underwater, the water filters the light per channel following the Jerlov
-        // attenuation coefficients - red is absorbed first, blue-green last - and dims
-        // it with depth; the ambient is kept readable at shallow depth so vehicles
-        // stay visible
-        const double depth = environment_->submersionDepth();
-        if (depth > 0.0)
-        {
-            const auto attenuation = environment_->underwaterAttenuation();
-            const vsg::vec3 transmit(static_cast<float>(std::exp(-attenuation.x * depth)),
-                                     static_cast<float>(std::exp(-attenuation.y * depth)),
-                                     static_cast<float>(std::exp(-attenuation.z * depth)));
-
-            sunLight_->color = sunLight_->color * transmit;
-            sunLight_->intensity *= (transmit.x + transmit.y + transmit.z) / 3.0f;
-
-            const float immersed = static_cast<float>(std::min(depth / 3.0, 1.0));
-            ambientLight_->color = vsg::mix(vsg::vec3(1.0f, 1.0f, 1.0f), transmit, immersed);
-            ambientLight_->intensity = std::max(ambientLight_->intensity, 0.06f + 0.04f * static_cast<float>(dayFactor));
-        }
-        else
-        {
-            ambientLight_->color = vsg::vec3(1.0f, 1.0f, 1.0f);
-        }
-
         surface_->update(*environment_, t);
-        if (underwater_) underwater_->update(*environment_, camera, submersion);
+
+        // the main pipeline's composite follows the main camera; every other pipeline
+        // computes its own (see RenderPipeline::update)
+        if (underwater_)
+        {
+            double submersion = 0.0;
+            if (surfaceEnabled() && camera && camera->viewMatrix)
+            {
+                if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
+                {
+                    const double waveHeight = environment_->seaLevel() + surface_->wavefield()->height(lookAt->eye.x, lookAt->eye.y, t);
+                    submersion = waveHeight - lookAt->eye.z; // positive below the surface
+                }
+            }
+            underwater_->update(*environment_, camera, submersion);
+        }
 
         // camera tracking: keep the camera centred on the tracked model, preserving
         // the view direction and distance, so orbiting and dollying still work

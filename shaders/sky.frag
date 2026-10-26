@@ -4,6 +4,7 @@
 layout(location = 0) in vec2 ndc;
 layout(location = 1) in vec3 nearPoint;
 layout(location = 2) in vec3 farPoint;
+layout(location = 3) in vec3 cameraEye; // the camera of this view
 layout(location = 0) out vec4 fragColor;
 
 layout(std140, set = 0, binding = 0) uniform Environment
@@ -12,8 +13,30 @@ layout(std140, set = 0, binding = 0) uniform Environment
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 stars[32];       // xyz: local direction, w: brightness; w = 0 when the slot is unused
     vec4 water;           // rgb: Jerlov water color, a: mean attenuation (1/m)
-    vec4 submersion;      // x: camera depth below the surface (m), 0 when above the water
+    vec4 params;          // x: time t [s], y: tau [s], z: mean sea level [m], w: number of waves
+    vec4 amplitude[8];    // x: component wave amplitude [m]
+    vec4 wavenumber[8];   // x: component wave wavenumber [1/m]
+    vec4 omega[8];        // x: component wave angular frequency [1/s]
+    vec4 direction[8];    // xy: horizontal direction of the component
 } env;
+
+// the depth of THIS camera below the wave field, evaluated in-shader so each camera
+// gets its own underwater sky (the main view and the sensor cameras are independent)
+float cameraSubmersion()
+{
+    const float t = env.params.x;
+    const float grow = 1.0 - exp(-t / max(env.params.y, 1e-3));
+    const int number = int(env.params.w);
+
+    float height = env.params.z; // mean sea level
+    for (int i = 0; i < 8; ++i)
+    {
+        if (i >= number) break;
+        const float theta = dot(env.direction[i].xy, cameraEye.xy) * env.wavenumber[i].x - env.omega[i].x * t;
+        height += env.amplitude[i].x * grow * cos(theta);
+    }
+    return max(height - cameraEye.z, 0.0);
+}
 
 // interleaved gradient noise: a stable per-pixel pattern used for dithering
 float ign(vec2 p)
@@ -82,9 +105,8 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
 
 // underwater background: the Jerlov water color, darkening with depth, brighter towards
 // the surface and the sun, fading in smoothly as the camera dives below the waves
-vec3 underwaterColor(vec3 direction, vec3 sunDirection)
+vec3 underwaterColor(vec3 direction, vec3 sunDirection, float depth)
 {
-    const float depth = env.submersion.x;
     const vec3 waterColor = env.water.rgb;
     const float k = env.water.a;
 
@@ -113,9 +135,10 @@ void main()
     const float pixelAngle = length(fwidth(direction));
 
     vec3 sky;
-    if (env.submersion.x > 0.0)
+    const float submersion = cameraSubmersion();
+    if (submersion > 0.0)
     {
-        sky = underwaterColor(direction, normalize(env.sunDirection.xyz));
+        sky = underwaterColor(direction, normalize(env.sunDirection.xyz), submersion);
     }
     else
     {

@@ -85,12 +85,6 @@ namespace vsgOcean
         /// Name of the current Jerlov water type (e.g. "Coastal5"), for logging and UIs.
         [[nodiscard]] std::string jerlovName() const;
 
-        /// Camera depth below the water surface in metres, 0 when above the water. Transient
-        /// per-frame state: it is computed by Scene::update() from the camera position and the
-        /// wave field, and consumed by the sky, lighting and underwater rendering.
-        void setSubmersionDepth(double metres);
-        double submersionDepth() const { return submersionDepth_; }
-
         /// Mean water level (sea level) in metres above the origin z = 0. Default 0.
         /// Raises or lowers the ocean surface, and the underwater rendering with it.
         void setSeaLevel(double metres);
@@ -122,7 +116,6 @@ namespace vsgOcean
         double windSpeed_ = 5.0;
         double windDirection_ = 0.0;
         JerlovType jerlovType_ = JerlovType::OceanicI;
-        double submersionDepth_ = 0.0;
         double seaLevel_ = 0.0;
         double latitude_ = 0.0;
         double longitude_ = 0.0;
