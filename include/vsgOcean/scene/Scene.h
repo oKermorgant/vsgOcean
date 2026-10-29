@@ -21,6 +21,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
+    class RenderPipeline;
+
     /// The complete ocean scene: a tree of Models rooted at the world model, together with
     /// the environment rendering - sky, sun-driven lighting and the ocean surface - all
     /// created by the scene and tunable from the outside.
@@ -132,5 +134,13 @@ namespace vsgOcean
                                                                                       vsg::ref_ptr<vsg::Viewer> viewer,
                                                                                       vsg::ref_ptr<vsg::Camera> camera,
                                                                                       const vsg::ref_ptr<Scene>& scene,
+                                                                                      vsg::ref_ptr<vsg::Node> overlay = {});
+
+    /// The same record graph for an existing main pipeline (e.g. kept by the
+    /// application for screenshot capture): the pipeline's scene and composite passes,
+    /// then the present pass to the window with the overlays on top.
+    [[nodiscard]] VSG_OCEAN_EXPORT vsg::ref_ptr<vsg::CommandGraph> createCommandGraph(vsg::ref_ptr<vsg::Window> window,
+                                                                                      vsg::ref_ptr<vsg::Viewer> viewer,
+                                                                                      const vsg::ref_ptr<RenderPipeline>& pipeline,
                                                                                       vsg::ref_ptr<vsg::Node> overlay = {});
 }

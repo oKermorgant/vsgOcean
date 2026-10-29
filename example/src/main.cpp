@@ -218,6 +218,10 @@ int main(int argc, char** argv)
         double eyeX = 0.0, eyeY = 0.0, eyeZ = 0.0;
         const bool overrideEye = arguments.read("--eye", eyeX, eyeY, eyeZ);
 
+        // screenshot: write the main view to a PNG file when the render loop ends
+        // (combine with -f N to capture a deterministic frame)
+        const auto screenshotPath = arguments.value<vsg::Path>("", "--screenshot");
+
         // take the scene files from the remaining positional arguments, falling back to all example models
         std::vector<vsg::Path> sceneFilenames;
         for (int i = 1; i < argc; ++i) sceneFilenames.push_back(vsg::Path(arguments[i]));
@@ -459,14 +463,21 @@ int main(int argc, char** argv)
         auto overlay = vsg::Group::create();
         if (auto hud = vsgOcean::createEnvironmentHud(controls, options, window->extent2D())) overlay->addChild(hud);
         if (auto gui = vsgOcean::createEnvironmentGui(window, viewer, controls, cameraViews)) overlay->addChild(gui);
-        auto commandGraph = vsgOcean::createCommandGraph(window, viewer, camera, vsg_scene, overlay);
+        auto mainPipeline = vsgOcean::RenderPipeline::create(vsg_scene, window, camera);
+        vsg_scene->setUnderwater(mainPipeline->composite());
+        auto commandGraph = vsgOcean::createCommandGraph(window, viewer, mainPipeline, overlay);
 
         // the sensor pipelines render into the same command graph, before the window
-        for (const auto& pipeline : {rovPipeline, boatPipeline})
+        // pass (their composited images are sampled by the GUI previews)
         {
-            if (!pipeline) continue;
-            commandGraph->addChild(pipeline->sceneRenderGraph());
-            commandGraph->addChild(pipeline->sensorRenderGraph());
+            std::vector<vsg::ref_ptr<vsg::RenderGraph>> sensorGraphs;
+            for (const auto& pipeline : {rovPipeline, boatPipeline})
+            {
+                if (!pipeline) continue;
+                sensorGraphs.push_back(pipeline->sceneRenderGraph());
+                sensorGraphs.push_back(pipeline->compositeRenderGraph());
+            }
+            commandGraph->children.insert(commandGraph->children.end() - 1, sensorGraphs.begin(), sensorGraphs.end());
         }
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
@@ -558,7 +569,7 @@ int main(int argc, char** argv)
                 // the boat camera rides its vehicle, looking along the direction of travel
                 if (boatPipeline)
                 {
-                    const auto lookAt = boatPipeline->compositeNode()->cast<vsg::View>()->camera->viewMatrix.cast<vsg::LookAt>();
+                    const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     lookAt->eye = vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), 1.2);
                     lookAt->center = lookAt->eye + vsg::dvec3(-std::sin(angle), std::cos(angle), -0.15) * 5.0;
                 }
@@ -574,7 +585,7 @@ int main(int argc, char** argv)
                 // along the direction of travel
                 if (rovPipeline)
                 {
-                    const auto lookAt = rovPipeline->compositeNode()->cast<vsg::View>()->camera->viewMatrix.cast<vsg::LookAt>();
+                    const auto lookAt = rovPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     lookAt->eye = vsg::dvec3(6.0 * std::cos(angle), 6.0 * std::sin(angle), -2.85);
                     lookAt->center = lookAt->eye + vsg::dvec3(std::sin(angle), -std::cos(angle), 0.0) * 5.0;
                 }
@@ -613,13 +624,15 @@ int main(int argc, char** argv)
 
             // refresh the sensor pipelines with their own cameras (each computes its
             // own submersion, so the ROV camera renders underwater)
-            if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->compositeNode()->cast<vsg::View>()->camera.get(), t);
-            if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->compositeNode()->cast<vsg::View>()->camera.get(), t);
+            if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->camera().get(), t);
+            if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->camera().get(), t);
 
             viewer->recordAndSubmit();
 
             viewer->present();
         }
+
+        if (!screenshotPath.empty()) mainPipeline->writeScreenshot(screenshotPath);
 
         if (reportAverageFrameRate)
         {

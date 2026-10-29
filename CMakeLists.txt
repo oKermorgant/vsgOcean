@@ -21,6 +21,10 @@ message(STATUS "Found vsg: ${vsg_DIR}")
 find_package(vsgXchange REQUIRED)
 message(STATUS "Found vsgXchange: ${vsgXchange_DIR}")
 
+# PNG screenshots
+find_package(ZLIB REQUIRED)
+message(STATUS "Found ZLIB: ${ZLIB_VERSION}")
+
 # optional GUI (environment sliders, key bindings help), through vsgImGui
 find_package(vsgImGui QUIET)
 message(STATUS "Found vsgImGui: ${vsgImGui_DIR}")
@@ -66,6 +70,8 @@ vsgocean_embed_shader(ocean.vert)
 vsgocean_embed_shader(ocean.frag)
 vsgocean_embed_shader(underwater.vert)
 vsgocean_embed_shader(underwater.frag)
+vsgocean_embed_shader(present.vert)
+vsgocean_embed_shader(present.frag)
 
 # vsgOcean library
 set(VSGOCEAN_LIBRARY_SOURCES
@@ -76,6 +82,7 @@ set(VSGOCEAN_LIBRARY_SOURCES
     src/core/Wavefield.cpp
     # scene: environment rendering, per-camera render pipelines
     src/scene/OceanSurface.cpp
+    src/scene/PresentPass.cpp
     src/scene/RenderPipeline.cpp
     src/scene/RenderTarget.cpp
     src/scene/Scene.cpp
@@ -107,6 +114,7 @@ target_include_directories(vsgOcean PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generate
 
 target_link_libraries(vsgOcean
     PUBLIC vsg::vsg
+    PRIVATE ZLIB::ZLIB
 )
 
 if(VSGOCEAN_WITH_SDF)

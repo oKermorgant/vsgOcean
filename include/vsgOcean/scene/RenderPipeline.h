@@ -12,68 +12,92 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
+#include <vsgOcean/scene/PresentPass.h>
 #include <vsgOcean/scene/RenderTarget.h>
 #include <vsgOcean/scene/Scene.h>
 #include <vsgOcean/scene/Underwater.h>
 
 namespace vsgOcean
 {
-    /// Renders the scene from one camera: the scene pass draws the sky, lighting,
-    /// models and ocean surface into an offscreen color+depth target, which the
-    /// underwater composite then draws to the camera's output - the window (the main
-    /// view) or a sampled image (a sensor camera, e.g. displayed in a GUI or read
-    /// back for a ROS image topic).
+    /// Renders the scene from one camera in two stages: the scene pass draws the
+    /// sky, lighting, models and ocean surface into an offscreen color+depth target,
+    /// which the underwater composite then draws into the pipeline's composited
+    /// image - a sampled, transfer-capable image that is both the pipeline's output
+    /// (sensor cameras, screenshots) and what the present pass draws to the window
+    /// (main view), under the HUD and GUI overlays.
     ///
-    /// A pipeline is a unit of multiple-camera rendering: add sceneRenderGraph() to
-    /// the command graph, then either the composite node to the window composite
-    /// render graph (main view) or sensorRenderGraph() as a standalone pass (sensors).
-    /// Call update() every frame to refresh the composite for this camera.
-    ///
-    /// The shared sky, ocean surface and models render correctly from any number of
-    /// cameras: their camera state comes through push constants at record time.
+    /// A pipeline is a unit of multiple-camera rendering: add sceneRenderGraph() and
+    /// compositeRenderGraph() to the command graph; the main pipeline additionally
+    /// draws its presentNode() in a window render graph. Call update() every frame to
+    /// refresh the composite for this camera.
     class VSG_OCEAN_EXPORT RenderPipeline : public vsg::Inherit<vsg::Object, RenderPipeline>
     {
     public:
         /// main view pipeline: renders at the window extent, with the window formats
         RenderPipeline(const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Camera> camera);
 
-        /// sensor pipeline: renders at an explicit extent and formats, composited into
-        /// its own sampled output image (see outputView)
+        /// sensor pipeline: renders at an explicit extent and formats
         RenderPipeline(const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Device> device, vsg::ref_ptr<vsg::Camera> camera,
                        VkExtent2D extent, VkFormat colorFormat, VkFormat depthFormat);
 
         /// The scene pass, rendering into the offscreen target: add to the command graph.
         [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph() const { return sceneRenderGraph_; }
 
-        /// The composite, wrapped in a view: add to the window composite render graph (main pipelines).
-        [[nodiscard]] vsg::ref_ptr<vsg::Node> compositeNode() const { return compositeView_; }
+        /// The composite pass, rendering into the pipeline's composited image:
+        /// add to the command graph (for every pipeline).
+        [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> compositeRenderGraph() const { return compositeRenderGraph_; }
 
-        /// The composite as a standalone render graph producing the output image
-        /// (sensor pipelines): add to the command graph.
-        [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> sensorRenderGraph() const { return sensorRenderGraph_; }
+        /// The present pass drawing the composited image to the window: add to the
+        /// window render graph (main pipelines only).
+        [[nodiscard]] vsg::ref_ptr<PresentPass> presentNode() const { return presentPass_; }
 
-        /// The final composited color image of a sensor pipeline, e.g. for GUI display
-        /// (vsgImGui) or read back to a ROS image topic.
+        /// The composite pass of this pipeline (for per-frame refresh).
+        [[nodiscard]] vsg::ref_ptr<Underwater> composite() const { return composite_; }
+
+        /// The composited image view: the pipeline's output, e.g. for GUI display,
+        /// screenshots or later image readback.
         [[nodiscard]] vsg::ref_ptr<vsg::ImageView> outputView() const { return outputView_; }
 
-        /// The composite pass of this pipeline.
-        [[nodiscard]] vsg::ref_ptr<Underwater> composite() const { return composite_; }
+        /// The camera of this pipeline (e.g. to drive its view matrix).
+        [[nodiscard]] vsg::ref_ptr<vsg::Camera> camera() const { return camera_; }
 
         /// The offscreen target the scene pass renders into.
         [[nodiscard]] const vsg::ref_ptr<RenderTarget>& target() const { return target_; }
+
+        /// Rebuild the render target and the composited image at a new extent (window
+        /// resize). After calling, recompile the composite and present passes with
+        /// the viewer's vsg::CompileManager so their descriptors rebind.
+        void resize(VkExtent2D extent);
+
+        /// Write the composited image to a PNG file. Runs a one-off transfer on the
+        /// graphics queue, so call it outside of frame rendering (e.g. after the last
+        /// present). False when the capture or the write failed.
+        [[nodiscard]] bool writeScreenshot(const vsg::Path& filename) const;
 
         /// Refresh the composite from the scene (submersion of this camera, wave state)
         /// and the environment. Call every frame, before record.
         void update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t);
 
     protected:
-        void buildScenePass(const vsg::ref_ptr<Scene>& scene, const vsg::ref_ptr<vsg::Camera>& camera, const vsg::vec4& clearColor);
+        void buildScenePass(const vsg::vec4& clearColor);
+        void createOutputImage(VkExtent2D extent);
+        void buildCompositePass();
+
+        vsg::ref_ptr<vsg::Device> device_;
+        vsg::ref_ptr<vsg::Camera> camera_;
+        VkExtent2D extent_{};
+        VkFormat colorFormat_ = VK_FORMAT_UNDEFINED;
+        VkFormat depthFormat_ = VK_FORMAT_UNDEFINED;
 
         vsg::ref_ptr<RenderTarget> target_;
+        vsg::ref_ptr<RenderTarget> retainedTarget_;
         vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph_;
-        vsg::ref_ptr<Underwater> composite_;
-        vsg::ref_ptr<vsg::View> compositeView_;
-        vsg::ref_ptr<vsg::RenderGraph> sensorRenderGraph_;
+        vsg::ref_ptr<vsg::RenderGraph> compositeRenderGraph_;
+        vsg::ref_ptr<vsg::Image> outputImage_;
         vsg::ref_ptr<vsg::ImageView> outputView_;
+        vsg::ref_ptr<vsg::Image> retainedImage_;
+        vsg::ref_ptr<Underwater> composite_;
+        vsg::ref_ptr<PresentPass> presentPass_;
+        vsg::ref_ptr<Scene> scene_;
     };
 }

@@ -207,23 +207,21 @@ namespace vsgOcean
 
     namespace
     {
-        // Watches the window size and rebuilds the offscreen render target once the
-        // size has been stable for a moment, so an interactive resize is not
-        // interrupted by rebuilds (and their resource allocation). The previous
-        // target is kept alive until the next rebuild, safely past the frames that
-        // may still be in flight and sampling it.
+        // Watches the window size and rebuilds the main pipeline's render target and
+        // composited image once the size has been stable for a moment, so an
+        // interactive resize is not interrupted by rebuilds (and their resource
+        // allocation). The pipeline keeps the previous resources alive until the next
+        // rebuild, safely past the frames that may still be in flight and sampling
+        // them.
         class RenderTargetResize : public vsg::Inherit<vsg::Operation, RenderTargetResize>
         {
         public:
             RenderTargetResize(vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera,
-                               const vsg::ref_ptr<RenderTarget>& target, const vsg::ref_ptr<Underwater>& underwater,
-                               vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph, vsg::ref_ptr<Hud> hud = {}) :
+                               const vsg::ref_ptr<RenderPipeline>& pipeline, vsg::ref_ptr<Hud> hud = {}) :
                 window_(std::move(window)),
                 viewer_(std::move(viewer)),
                 camera_(std::move(camera)),
-                target_(target),
-                underwater_(underwater),
-                sceneRenderGraph_(std::move(sceneRenderGraph)),
+                pipeline_(pipeline),
                 hud_(std::move(hud))
             {
             }
@@ -232,7 +230,9 @@ namespace vsgOcean
             {
                 const auto windowExtent = window_->extent2D();
                 if (windowExtent.width == 0 || windowExtent.height == 0) return; // minimized
-                if (windowExtent.width == target_->extent().width && windowExtent.height == target_->extent().height) return;
+                if (windowExtent.width == pipeline_->target()->extent().width &&
+                    windowExtent.height == pipeline_->target()->extent().height)
+                    return;
 
                 // a new size: wait until it has been stable
                 const auto now = vsg::clock::now();
@@ -244,27 +244,24 @@ namespace vsgOcean
                 }
                 if (now - stableSince_ < std::chrono::milliseconds(250)) return;
 
-                // rebuild the target and everything that references it
-                const auto oldExtent = target_->extent();
-                retained_ = target_;
-                target_ = RenderTarget::create(window_);
-                lastSeen_ = target_->extent();
-
-                sceneRenderGraph_->framebuffer = target_->framebuffer();
-                sceneRenderGraph_->renderArea = VkRect2D{{0, 0}, target_->extent()};
-                sceneRenderGraph_->viewportState = vsg::ViewportState::create(0, 0, target_->extent().width, target_->extent().height);
-
-                underwater_->setSceneTextures(target_->colorView(), target_->depthView());
+                // rebuild the pipeline's target and composited image
+                const auto oldExtent = pipeline_->target()->extent();
+                pipeline_->resize(windowExtent);
+                lastSeen_ = windowExtent;
 
                 // the camera viewport and projection aspect follow the window
-                camera_->viewportState = vsg::ViewportState::create(0, 0, target_->extent().width, target_->extent().height);
-                if (camera_->projectionMatrix) camera_->projectionMatrix->changeExtent(oldExtent, target_->extent());
+                camera_->viewportState = vsg::ViewportState::create(0, 0, windowExtent.width, windowExtent.height);
+                if (camera_->projectionMatrix) camera_->projectionMatrix->changeExtent(oldExtent, windowExtent);
 
                 // HUD overlays follow the window too
-                if (hud_) hud_->resize(target_->extent());
+                if (hud_) hud_->resize(windowExtent);
 
-                // rebind the composite to the new attachments
-                if (viewer_->compileManager) viewer_->compileManager->compile(underwater_);
+                // rebind the composite and present passes to the new attachments
+                if (viewer_->compileManager)
+                {
+                    viewer_->compileManager->compile(pipeline_->composite());
+                    viewer_->compileManager->compile(pipeline_->presentNode());
+                }
             }
 
         protected:
@@ -273,10 +270,7 @@ namespace vsgOcean
             vsg::ref_ptr<vsg::Window> window_;
             vsg::ref_ptr<vsg::Viewer> viewer_;
             vsg::ref_ptr<vsg::Camera> camera_;
-            vsg::ref_ptr<RenderTarget> target_;
-            vsg::ref_ptr<RenderTarget> retained_;
-            vsg::ref_ptr<Underwater> underwater_;
-            vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph_;
+            vsg::ref_ptr<RenderPipeline> pipeline_;
             vsg::ref_ptr<Hud> hud_;
             VkExtent2D lastSeen_{std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()};
             vsg::clock::time_point stableSince_{};
@@ -284,18 +278,31 @@ namespace vsgOcean
     }
     vsg::ref_ptr<vsg::CommandGraph> createCommandGraph(vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera, const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Node> overlay)
     {
-        // the main pipeline: the scene renders into an offscreen target, composited to
-        // the window with the atmospheric fog and the underwater light transport
+        // the main pipeline: the scene renders into an offscreen target, composited
+        // into the pipeline's output image, then presented to the window with the HUD
+        // and GUI overlays on top
         auto pipeline = RenderPipeline::create(scene, window, camera);
         scene->setUnderwater(pipeline->composite());
 
-        auto compositeRenderGraph = vsg::RenderGraph::create(window);
-        compositeRenderGraph->addChild(pipeline->compositeNode());
-        if (overlay) compositeRenderGraph->addChild(overlay);
+        return createCommandGraph(window, viewer, pipeline, overlay);
+    }
+
+    vsg::ref_ptr<vsg::CommandGraph> createCommandGraph(vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Viewer> viewer,
+                                                        const vsg::ref_ptr<RenderPipeline>& pipeline, vsg::ref_ptr<vsg::Node> overlay)
+    {
+        // the composite is presented to the window, in front of which the HUD and the
+        // GUI overlays are drawn, within the same render pass
+        auto presentView = vsg::View::create(pipeline->camera());
+        presentView->addChild(pipeline->presentNode());
+
+        auto windowRenderGraph = vsg::RenderGraph::create(window);
+        windowRenderGraph->addChild(presentView);
+        if (overlay) windowRenderGraph->addChild(overlay);
 
         auto commandGraph = vsg::CommandGraph::create(window);
         commandGraph->addChild(pipeline->sceneRenderGraph());
-        commandGraph->addChild(compositeRenderGraph);
+        commandGraph->addChild(pipeline->compositeRenderGraph());
+        commandGraph->addChild(windowRenderGraph);
 
         // rebuild the offscreen target when the window size changes (debounced);
         // runs every frame from viewer->update(). HUD overlays in the overlay group
@@ -311,7 +318,7 @@ namespace vsgOcean
                 }
             }
         }
-        viewer->updateOperations->add(RenderTargetResize::create(window, viewer, camera, pipeline->target(), pipeline->composite(), pipeline->sceneRenderGraph(), hud),
+        viewer->updateOperations->add(RenderTargetResize::create(window, viewer, pipeline->camera(), pipeline, hud),
                                        vsg::UpdateOperations::ALL_FRAMES);
 
         return commandGraph;
