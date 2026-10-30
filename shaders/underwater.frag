@@ -70,12 +70,13 @@ void main()
     color = mix(color, env.fog.rgb, haze);
 
     // underwater: Beer-Lambert per channel over the water segment, with the
-    // in-scattered water light filling in
+    // in-scattered water light filling in. No ambient floor: the water light is
+    // sun-driven only, so a deep night scene attenuates to black
     if (env.eye.w > 0.0)
     {
         const vec3 transmit = exp(-env.attenuation.rgb * waterPath);
-        const float light = exp(-env.water.a * max(env.eye.w, 0.5)) * (0.2 + 0.8 * max(env.attenuation.w, 0.0));
-        const vec3 scatter = env.water.rgb * (0.25 + 0.75 * light);
+        const float light = exp(-env.water.a * max(env.eye.w, 0.5)) * max(env.attenuation.w, 0.0);
+        const vec3 scatter = env.water.rgb * light;
         const vec3 underwater = color * transmit + scatter * (1.0 - transmit);
 
         // fade in smoothly as the camera dives below the waves

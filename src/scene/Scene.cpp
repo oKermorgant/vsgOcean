@@ -126,17 +126,18 @@ namespace vsgOcean
         sky_->update(*environment_, t, surfaceEnabled() ? surface_->wavefield() : nullptr);
 
         // scene lighting follows the sun: bright and neutral at noon, dim and warm at
-        // dawn and dusk, almost dark at night. The shared lights are camera
-        // independent: the per-camera water filtering of the scene happens in each
-        // pipeline's composite (per-pixel Beer-Lambert over the view path)
+        // dawn and dusk, black at night (no ambient floor: an unlit night scene is lit
+        // only by its own lights). The shared lights are camera independent: the
+        // per-camera water filtering of the scene happens in each pipeline's composite
+        // (per-pixel Beer-Lambert over the view path)
         const auto sun = environment_->sunDirection();
         const double day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
         const double dayFactor = day * day * (3.0 - 2.0 * day); // smoothstep
 
         sunLight_->direction = sun;
-        sunLight_->intensity = static_cast<float>(0.05 + 0.95 * dayFactor);
+        sunLight_->intensity = static_cast<float>(0.95 * dayFactor);
         sunLight_->color = vsg::mix(vsg::vec3(1.0f, 0.55f, 0.25f), vsg::vec3(1.0f, 0.97f, 0.90f), static_cast<float>(dayFactor));
-        ambientLight_->intensity = static_cast<float>(0.03 + 0.07 * dayFactor);
+        ambientLight_->intensity = static_cast<float>(0.07 * dayFactor);
 
         surface_->update(*environment_, t);
 

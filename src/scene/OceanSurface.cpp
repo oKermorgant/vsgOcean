@@ -56,7 +56,8 @@ namespace vsgOcean
         }
 
         // uniform block: [0] sun direction, [1] fog color + density, [2] water color,
-        // [3] params (t, tau, number, water depth), [4] sea level, [5..44] component wave arrays
+        // [3] params (t, tau, number, water depth), [4] per-channel attenuation + sea
+        // level, [5..44] component wave arrays
         uniform_ = vsg::vec4Array::create(5 + 5 * Wavefield::maxWaves);
         uniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
 
@@ -75,9 +76,13 @@ namespace vsgOcean
         rasterization->cullMode = VK_CULL_MODE_NONE;
 
         // a transparent pass: blended over the scene beneath the surface, drawn after the
-        // opaque scene so nothing renders after it. It writes depth: the composite pass
-        // then fogs it by its true view distance, like every other scene object
+        // opaque scene so nothing renders after it. It writes depth (reversed-Z, like the
+        // rest of the scene): the composite pass then attenuates and fogs it by its true
+        // view distance, like every other scene object - also seen from below
         auto depthStencil = vsg::DepthStencilState::create();
+        depthStencil->depthTestEnable = VK_TRUE;
+        depthStencil->depthWriteEnable = VK_TRUE;
+        depthStencil->depthCompareOp = VK_COMPARE_OP_GREATER; // vsg's reversed depth convention
 
         auto blend = vsg::ColorBlendState::create();
         blend->configureAttachments(true);
@@ -129,7 +134,7 @@ namespace vsgOcean
         (*uniform_)[2] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
         (*uniform_)[3] = vsg::vec4(static_cast<float>(t), static_cast<float>(wavefield_->tau()),
                                   static_cast<float>(wavefield_->amplitudes().size()), 5.0f); // 5 m assumed water depth
-        (*uniform_)[4] = vsg::vec4(0.0f, 0.0f, 0.0f, static_cast<float>(environment.seaLevel()));
+        (*uniform_)[4] = vsg::vec4(attenuation, static_cast<float>(environment.seaLevel()));
 
         // component wave arrays: amplitude, wavenumber, omega, steepness, direction
         size_t slot = 0;

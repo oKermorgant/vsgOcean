@@ -19,8 +19,8 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 waterColor;      // rgb: water body colour from the Jerlov water type
     vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: assumed water depth [m]
-    vec4 seaLevel;        // w: mean sea level (m) above the origin; the camera state comes
-                          // through push constants, so one surface renders from any camera
+    vec4 seaLevel;        // rgb: per-channel vertical Jerlov attenuation (1/m), w: mean sea level (m) above the origin;
+                          // the camera state comes through push constants, so one surface renders from any camera
     vec4 amplitude[8];
     vec4 wavenumber[8];
     vec4 omega[8];

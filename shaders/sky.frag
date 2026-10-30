@@ -104,17 +104,19 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
 }
 
 // underwater background: the Jerlov water color, darkening with depth, brighter towards
-// the surface and the sun, fading in smoothly as the camera dives below the waves
+// the surface and the sun, fading in smoothly as the camera dives below the waves. No
+// ambient floor: the light comes from the sun only, so the underwater background is
+// black at night, like the scene
 vec3 underwaterColor(vec3 direction, vec3 sunDirection, float depth)
 {
     const vec3 waterColor = env.water.rgb;
     const float k = env.water.a;
 
-    // overall light level falls exponentially with depth
-    const float light = exp(-k * max(depth, 0.5));
+    // sunlight reaching this depth, falling exponentially: nothing at night
+    const float light = exp(-k * max(depth, 0.5)) * max(sunDirection.z, 0.0);
     // brighter looking up towards the surface, darker looking down
     const float up = clamp(direction.z * 0.5 + 0.5, 0.0, 1.0);
-    vec3 water = waterColor * (0.1 + 0.9 * light) * (0.45 + 0.55 * up);
+    vec3 water = waterColor * light * (0.45 + 0.55 * up);
 
     // the sun glowing down through the water
     const float cosSun = 1.0 - clamp(dot(direction, sunDirection), -1.0, 1.0);
