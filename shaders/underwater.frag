@@ -1,7 +1,7 @@
 // vsgOcean scene composite: fullscreen fragment stage
 //
 // The scene (sky, lighting, models, ocean surface) is rendered into an offscreen
-// color+depth target; this pass draws it to the window, applying:
+// color+depth target; this pass draws it to the pipeline's output image, applying:
 //
 // - atmospheric fog by view distance, on every pixel with scene geometry (the models
 //   use the standard vsg shaders, which have no fog of their own), blended towards
@@ -11,8 +11,10 @@
 //   and the transmittance is per channel (red is absorbed first), with the
 //   in-scattered water light replacing what was absorbed
 //
-// The ray is split at the water surface: the atmospheric fog applies to the air
-// segment, the underwater transport to the submerged segment.
+// The world position of each pixel is reconstructed from the scene depth buffer and
+// this camera's inverse view projection (uploaded per frame by the pass). The ray is
+// split at the water surface: the atmospheric fog applies to the air segment, the
+// underwater transport to the submerged segment.
 #version 450
 
 layout(location = 0) in vec2 ndc;
