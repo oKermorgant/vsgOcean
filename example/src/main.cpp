@@ -201,7 +201,7 @@ int main(int argc, char** argv)
         if (arguments.read("--jerlov", jerlov)) overrideJerlov = true;
         if (arguments.read("--fog", fogDensity)) overrideFog = true;
 
-        // waves: the mean component wave of the Gazebo wave model (boating_gz / asv_wave_sim);
+        // waves: the mean component wave of the Gazebo wave model (asv_wave_sim);
         // the component count, scale and angle follow asv_wave_sim's defaults, so the
         // sea is irregular and short-crested rather than a single wave train
         const double waveAmplitude = arguments.value(0.1, "--wave-amplitude");
@@ -363,9 +363,10 @@ int main(int argc, char** argv)
         }
         else
         {
-            // compute the bounds of the scene graph to help position camera
+            // compute the bounds of the scene's models to help position the camera
+            // (the sky and the ocean surface grid are not part of the model tree)
             vsg::ComputeBounds computeBounds;
-            vsg_scene->accept(computeBounds);
+            vsg_scene->world()->accept(computeBounds);
 
             vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
             double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;

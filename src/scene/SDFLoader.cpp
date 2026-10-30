@@ -20,8 +20,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <sdf/Link.hh>
 #include <sdf/Visual.hh>
 #include <sdf/Mesh.hh>
+#include <sdf/Box.hh>
+#include <sdf/Sphere.hh>
+#include <sdf/Cylinder.hh>
+#include <sdf/Capsule.hh>
+#include <sdf/Cone.hh>
 
 #include <gz/math/Pose3.hh>
+#include <vsg/utils/Builder.h>
 
 namespace vsgOcean
 {
@@ -85,6 +91,93 @@ namespace vsgOcean
             return {};
         }
 
+        // a primitive SDF geometry (sphere, box, cylinder, capsule, cone), built with
+        // vsg::Builder in the visual's material diffuse colour - handy for test
+        // scenes (e.g. coloured spheres showing the wavelength-dependent absorption)
+        vsg::ref_ptr<vsg::Node> buildPrimitive(const sdf::Visual* visual, vsg::ref_ptr<vsg::Options> options)
+        {
+            const sdf::Geometry* geom = visual->Geom();
+
+            vsg::GeometryInfo info;
+            switch (geom->Type())
+            {
+            case sdf::GeometryType::SPHERE:
+            {
+                const auto* sphere = geom->SphereShape();
+                if (!sphere) return {};
+                const auto diameter = static_cast<float>(2.0 * sphere->Radius());
+                info.dx.set(diameter, 0.0f, 0.0f);
+                info.dy.set(0.0f, diameter, 0.0f);
+                info.dz.set(0.0f, 0.0f, diameter);
+                break;
+            }
+            case sdf::GeometryType::BOX:
+            {
+                const auto* box = geom->BoxShape();
+                if (!box) return {};
+                const auto& size = box->Size();
+                info.dx.set(static_cast<float>(size.X()), 0.0f, 0.0f);
+                info.dy.set(0.0f, static_cast<float>(size.Y()), 0.0f);
+                info.dz.set(0.0f, 0.0f, static_cast<float>(size.Z()));
+                break;
+            }
+            case sdf::GeometryType::CYLINDER: // the SDF cylinder axis is z
+            {
+                const auto* cylinder = geom->CylinderShape();
+                if (!cylinder) return {};
+                const auto diameter = static_cast<float>(2.0 * cylinder->Radius());
+                info.dx.set(diameter, 0.0f, 0.0f);
+                info.dy.set(0.0f, diameter, 0.0f);
+                info.dz.set(0.0f, 0.0f, static_cast<float>(cylinder->Length()));
+                break;
+            }
+            case sdf::GeometryType::CAPSULE:
+            {
+                const auto* capsule = geom->CapsuleShape();
+                if (!capsule) return {};
+                const auto diameter = static_cast<float>(2.0 * capsule->Radius());
+                info.dx.set(diameter, 0.0f, 0.0f);
+                info.dy.set(0.0f, diameter, 0.0f);
+                info.dz.set(0.0f, 0.0f, static_cast<float>(capsule->Length()));
+                break;
+            }
+            case sdf::GeometryType::CONE:
+            {
+                const auto* cone = geom->ConeShape();
+                if (!cone) return {};
+                const auto diameter = static_cast<float>(2.0 * cone->Radius());
+                info.dx.set(diameter, 0.0f, 0.0f);
+                info.dy.set(0.0f, diameter, 0.0f);
+                info.dz.set(0.0f, 0.0f, static_cast<float>(cone->Length()));
+                break;
+            }
+            default:
+                return {};
+            }
+
+            // the visual's material diffuse colour, white when unspecified
+            if (const auto* material = visual->Material())
+            {
+                const auto& diffuse = material->Diffuse();
+                info.color.set(static_cast<float>(diffuse.R()), static_cast<float>(diffuse.G()),
+                               static_cast<float>(diffuse.B()), static_cast<float>(diffuse.A()));
+            }
+
+            auto builder = vsg::Builder::create();
+            builder->options = options;
+
+            const vsg::StateInfo state; // lit, opaque
+            switch (geom->Type())
+            {
+            case sdf::GeometryType::SPHERE: return builder->createSphere(info, state);
+            case sdf::GeometryType::BOX: return builder->createBox(info, state);
+            case sdf::GeometryType::CYLINDER: return builder->createCylinder(info, state);
+            case sdf::GeometryType::CAPSULE: return builder->createCapsule(info, state);
+            case sdf::GeometryType::CONE: return builder->createCone(info, state);
+            default: return {};
+            }
+        }
+
         vsg::ref_ptr<Model> loadModelFromSdf(const sdf::Model& sdfModel, const vsg::Path& baseDir,
                                              const UriResolver& resolver, vsg::ref_ptr<vsg::Options> options)
         {
@@ -100,20 +193,33 @@ namespace vsgOcean
                 for (size_t v = 0; v < link->VisualCount(); ++v)
                 {
                     const sdf::Visual* visual = link->VisualByIndex(v);
+                    if (!visual->Geom()) continue;
 
-                    if (!visual->Geom() || visual->Geom()->Type() != sdf::GeometryType::MESH) continue;
+                    const auto visualMatrix = resolvedPose(visual->SemanticPose(), visual->Name());
 
-                    auto mesh = visual->Geom()->MeshShape();
-                    if (!mesh || mesh->Uri().empty()) continue;
+                    vsg::ref_ptr<vsg::Node> node;
+                    if (visual->Geom()->Type() == sdf::GeometryType::MESH)
+                    {
+                        // meshes load through vsgXchange; the mesh scale applies in
+                        // the visual frame, on top of the visual pose
+                        auto mesh = visual->Geom()->MeshShape();
+                        if (!mesh || mesh->Uri().empty()) continue;
 
-                    auto node = loadMeshNode(mesh->Uri(), baseDir, resolver, options);
+                        node = loadMeshNode(mesh->Uri(), baseDir, resolver, options);
+                        if (!node) continue;
+
+                        const auto& scale = mesh->Scale();
+                        const auto meshMatrix = visualMatrix * vsg::scale(scale.X(), scale.Y(), scale.Z());
+
+                        auto visualTransform = vsg::MatrixTransform::create(meshMatrix);
+                        visualTransform->addChild(node);
+                        linkFrame->addChild(visualTransform);
+                        continue;
+                    }
+
+                    // primitive geometries are built in the visual's colour
+                    node = buildPrimitive(visual, options);
                     if (!node) continue;
-
-                    // the visual pose within its link is fixed; the mesh scale applies
-                    // in the visual frame, on top of that pose
-                    auto visualMatrix = resolvedPose(visual->SemanticPose(), visual->Name());
-                    const auto& scale = mesh->Scale();
-                    visualMatrix = visualMatrix * vsg::scale(scale.X(), scale.Y(), scale.Z());
 
                     auto visualTransform = vsg::MatrixTransform::create(visualMatrix);
                     visualTransform->addChild(node);

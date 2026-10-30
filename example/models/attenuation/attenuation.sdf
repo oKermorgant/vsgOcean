@@ -1,0 +1,63 @@
+<?xml version="1.0" ?>
+<!-- vsgOcean attenuation test: simple coloured primitives underwater, for checking
+     the distance-dependent, wavelength-dependent water absorption (red fades first,
+     everything converges towards the water colour with distance). View from
+     --eye 0 -4 -40: the white spheres at 10, 23, 36, 50 m form a line to the left,
+     the red/green/blue triplet compares the channels at ~20 m to the right. -->
+<sdf version="1.8">
+  <model name="attenuation">
+    <static>true</static>
+    <link name="line">
+      <!-- white spheres at graded distances -->
+      <visual name="white_10">
+        <pose>-0.35 6 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="white_23">
+        <pose>-2.8 19 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="white_36">
+        <pose>-7.6 32 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+      <visual name="white_50">
+        <pose>-15.3 46 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>1 1 1 1</diffuse></material>
+      </visual>
+
+      <!-- the same distance, three channels: red must fade first, blue last -->
+      <visual name="red_20">
+        <pose>1.5 15 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>1 0 0 1</diffuse></material>
+      </visual>
+      <visual name="green_20">
+        <pose>3.5 15.5 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>0 1 0 1</diffuse></material>
+      </visual>
+      <visual name="blue_20">
+        <pose>5.5 16 -40 0 0 0</pose>
+        <geometry><sphere><radius>0.5</radius></sphere></geometry>
+        <material><diffuse>0 0 1 1</diffuse></material>
+      </visual>
+
+      <!-- the other primitives, for a visual check of the loader -->
+      <visual name="box">
+        <pose>-2 8 -41.2 0 0.4 0</pose>
+        <geometry><box><size>1.5 1.5 1.5</size></box></geometry>
+        <material><diffuse>1 1 0 1</diffuse></material>
+      </visual>
+      <visual name="cylinder">
+        <pose>-4 9 -41 0 0 0</pose>
+        <geometry><cylinder><radius>0.5</radius><length>3</length></cylinder></geometry>
+        <material><diffuse>1 0 1 1</diffuse></material>
+      </visual>
+    </link>
+  </model>
+</sdf>
