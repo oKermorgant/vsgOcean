@@ -99,9 +99,10 @@ namespace vsgOceanExample
         pbr->defaultShaderHints = shaderHints;
     }
 
-    // Parse the command line into the example settings. Consumed arguments are
-    // removed from argv, so the positional scene files are collected last.
-    inline Options parseOptions(vsg::CommandLine& arguments, int& argc, char* argv[])
+    // Parse the command line into the example settings. vsg::CommandLine removes the
+    // arguments it consumes, so the positional scene files are collected last,
+    // through the argc it keeps up to date.
+    inline Options parseOptions(vsg::CommandLine& arguments, int& argc)
     {
         Options settings;
 
@@ -253,8 +254,7 @@ namespace vsgOceanExample
             return settings;
         }
 
-        // the scene files from the remaining positional arguments (consumed arguments
-        // are nulled in argv; vsg::CommandLine compacted them)
+        // the scene files from the remaining positional arguments
         for (int i = 1; i < argc; ++i) settings.sceneFilenames.push_back(vsg::Path(arguments[i]));
 
         return settings;

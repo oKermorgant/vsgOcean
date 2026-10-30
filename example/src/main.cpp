@@ -38,9 +38,9 @@ int main(int argc, char** argv)
     {
         // all the command line settings in one place (see ExampleOptions.h)
         vsg::CommandLine arguments(&argc, argv);
-        auto settings = vsgOceanExample::parseOptions(arguments, argc, argv);
+        auto settings = vsgOceanExample::parseOptions(arguments, argc);
         if (settings.quit) return settings.exitCode;
-        auto options = settings.options;
+        const auto options = settings.options;
 
         // build the overall ocean scene: models, sky, lighting and ocean surface
         vsg::ref_ptr<vsgOcean::Scene> vsg_scene;
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
 #endif
 
         // apply the command line environment / wave settings to the scene
-        auto environment = vsg_scene->environment();
+        const auto environment = vsg_scene->environment();
         if (settings.overrideSun)
         {
             environment->setSunElevation(settings.sunElevation);
@@ -85,7 +85,7 @@ int main(int argc, char** argv)
         {
             environment->setFogDensity(settings.fogDensity);
         }
-        auto wavefield = vsg_scene->surface()->wavefield();
+        const auto wavefield = vsg_scene->surface()->wavefield();
         wavefield->setAmplitude(settings.waveAmplitude);
         wavefield->setPeriod(settings.wavePeriod);
         wavefield->setSteepness(settings.waveSteepness);
@@ -136,7 +136,7 @@ int main(int argc, char** argv)
 
         viewer->addWindow(window);
 
-        auto ellipsoidModel = vsg_scene->getRefObject<vsg::EllipsoidModel>("EllipsoidModel");
+        const auto ellipsoidModel = vsg_scene->getRefObject<vsg::EllipsoidModel>("EllipsoidModel");
 
         vsg::ref_ptr<vsg::LookAt> lookAt;
         vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
@@ -260,7 +260,7 @@ int main(int argc, char** argv)
         // - the ROV camera underwater, the boat camera on the surface - displayed as
         // previews in the panel; actual sensor simulation comes later
         const VkExtent2D sensorExtent{640, 480};
-        auto device = window->getOrCreateDevice();
+        const auto device = window->getOrCreateDevice();
         const auto colorFormat = window->surfaceFormat().format;
         const auto depthFormat = window->depthFormat();
         auto makeSensorCamera = [sensorExtent]() {
@@ -452,7 +452,7 @@ int main(int argc, char** argv)
 
         if (settings.reportAverageFrameRate)
         {
-            auto fs = viewer->getFrameStamp();
+            const auto fs = viewer->getFrameStamp();
             double fps = static_cast<double>(fs->frameCount) / std::chrono::duration<double, std::chrono::seconds::period>(vsg::clock::now() - viewer->start_point()).count();
             std::cout << "Average frame rate = " << fps << " fps" << std::endl;
         }
