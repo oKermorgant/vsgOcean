@@ -4,6 +4,8 @@
 #    include <vsgXchange/all.h>
 #endif
 
+#include "ExampleOptions.h"
+
 #include <vsgOcean/ui/EnvironmentControls.h>
 #include <vsgOcean/scene/RenderPipeline.h>
 #include <vsgOcean/ui/EnvironmentGui.h>
@@ -30,207 +32,21 @@ inline std::string modelFile(const std::string& path)
 #include <thread>
 #include <vector>
 
-
-void enableGenerateDebugInfo(vsg::ref_ptr<vsg::Options> options)
-{
-    auto shaderHints = vsg::ShaderCompileSettings::create();
-    shaderHints->generateDebugInfo = true;
-
-    auto& text = options->shaderSets["text"] = vsg::createTextShaderSet(options);
-    text->defaultShaderHints = shaderHints;
-
-    auto& flat = options->shaderSets["flat"] = vsg::createFlatShadedShaderSet(options);
-    flat->defaultShaderHints = shaderHints;
-
-    auto& phong = options->shaderSets["phong"] = vsg::createPhongShaderSet(options);
-    phong->defaultShaderHints = shaderHints;
-
-    auto& pbr = options->shaderSets["pbr"] = vsg::createPhysicsBasedRenderingShaderSet(options);
-    pbr->defaultShaderHints = shaderHints;
-}
-
 int main(int argc, char** argv)
 {
     try
     {
-        // set up defaults and read command line arguments to override them
+        // all the command line settings in one place (see ExampleOptions.h)
         vsg::CommandLine arguments(&argc, argv);
-
-        // create windowTraits using the any command line arugments to configure settings
-        auto windowTraits = vsg::WindowTraits::create(arguments);
-        windowTraits->debugLayer = arguments.read("--debug"); // Vulkan validation layers
-
-        // if we want to redirect std::cout and std::cerr to the vsg::Logger call vsg::Logger::redirect_stdout()
-        if (arguments.read({"--redirect-std", "-r"})) vsg::Logger::instance()->redirect_std();
-
-        // set up vsg::Options to pass in filepaths, ReaderWriters and other IO related options to use when reading and writing files.
-        auto options = vsg::Options::create();
-        options->sharedObjects = vsg::SharedObjects::create();
-        options->fileCache = vsg::getEnv("VSG_FILE_CACHE");
-        options->paths = vsg::getEnvPaths("VSG_FILE_PATH");
-
-#ifdef vsgXchange_all
-        // add vsgXchange's support for reading and writing 3rd party file formats
-        options->add(vsgXchange::all::create());
-#endif
-
-        options->readOptions(arguments);
-
-        if (uint32_t numOperationThreads = 0; arguments.read("--ot", numOperationThreads)) options->operationThreads = vsg::OperationThreads::create(numOperationThreads);
-
-        bool reportAverageFrameRate = arguments.read("--fps");
-        bool reportMemoryStats = arguments.read("--rms");
-        if (arguments.read({"-t", "--test"}))
-        {
-            windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-            windowTraits->fullscreen = true;
-            reportAverageFrameRate = true;
-        }
-        if (arguments.read({"--st", "--small-test"}))
-        {
-            windowTraits->swapchainPreferences.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-            windowTraits->width = 192, windowTraits->height = 108;
-            windowTraits->decoration = false;
-            reportAverageFrameRate = true;
-        }
-
-        bool multiThreading = arguments.read("--mt");
-        auto maxTime = arguments.value(std::numeric_limits<double>::max(), "--max-time");
-
-        if (arguments.read("--ThreadLogger")) vsg::Logger::instance() = vsg::ThreadLogger::create();
-        if (int log_level = 0; arguments.read("--log-level", log_level)) vsg::Logger::instance()->level = vsg::Logger::Level(log_level);
-        auto numFrames = arguments.value(-1, "-f");
-        auto pathFilename = arguments.value<vsg::Path>("", "-p");
-        auto loadLevels = arguments.value(0, "--load-levels");
-        auto maxPagedLOD = arguments.value(0, "--maxPagedLOD");
-
-        auto horizonMountainHeight = arguments.value(0.0, "--hmh");
-        auto nearFarRatio = arguments.value<double>(0.001, "--nfr");
-        if (arguments.read("--rgb")) options->mapRGBtoRGBAHint = false;
-
-        std::string shaderSetName;
-        vsg::Path shaderSetFilename;
-        while(arguments.read("--ss", shaderSetName, shaderSetFilename))
-        {
-            if (auto shaderSet = vsg::read_cast<vsg::ShaderSet>(shaderSetFilename, options))
-            {
-                options->shaderSets[shaderSetName] = shaderSet;
-                vsg::info("assigned shaderSets[", shaderSetName, "] = ", shaderSet);
-            }
-        }
-
-        bool depthClamp = arguments.read({"--dc", "--depthClamp"});
-        if (depthClamp)
-        {
-            std::cout << "Enabled depth clamp." << std::endl;
-            auto deviceFeatures = windowTraits->deviceFeatures = vsg::DeviceFeatures::create();
-            deviceFeatures->get().samplerAnisotropy = VK_TRUE;
-            deviceFeatures->get().depthClamp = VK_TRUE;
-        }
-
-        vsg::ref_ptr<vsg::ResourceHints> resourceHints;
-        if (auto resourceHintsFilename = arguments.value<vsg::Path>("", "--rh"))
-        {
-            resourceHints = vsg::read_cast<vsg::ResourceHints>(resourceHintsFilename, options);
-        }
-
-        if (auto outputResourceHintsFilename = arguments.value<vsg::Path>("", "--orh"))
-        {
-            if (!resourceHints) resourceHints = vsg::ResourceHints::create();
-            vsg::write(resourceHints, outputResourceHintsFilename, options);
-            return 0;
-        }
-
-        if (arguments.read({"--shader-debug-info", "--sdi"}))
-        {
-            enableGenerateDebugInfo(options);
-            windowTraits->deviceExtensionNames.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
-        }
-
-        if (int log_level = 0; arguments.read("--log-level", log_level)) vsg::Logger::instance()->level = vsg::Logger::Level(log_level);
-        auto logFilename = arguments.value<vsg::Path>("", "--log");
-
-        vsg::ref_ptr<vsg::Instrumentation> instrumentation;
-        if (arguments.read({"--gpu-annotation", "--ga"}) && vsg::isExtensionSupported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
-        {
-            windowTraits->debugUtils = true;
-
-            auto gpu_instrumentation = vsg::GpuAnnotation::create();
-            if (arguments.read("--name"))
-                gpu_instrumentation->labelType = vsg::GpuAnnotation::SourceLocation_name;
-            else if (arguments.read("--className"))
-                gpu_instrumentation->labelType = vsg::GpuAnnotation::Object_className;
-            else if (arguments.read("--func"))
-                gpu_instrumentation->labelType = vsg::GpuAnnotation::SourceLocation_function;
-
-            instrumentation = gpu_instrumentation;
-        }
-        else if (arguments.read({"--profiler", "--pr"}))
-        {
-            // set Profiler options
-            auto settings = vsg::Profiler::Settings::create();
-            arguments.read("--cpu", settings->cpu_instrumentation_level);
-            arguments.read("--gpu", settings->gpu_instrumentation_level);
-            arguments.read("--log-size", settings->log_size);
-
-            // create the profiler
-            instrumentation = vsg::Profiler::create(settings);
-        }
-
-        vsg::Affinity affinity;
-        uint32_t cpu = 0;
-        while (arguments.read("-c", cpu))
-        {
-            affinity.cpus.insert(cpu);
-        }
-
-        // should animations be automatically played
-        auto autoPlay = !arguments.read({"--no-auto-play", "--nop"});
-
-        // demo: animate the sun through a full day (1 simulated hour per second);
-        // paused at runtime through the environment controls (key or GUI)
-        auto sunCycle = !arguments.read("--no-sun-cycle");
-
-        // environment and wave settings, applied to the scene after it is loaded
-        // (the scene creates them with reasonable defaults)
-        bool overrideSun = false, overrideWind = false, overrideJerlov = false, overrideFog = false;
-        double sunElevation = 0.0, sunAzimuth = 0.0, windSpeed = 0.0, windDirection = 0.0, fogDensity = 0.0;
-        int jerlov = 0;
-        if (arguments.read("--sun", sunElevation, sunAzimuth)) overrideSun = true;
-        if (arguments.read("--wind", windSpeed, windDirection)) overrideWind = true;
-        if (arguments.read("--jerlov", jerlov)) overrideJerlov = true;
-        if (arguments.read("--fog", fogDensity)) overrideFog = true;
-
-        // waves: the mean component wave of the Gazebo wave model (asv_wave_sim);
-        // the component count, scale and angle follow asv_wave_sim's defaults, so the
-        // sea is irregular and short-crested rather than a single wave train
-        const double waveAmplitude = arguments.value(0.1, "--wave-amplitude");
-        const double wavePeriod = arguments.value(5.0, "--wave-period");
-        const double waveSteepness = arguments.value(1.0, "--wave-steepness");
-        const int waveNumber = arguments.value(8, "--wave-number");
-        const double waveScale = arguments.value(2.0, "--wave-scale");
-        const double waveAngle = arguments.value(36.0, "--wave-angle");
-
-        if (arguments.errors()) return arguments.writeErrorMessages(std::cerr);
-
-        // debugging: start the camera at a given position (e.g. underwater); parsed
-        // before the positional scene arguments are collected
-        double eyeX = 0.0, eyeY = 0.0, eyeZ = 0.0;
-        const bool overrideEye = arguments.read("--eye", eyeX, eyeY, eyeZ);
-
-        // screenshot: write the main view to a PNG file when the render loop ends
-        // (combine with -f N to capture a deterministic frame)
-        const auto screenshotPath = arguments.value<vsg::Path>("", "--screenshot");
-
-        // take the scene files from the remaining positional arguments, falling back to all example models
-        std::vector<vsg::Path> sceneFilenames;
-        for (int i = 1; i < argc; ++i) sceneFilenames.push_back(vsg::Path(arguments[i]));
+        auto settings = vsgOceanExample::parseOptions(arguments, argc, argv);
+        if (settings.quit) return settings.exitCode;
+        auto options = settings.options;
 
         // build the overall ocean scene: models, sky, lighting and ocean surface
         vsg::ref_ptr<vsgOcean::Scene> vsg_scene;
-        if (!sceneFilenames.empty())
+        if (!settings.sceneFilenames.empty())
         {
-            vsg_scene = vsgOcean::Scene::load(sceneFilenames, options);
+            vsg_scene = vsgOcean::Scene::load(settings.sceneFilenames, options);
         }
 #ifdef VSGOCEAN_WITH_SDF
         else
@@ -251,31 +67,31 @@ int main(int argc, char** argv)
 
         // apply the command line environment / wave settings to the scene
         auto environment = vsg_scene->environment();
-        if (overrideSun)
+        if (settings.overrideSun)
         {
-            environment->setSunElevation(sunElevation);
-            environment->setSunAzimuth(sunAzimuth);
+            environment->setSunElevation(settings.sunElevation);
+            environment->setSunAzimuth(settings.sunAzimuth);
         }
-        if (overrideWind)
+        if (settings.overrideWind)
         {
-            environment->setWindSpeed(windSpeed);
-            environment->setWindDirection(windDirection);
+            environment->setWindSpeed(settings.windSpeed);
+            environment->setWindDirection(settings.windDirection);
         }
-        if (overrideJerlov)
+        if (settings.overrideJerlov)
         {
-            environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(jerlov));
+            environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(settings.jerlov));
         }
-        if (overrideFog)
+        if (settings.overrideFog)
         {
-            environment->setFogDensity(fogDensity);
+            environment->setFogDensity(settings.fogDensity);
         }
         auto wavefield = vsg_scene->surface()->wavefield();
-        wavefield->setAmplitude(waveAmplitude);
-        wavefield->setPeriod(wavePeriod);
-        wavefield->setSteepness(waveSteepness);
-        wavefield->setNumber(static_cast<size_t>(waveNumber));
-        wavefield->setScale(waveScale);
-        wavefield->setAngle(vsg::radians(waveAngle));
+        wavefield->setAmplitude(settings.waveAmplitude);
+        wavefield->setPeriod(settings.wavePeriod);
+        wavefield->setSteepness(settings.waveSteepness);
+        wavefield->setNumber(static_cast<size_t>(settings.waveNumber));
+        wavefield->setScale(settings.waveScale);
+        wavefield->setAngle(vsg::radians(settings.waveAngle));
 
         // geolocation of the scene: taken from the SDF world when available,
         // Pornichet (France) hard-coded otherwise
@@ -311,7 +127,7 @@ int main(int argc, char** argv)
 
         // create the viewer and assign window(s) to it
         auto viewer = vsg::Viewer::create();
-        auto window = vsg::Window::create(windowTraits);
+        auto window = vsg::Window::create(settings.windowTraits);
         if (!window)
         {
             std::cout << "Could not create window." << std::endl;
@@ -359,7 +175,7 @@ int main(int argc, char** argv)
                 lookAt = vsg::LookAt::create(vsg::dvec3(initialRadius * 2.0, 0.0, 0.0), vsg::dvec3(0.0, 0.0, 0.0), vsg::dvec3(0.0, 0.0, 1.0));
             }
 
-            perspective = vsg::EllipsoidPerspective::create(lookAt, ellipsoidModel, 30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), nearFarRatio, horizonMountainHeight);
+            perspective = vsg::EllipsoidPerspective::create(lookAt, ellipsoidModel, 30.0, static_cast<double>(window->extent2D().width) / static_cast<double>(window->extent2D().height), settings.nearFarRatio, settings.horizonMountainHeight);
         }
         else
         {
@@ -402,22 +218,22 @@ int main(int argc, char** argv)
         // add close handler to respond to the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
-        auto cameraAnimation = vsg::CameraAnimationHandler::create(camera, pathFilename, options);
+        auto cameraAnimation = vsg::CameraAnimationHandler::create(camera, settings.pathFilename, options);
         viewer->addEventHandler(cameraAnimation);
-        if (autoPlay && cameraAnimation->animation)
+        if (settings.autoPlay && cameraAnimation->animation)
         {
             cameraAnimation->play();
 
-            if (reportAverageFrameRate && (maxTime == std::numeric_limits<double>::max()) && (numFrames < 0))
+            if (settings.reportAverageFrameRate && (settings.maxTime == std::numeric_limits<double>::max()) && (settings.numFrames < 0))
             {
-                maxTime = cameraAnimation->animation->maxTime();
+                settings.maxTime = cameraAnimation->animation->maxTime();
             }
         }
 
         // environment keyboard controls (sun, water, waves); also carries the input
         // capture flag consumed by the camera controller and the GUI
         auto controls = vsgOcean::EnvironmentControls::create(vsg_scene);
-        controls->sunCycleEnabled = sunCycle;
+        controls->sunCycleEnabled = settings.sunCycle;
         viewer->addEventHandler(controls);
 
         // camera controller: horizon-level orbit (left drag), translate (right drag), dolly (wheel);
@@ -427,9 +243,9 @@ int main(int argc, char** argv)
         viewer->addEventHandler(cameraController);
 
         // if required preload specific number of PagedLOD levels.
-        if (loadLevels > 0)
+        if (settings.loadLevels > 0)
         {
-            vsg::LoadPagedLOD loadPagedLOD(camera, loadLevels);
+            vsg::LoadPagedLOD loadPagedLOD(camera, settings.loadLevels);
 
             auto startTime = vsg::clock::now();
 
@@ -482,21 +298,20 @@ int main(int argc, char** argv)
         }
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
-        if (overrideEye) lookAt->eye = vsg::dvec3(eyeX, eyeY, eyeZ);
+        if (settings.overrideEye) lookAt->eye = settings.eye;
 
+        if (settings.instrumentation) viewer->assignInstrumentation(settings.instrumentation);
 
-        if (instrumentation) viewer->assignInstrumentation(instrumentation);
-
-        if (multiThreading)
+        if (settings.multiThreading)
         {
             viewer->setupThreading();
 
-            if (affinity)
+            if (settings.affinity)
             {
-                auto cpu_itr = affinity.cpus.begin();
+                auto cpu_itr = settings.affinity.cpus.begin();
 
                 // set affinity of main thread
-                if (cpu_itr != affinity.cpus.end())
+                if (cpu_itr != settings.affinity.cpus.end())
                 {
                     std::cout << "vsg::setAffinity() " << *cpu_itr << std::endl;
                     vsg::setAffinity(vsg::Affinity(*cpu_itr++));
@@ -504,7 +319,7 @@ int main(int argc, char** argv)
 
                 for (auto& thread : viewer->threads)
                 {
-                    if (thread.joinable() && cpu_itr != affinity.cpus.end())
+                    if (thread.joinable() && cpu_itr != settings.affinity.cpus.end())
                     {
                         std::cout << "vsg::setAffinity(" << thread.get_id() << ") " << *cpu_itr << std::endl;
                         vsg::setAffinity(thread, vsg::Affinity(*cpu_itr++));
@@ -512,30 +327,30 @@ int main(int argc, char** argv)
                 }
             }
         }
-        else if (affinity)
+        else if (settings.affinity)
         {
             std::cout << "vsg::setAffinity(";
-            for (auto cpu_num : affinity.cpus)
+            for (auto cpu_num : settings.affinity.cpus)
             {
                 std::cout << " " << cpu_num;
             }
             std::cout << " )" << std::endl;
 
-            vsg::setAffinity(affinity);
+            vsg::setAffinity(settings.affinity);
         }
 
-        const auto compileResult = viewer->compile(resourceHints);
+        const auto compileResult = viewer->compile(settings.resourceHints);
 
-        if (maxPagedLOD > 0)
+        if (settings.maxPagedLOD > 0)
         {
             // set targetMaxNumPagedLODWithHighResSubgraphs after Viewer::compile() as it will assign any DatabasePager if required.
             for (auto& task : viewer->recordAndSubmitTasks)
             {
-                if (task->databasePager) task->databasePager->targetMaxNumPagedLODWithHighResSubgraphs = maxPagedLOD;
+                if (task->databasePager) task->databasePager->targetMaxNumPagedLODWithHighResSubgraphs = settings.maxPagedLOD;
             }
         }
 
-        if (autoPlay)
+        if (settings.autoPlay)
         {
             // find any animation groups in the loaded scene graph and play the first animation in each of the animation groups.
             auto animationGroups = vsg::visit<vsg::FindAnimations>(vsg_scene).animationGroups;
@@ -548,7 +363,7 @@ int main(int argc, char** argv)
         viewer->start_point() = vsg::clock::now();
 
         // rendering main loop
-        while (viewer->advanceToNextFrame() && (numFrames < 0 || (numFrames--) > 0) && (viewer->getFrameStamp()->simulationTime < maxTime))
+        while (viewer->advanceToNextFrame() && (settings.numFrames < 0 || (settings.numFrames--) > 0) && (viewer->getFrameStamp()->simulationTime < settings.maxTime))
         {
             // pass any events into EventHandlers assigned to the Viewer
             viewer->handleEvents();
@@ -633,16 +448,16 @@ int main(int argc, char** argv)
             viewer->present();
         }
 
-        if (!screenshotPath.empty()) mainPipeline->writeScreenshot(screenshotPath);
+        if (!settings.screenshotPath.empty()) mainPipeline->writeScreenshot(settings.screenshotPath);
 
-        if (reportAverageFrameRate)
+        if (settings.reportAverageFrameRate)
         {
             auto fs = viewer->getFrameStamp();
             double fps = static_cast<double>(fs->frameCount) / std::chrono::duration<double, std::chrono::seconds::period>(vsg::clock::now() - viewer->start_point()).count();
             std::cout << "Average frame rate = " << fps << " fps" << std::endl;
         }
 
-        if (reportMemoryStats)
+        if (settings.reportMemoryStats)
         {
             if (options->sharedObjects)
             {
@@ -651,12 +466,12 @@ int main(int argc, char** argv)
             }
         }
 
-        if (auto profiler = instrumentation.cast<vsg::Profiler>())
+        if (auto profiler = settings.instrumentation.cast<vsg::Profiler>())
         {
-            instrumentation->finish();
-            if (logFilename)
+            settings.instrumentation->finish();
+            if (settings.logFilename)
             {
-                std::ofstream fout(logFilename);
+                std::ofstream fout(settings.logFilename);
                 profiler->log->report(fout);
             }
             else
