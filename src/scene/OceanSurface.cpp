@@ -25,7 +25,7 @@ namespace vsgOcean
         wavefield_(Wavefield::create())
     {
         // flat grid on the mean water level (z = 0), centred at the origin
-        const uint32_t verticesPerSide = cells + 1;
+        const auto verticesPerSide = cells + 1;
         auto vertices = vsg::vec3Array::create(static_cast<size_t>(verticesPerSide) * verticesPerSide);
         auto indices = vsg::uintArray::create(static_cast<size_t>(cells) * cells * 6);
 
@@ -45,7 +45,7 @@ namespace vsgOcean
         {
             for (uint32_t i = 0; i < cells; ++i)
             {
-                const uint32_t base = j * verticesPerSide + i;
+                const auto base = j * verticesPerSide + i;
                 (*indices)[index++] = base;
                 (*indices)[index++] = base + 1;
                 (*indices)[index++] = base + verticesPerSide;
@@ -127,7 +127,7 @@ namespace vsgOcean
 
         const auto sun = environment.sunDirection();
         const auto attenuation = environment.underwaterAttenuation();
-        const float meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
+        const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
 
         (*uniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), 0.0f);
         (*uniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogDensity()));
@@ -141,10 +141,10 @@ namespace vsgOcean
         for (size_t i = 0; i < Wavefield::maxWaves; ++i)
         {
             const bool valid = i < wavefield_->amplitudes().size();
-            const double a = valid ? wavefield_->amplitudes()[i] : 0.0;
-            const double k = valid ? wavefield_->wavenumbers()[i] : 0.0;
-            const double w = valid ? wavefield_->angularFrequencies()[i] : 0.0;
-            const double q = valid ? wavefield_->steepnesses()[i] : 0.0;
+            const auto a = valid ? wavefield_->amplitudes()[i] : 0.0;
+            const auto k = valid ? wavefield_->wavenumbers()[i] : 0.0;
+            const auto w = valid ? wavefield_->angularFrequencies()[i] : 0.0;
+            const auto q = valid ? wavefield_->steepnesses()[i] : 0.0;
             const auto d = valid ? wavefield_->directions()[i] : vsg::dvec2(1.0, 0.0);
 
             (*uniform_)[5 + slot] = vsg::vec4(static_cast<float>(a), 0.0f, 0.0f, 0.0f);

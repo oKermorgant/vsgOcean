@@ -23,13 +23,11 @@ inline std::string modelFile(const std::string& path)
 #endif
 }
 
-#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iostream>
 #include <map>
 #include <string>
-#include <thread>
 #include <vector>
 
 int main(int argc, char** argv)

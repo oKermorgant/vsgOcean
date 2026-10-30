@@ -39,7 +39,7 @@ namespace vsgOcean
             const auto& pos = pose.Pos();
             const auto& rot = pose.Rot();
 
-            const double x = rot.X(), y = rot.Y(), z = rot.Z(), w = rot.W();
+            const auto x = rot.X(), y = rot.Y(), z = rot.Z(), w = rot.W();
 
             vsg::dmat4 matrix;
             matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);

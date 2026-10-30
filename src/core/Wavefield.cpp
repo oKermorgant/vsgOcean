@@ -84,28 +84,27 @@ namespace vsgOcean
 
     double Wavefield::pm(double omega, double omegaPeak) const
     {
-        constexpr double alpha = 0.0081;
-        constexpr double g = 9.81;
+        constexpr double alpha{0.0081};
+        constexpr double g{9.81};
         return alpha * g * g / std::pow(omega, 5.0) * std::exp(-(5.0 / 4.0) * std::pow(omegaPeak / omega, 4.0));
     }
 
     double Wavefield::deepWaterDispersionToOmega(double wavenumber)
     {
-        constexpr double g = 9.81;
+        constexpr double g{9.81};
         return std::sqrt(g * wavenumber);
     }
 
     double Wavefield::deepWaterDispersionToWavenumber(double omega)
     {
-        constexpr double g = 9.81;
+        constexpr double g{9.81};
         return omega * omega / g;
     }
 
     void Wavefield::recalculatePms()
     {
         // derived mean values
-        const double omega = 2.0 * vsg::PI / period_;
-        const double wavenumber = deepWaterDispersionToWavenumber(omega);
+        const auto omega = 2.0 * vsg::PI / period_;
 
         // frequency spacing between components, as in asv_wave_sim (defined for 3 components)
         const double omegaSpacing[] = {
@@ -122,12 +121,12 @@ namespace vsgOcean
 
         for (size_t i = 0; i < number_; ++i)
         {
-            const int n = static_cast<int>(i) - 1;
-            const double scaleFactor = std::pow(scale_, n);
-            const double omega_i = omega * scaleFactor;
-            const double a = gain_ * std::sqrt(2.0 * pm(omega_i, omega) * omegaSpacing[std::min(i, size_t(2))]);
-            const double k = deepWaterDispersionToWavenumber(omega_i);
-            const double q = (a > 0.0) ? std::min(1.0, steepness_ / (a * k * number_)) : 0.0;
+            const auto n = static_cast<int>(i) - 1;
+            const auto scaleFactor = std::pow(scale_, n);
+            const auto omega_i = omega * scaleFactor;
+            const auto a = gain_ * std::sqrt(2.0 * pm(omega_i, omega) * omegaSpacing[std::min(i, size_t(2))]);
+            const auto k = deepWaterDispersionToWavenumber(omega_i);
+            const auto q = (a > 0.0) ? std::min(1.0, steepness_ / (a * k * number_)) : 0.0;
 
             amplitudes_.push_back(a);
             angularFrequencies_.push_back(omega_i);
@@ -141,8 +140,8 @@ namespace vsgOcean
     void Wavefield::recalculateCwr()
     {
         // derived mean values
-        const double omega = 2.0 * vsg::PI / period_;
-        const double wavenumber = deepWaterDispersionToWavenumber(omega);
+        const auto omega = 2.0 * vsg::PI / period_;
+        const auto wavenumber = deepWaterDispersionToWavenumber(omega);
 
         amplitudes_.clear();
         wavenumbers_.clear();
@@ -153,12 +152,12 @@ namespace vsgOcean
 
         for (size_t i = 0; i < number_; ++i)
         {
-            const int n = static_cast<int>(i) - static_cast<int>(number_ / 2);
-            const double scaleFactor = std::pow(scale_, n);
-            const double a = scaleFactor * amplitude_;
-            const double k = wavenumber / scaleFactor;
-            const double omega_i = deepWaterDispersionToOmega(k);
-            const double q = (a > 0.0) ? std::min(1.0, steepness_ / (a * k * number_)) : 0.0;
+            const auto n = static_cast<int>(i) - static_cast<int>(number_ / 2);
+            const auto scaleFactor = std::pow(scale_, n);
+            const auto a = scaleFactor * amplitude_;
+            const auto k = wavenumber / scaleFactor;
+            const auto omega_i = deepWaterDispersionToOmega(k);
+            const auto q = (a > 0.0) ? std::min(1.0, steepness_ / (a * k * number_)) : 0.0;
 
             amplitudes_.push_back(a);
             angularFrequencies_.push_back(omega_i);
@@ -189,11 +188,11 @@ namespace vsgOcean
     double Wavefield::height(double x, double y, double t) const
     {
         // sum of the component waves, as in Wavefield::ComputeDepthSimply of boating_gz
-        double h = 0.0;
+        auto h = 0.0;
         for (size_t i = 0; i < amplitudes_.size(); ++i)
         {
-            const double dot = x * directions_[i].x + y * directions_[i].y;
-            const double theta = wavenumbers_[i] * dot - angularFrequencies_[i] * t;
+            const auto dot = x * directions_[i].x + y * directions_[i].y;
+            const auto theta = wavenumbers_[i] * dot - angularFrequencies_[i] * t;
             h += amplitudes_[i] * std::cos(theta);
         }
 

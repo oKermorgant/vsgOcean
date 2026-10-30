@@ -18,9 +18,9 @@ namespace vsgOcean
 {
     namespace
     {
-        const std::string packageScheme = "package://";
-        const std::string modelScheme = "model://";
-        const std::string fileScheme = "file://";
+        const std::string packageScheme{"package://"};
+        const std::string modelScheme{"model://"};
+        const std::string fileScheme{"file://"};
 
         // split "<name>/<relative path>" into its two components
         std::pair<std::string, vsg::Path> splitRemainder(const std::string& remainder)

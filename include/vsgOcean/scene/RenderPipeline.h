@@ -83,6 +83,7 @@ namespace vsgOcean
         void createOutputImage(VkExtent2D extent);
         void buildCompositePass();
 
+        vsg::ref_ptr<Scene> scene_;
         vsg::ref_ptr<vsg::Device> device_;
         vsg::ref_ptr<vsg::Camera> camera_;
         VkExtent2D extent_{};
@@ -98,6 +99,5 @@ namespace vsgOcean
         vsg::ref_ptr<vsg::Image> retainedImage_;
         vsg::ref_ptr<Underwater> composite_;
         vsg::ref_ptr<PresentPass> presentPass_;
-        vsg::ref_ptr<Scene> scene_;
     };
 }

@@ -56,14 +56,14 @@ namespace vsgOcean
         if (dragButton_ & vsg::BUTTON_MASK_2)
         {
             // right drag: translate, scaled by the distance to the view centre
-            const double distance = vsg::length(lookAt_->eye - lookAt_->center);
-            const double scale = panScale * distance / static_cast<double>(extent.width);
+            const auto distance = vsg::length(lookAt_->eye - lookAt_->center);
+            const auto scale = panScale * distance / static_cast<double>(extent.width);
             translate(-delta.x * scale, delta.y * scale);
         }
         else
         {
             // left drag: dragging across the full window width orbits half a turn
-            const double scale = vsg::PI / static_cast<double>(extent.width);
+            const auto scale = vsg::PI / static_cast<double>(extent.width);
             orbit(-static_cast<double>(delta.x) * scale, static_cast<double>(delta.y) * scale);
         }
     }
@@ -81,12 +81,12 @@ namespace vsgOcean
     void HorizonController::orbit(double yaw, double pitch)
     {
         const auto offset = lookAt_->eye - lookAt_->center;
-        const double radius = vsg::length(offset);
+        const auto radius = vsg::length(offset);
         if (radius == 0.0) return;
 
         // spherical coordinates of the eye around the view centre
-        const double azimuth = std::atan2(offset.y, offset.x) + yaw;
-        double elevation = std::asin(std::clamp(offset.z / radius, -1.0, 1.0)) + pitch;
+        const auto azimuth = std::atan2(offset.y, offset.x) + yaw;
+        auto elevation = std::asin(std::clamp(offset.z / radius, -1.0, 1.0)) + pitch;
         elevation = std::clamp(elevation, -elevationLimit, elevationLimit);
 
         lookAt_->eye = lookAt_->center + radius * vsg::dvec3(std::cos(elevation) * std::cos(azimuth),

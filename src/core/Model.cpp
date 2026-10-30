@@ -125,7 +125,7 @@ namespace vsgOcean
         auto frame = frames_.find(frameName);
         if (frame != frames_.end())
         {
-            vsg::dmat4 chain;
+            vsg::dmat4 chain{};
             if (!frameChain(frameName, chain)) return false;
             pose = chain * worldOfModel;
             return true;
@@ -142,14 +142,14 @@ namespace vsgOcean
     bool Model::frameChain(const std::string& frameName, vsg::dmat4& chain) const
     {
         auto parent = frameParents_.find(frameName);
-        const std::string parentName = parent != frameParents_.end() ? parent->second : std::string{};
+        const auto parentName = parent != frameParents_.end() ? parent->second : std::string{};
         if (parentName.empty() || parentName == name)
         {
             chain = frames_.at(frameName)->matrix;
             return true;
         }
 
-        vsg::dmat4 parentChain;
+        vsg::dmat4 parentChain{};
         if (!frameChain(parentName, parentChain)) return false;
         chain = frames_.at(frameName)->matrix * parentChain;
         return true;

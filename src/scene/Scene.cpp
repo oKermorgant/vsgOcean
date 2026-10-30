@@ -131,7 +131,7 @@ namespace vsgOcean
         // per-camera water filtering of the scene happens in each pipeline's composite
         // (per-pixel Beer-Lambert over the view path)
         const auto sun = environment_->sunDirection();
-        const double day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
+        const auto day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
         const double dayFactor = day * day * (3.0 - 2.0 * day); // smoothstep
 
         sunLight_->direction = sun;
@@ -145,12 +145,12 @@ namespace vsgOcean
         // computes its own (see RenderPipeline::update)
         if (underwater_)
         {
-            double submersion = 0.0;
+            auto submersion = 0.0;
             if (surfaceEnabled() && camera && camera->viewMatrix)
             {
                 if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
                 {
-                    const double waveHeight = environment_->seaLevel() + surface_->wavefield()->height(lookAt->eye.x, lookAt->eye.y, t);
+                    const auto waveHeight = environment_->seaLevel() + surface_->wavefield()->height(lookAt->eye.x, lookAt->eye.y, t);
                     submersion = waveHeight - lookAt->eye.z; // positive below the surface
                 }
             }

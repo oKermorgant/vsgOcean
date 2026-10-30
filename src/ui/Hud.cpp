@@ -20,8 +20,8 @@ namespace vsgOcean
 {
     namespace
     {
-        constexpr float lineHeightPixels = 18.0f; // rendered line height target, in pixels
-        constexpr float marginPixels = 10.0f;    // text margin from the window corner
+        constexpr float lineHeightPixels{18.0f}; // rendered line height target, in pixels
+        constexpr float marginPixels{10.0f};    // text margin from the window corner
 
         // candidate font files, tried in order (the first that loads wins);
         // override with the VSGOCEAN_FONT environment variable
@@ -54,7 +54,7 @@ namespace vsgOcean
         }
 
         // world units per pixel, so a text line is lineHeightPixels tall
-        const float pixel = std::max(font_->height, 1.0f) / lineHeightPixels;
+        const auto pixel = std::max(font_->height, 1.0f) / lineHeightPixels;
 
         auto projection = vsg::Orthographic::create(0.0, static_cast<double>(extent_.width) * pixel,
                                                     0.0, static_cast<double>(extent_.height) * pixel,
@@ -90,7 +90,7 @@ namespace vsgOcean
         if (!font_ || lines_.empty()) return;
 
         // world units per pixel, so a text line is lineHeightPixels tall
-        const float pixel = std::max(font_->height, 1.0f) / lineHeightPixels;
+        const auto pixel = std::max(font_->height, 1.0f) / lineHeightPixels;
 
         std::string joined;
         for (size_t i = 0; i < lines_.size(); ++i)

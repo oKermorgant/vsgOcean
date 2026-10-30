@@ -127,17 +127,17 @@ namespace vsgOcean
         void recalculatePms();
         void recalculateCwr();
 
-        size_t number_ = 8;
-        double scale_ = 2.0;
-        double angle_ = 0.2 * vsg::PI;
-        double steepness_ = 1.0;
-        double amplitude_ = 0.1;
-        double period_ = 5.0;
-        double phase_ = 0.0;
-        double direction_ = 0.0;
+        size_t number_{8};
+        double scale_{2.0};
+        double angle_{0.2 * vsg::PI};
+        double steepness_{1.0};
+        double amplitude_{0.1};
+        double period_{5.0};
+        double phase_{0.0};
+        double direction_{0.0};
         Model model_ = Model::CWR;
-        double gain_ = 1.0;
-        double tau_ = 2.0;
+        double gain_{1.0};
+        double tau_{2.0};
 
         std::vector<double> amplitudes_;
         std::vector<double> wavenumbers_;

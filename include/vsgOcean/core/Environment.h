@@ -109,15 +109,15 @@ namespace vsgOcean
         [[nodiscard]] vsg::vec3 underwaterColor() const;
 
     protected:
-        double sunElevation_ = 35.0;
-        double sunAzimuth_ = 135.0;
-        double fogDensity_ = 0.001;
+        double sunElevation_{35.0};
+        double sunAzimuth_{135.0};
+        double fogDensity_{0.001};
         vsg::vec3 fogColor_ = {0.65f, 0.72f, 0.80f}; // light blue grey
-        double windSpeed_ = 5.0;
-        double windDirection_ = 0.0;
+        double windSpeed_{5.0};
+        double windDirection_{0.0};
         JerlovType jerlovType_ = JerlovType::OceanicI;
-        double seaLevel_ = 0.0;
-        double latitude_ = 0.0;
-        double longitude_ = 0.0;
+        double seaLevel_{0.0};
+        double latitude_{0.0};
+        double longitude_{0.0};
     };
 }

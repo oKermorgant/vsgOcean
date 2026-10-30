@@ -52,9 +52,9 @@ namespace vsgOcean
         // from its equatorial coordinates, the scene latitude and the local sidereal time
         vsg::dvec3 starDirection(double ra, double dec, double latitude)
         {
-            const double hourAngle = vsg::radians((localSiderealTime - ra) * 15.0);
-            const double decRad = vsg::radians(dec);
-            const double latRad = vsg::radians(latitude);
+            const auto hourAngle = vsg::radians((localSiderealTime - ra) * 15.0);
+            const auto decRad = vsg::radians(dec);
+            const auto latRad = vsg::radians(latitude);
 
             return {-std::cos(decRad) * std::sin(hourAngle),
                     std::cos(latRad) * std::sin(decRad) - std::sin(latRad) * std::cos(decRad) * std::cos(hourAngle),
@@ -134,13 +134,13 @@ namespace vsgOcean
 
         // the water (Jerlov type); the underwater mode is evaluated per camera, in-shader
         const auto attenuation = environment.underwaterAttenuation();
-        const float meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
+        const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
         (*environmentUniform_)[2 + maxStars] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
 
         // the wave field, so each camera evaluates its own submersion below the waves;
         // a null wave field (no ocean surface) keeps every camera above the water
         const bool waves = wavefield != nullptr;
-        const size_t number = waves ? std::min(wavefield->amplitudes().size(), Wavefield::maxWaves) : 0;
+        const auto number = waves ? std::min(wavefield->amplitudes().size(), Wavefield::maxWaves) : 0;
         (*environmentUniform_)[2 + maxStars + 1] = vsg::vec4(static_cast<float>(t),
                                                             static_cast<float>(waves ? wavefield->tau() : 1.0),
                                                             static_cast<float>(waves ? environment.seaLevel() : -1e6),

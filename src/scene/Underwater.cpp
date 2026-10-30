@@ -105,7 +105,7 @@ namespace vsgOcean
     void Underwater::update(const Environment& environment, const vsg::Camera* camera, double submersion)
     {
         const auto attenuation = environment.underwaterAttenuation();
-        const float meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
+        const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
         const auto sun = environment.sunDirection();
 
         // horizontal beam attenuation: roughly a third of the vertical diffuse
@@ -113,7 +113,7 @@ namespace vsgOcean
         const vsg::vec3 beam(attenuation.x / 3.0f, attenuation.y / 3.0f, attenuation.z / 3.0f);
 
         // atmospheric fog color, dimmed at night like the sky horizon
-        const double day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
+        const auto day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
         const double dayFactor = day * day * (3.0 - 2.0 * day); // smoothstep
         const vsg::vec3 fogColor = vsg::mix(vsg::vec3(0.05f, 0.06f, 0.10f), environment.fogColor(), static_cast<float>(dayFactor));
 

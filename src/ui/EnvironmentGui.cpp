@@ -82,7 +82,7 @@ namespace vsgOcean
             const auto models = scene->modelNames();
             std::vector<const char*> labels{"(none)"};
             for (const auto& model : models) labels.push_back(model.c_str());
-            int current = 0;
+            auto current = 0;
             for (size_t i = 0; i < models.size(); ++i)
             {
                 if (models[i] == scene->trackedFrame()) current = static_cast<int>(i) + 1;
@@ -101,7 +101,7 @@ namespace vsgOcean
             }
             ImGui::Separator();
 
-            float sun = static_cast<float>(environment->sunElevation());
+            auto sun = static_cast<float>(environment->sunElevation());
             if (ImGui::SliderFloat("sun elevation (deg)", &sun, -90.0f, 90.0f))
             {
                 controls->sunCycleEnabled = false;
@@ -116,7 +116,7 @@ namespace vsgOcean
             ImGui::Checkbox("day cycle animation", &controls->sunCycleEnabled);
             ImGui::Separator();
 
-            int jerlov = static_cast<int>(environment->jerlovType());
+            auto jerlov = static_cast<int>(environment->jerlovType());
             if (ImGui::SliderInt("Jerlov water type", &jerlov, 0, 8))
             {
                 environment->setJerlovType(static_cast<Environment::JerlovType>(jerlov));
@@ -124,38 +124,38 @@ namespace vsgOcean
             ImGui::SameLine();
             ImGui::TextUnformatted(environment->jerlovName().c_str());
 
-            float sea = static_cast<float>(environment->seaLevel());
+            auto sea = static_cast<float>(environment->seaLevel());
             if (ImGui::SliderFloat("sea level (m)", &sea, -50.0f, 10.0f)) environment->setSeaLevel(sea);
 
-            bool water = scene->surfaceEnabled();
+            auto water = scene->surfaceEnabled();
             if (ImGui::Checkbox("ocean surface", &water))
             {
                 scene->setSurfaceEnabled(water);
             }
             ImGui::Separator();
 
-            float wind = static_cast<float>(environment->windSpeed());
+            auto wind = static_cast<float>(environment->windSpeed());
             if (ImGui::SliderFloat("wind speed (m/s)", &wind, 0.0f, 30.0f)) environment->setWindSpeed(wind);
             wind = static_cast<float>(environment->windDirection());
             if (ImGui::SliderFloat("wind direction (deg)", &wind, 0.0f, 360.0f)) environment->setWindDirection(wind);
 
             if (wavefield)
             {
-                float amplitude = static_cast<float>(wavefield->amplitude());
+                auto amplitude = static_cast<float>(wavefield->amplitude());
                 if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 3.0f)) wavefield->setAmplitude(amplitude);
-                float period = static_cast<float>(wavefield->period());
+                auto period = static_cast<float>(wavefield->period());
                 if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
-                float steepness = static_cast<float>(wavefield->steepness());
+                auto steepness = static_cast<float>(wavefield->steepness());
                 if (ImGui::SliderFloat("wave steepness", &steepness, 0.0f, 1.0f)) wavefield->setSteepness(steepness);
-                int number = static_cast<int>(wavefield->number());
+                auto number = static_cast<int>(wavefield->number());
                 if (ImGui::SliderInt("wave components", &number, 1, static_cast<int>(vsgOcean::Wavefield::maxWaves))) wavefield->setNumber(static_cast<size_t>(number));
-                float scale = static_cast<float>(wavefield->scale());
+                auto scale = static_cast<float>(wavefield->scale());
                 if (ImGui::SliderFloat("wave scale", &scale, 1.0f, 4.0f)) wavefield->setScale(scale);
-                float angle = static_cast<float>(vsg::degrees(wavefield->angle()));
+                auto angle = static_cast<float>(vsg::degrees(wavefield->angle()));
                 if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
             }
 
-            float fog = static_cast<float>(environment->fogDensity());
+            auto fog = static_cast<float>(environment->fogDensity());
             if (ImGui::SliderFloat("fog density", &fog, 0.0f, 0.02f, "%.4f")) environment->setFogDensity(fog);
 
             ImGui::End();

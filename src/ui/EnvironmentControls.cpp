@@ -27,9 +27,9 @@ namespace vsgOcean
         // always be able to hide the panel
         if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h) return;
         if (!scene_) return;
-        auto environment = scene_->environment();
-        auto surface = scene_->surface();
-        auto wavefield = surface ? surface->wavefield() : nullptr;
+        const auto environment = scene_->environment();
+        const auto surface = scene_->surface();
+        const auto wavefield = surface ? surface->wavefield() : nullptr;
 
         // any sun adjustment takes over from the day cycle animation
         auto adjustSun = [&]()
@@ -78,14 +78,14 @@ namespace vsgOcean
             break;
         case vsg::KEY_z:
         {
-            const int type = std::max(static_cast<int>(environment->jerlovType()) - 1, 0);
+            const auto type = std::max(static_cast<int>(environment->jerlovType()) - 1, 0);
             environment->setJerlovType(static_cast<Environment::JerlovType>(type));
             break;
         }
         case vsg::KEY_c:
         {
-            const int type = std::min(static_cast<int>(environment->jerlovType()) + 1,
-                                     static_cast<int>(Environment::JerlovType::Coastal9));
+            const auto type = std::min(static_cast<int>(environment->jerlovType()) + 1,
+                                       static_cast<int>(Environment::JerlovType::Coastal9));
             environment->setJerlovType(static_cast<Environment::JerlovType>(type));
             break;
         }
@@ -100,7 +100,7 @@ namespace vsgOcean
             // cycle the camera tracking through the models of the scene: none, then
             // each model in turn, then none again
             const auto names = scene_->modelNames();
-            size_t next = 0;
+            size_t next{0};
             if (const auto& tracked = scene_->trackedFrame(); !tracked.empty())
             {
                 const auto it = std::find(names.begin(), names.end(), tracked);
