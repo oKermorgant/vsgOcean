@@ -169,7 +169,11 @@ namespace vsgOcean
             (*uniform_)[5 + Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(k), 0.0f, 0.0f, 0.0f);
             (*uniform_)[5 + 2 * Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(w), 0.0f, 0.0f, 0.0f);
             (*uniform_)[5 + 3 * Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(q), 0.0f, 0.0f, 0.0f);
-            (*uniform_)[5 + 4 * Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(d.x), static_cast<float>(d.y), 0.0f, 0.0f);
+            // the wind speed rides in the first direction slot's unused z: the
+            // ripple detail scales with it (less wind = fewer capillary ripples)
+            (*uniform_)[5 + 4 * Wavefield::maxWaves + slot] = vsg::vec4(
+                static_cast<float>(d.x), static_cast<float>(d.y),
+                slot == 0 ? static_cast<float>(environment.windSpeed()) : 0.0f, 0.0f);
             ++slot;
         }
 

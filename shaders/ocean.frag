@@ -52,7 +52,12 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const vec3 horizonNight = vec3(0.002, 0.003, 0.006);
 
     const float up = clamp(direction.z, 0.0, 1.0);
-    const float gradient = pow(up, 0.4);
+    // the reflection sees the horizon band COMPRESSED relative to the sky itself (the
+    // intentional difference from sky.frag): the milky horizon colour of a hazy day
+    // reads as a thin strip in reflections - the sky's pow(up, 0.4) band is wide
+    // enough that the surface broke into water-colour and milky patches at the
+    // Fresnel transition
+    const float gradient = smoothstep(0.0, 0.15, up);
     vec3 sky = mix(mix(horizonNight, horizonDay, day), mix(zenithNight, zenithDay, day), gradient);
 
     // dusk glow around the sun azimuth near the horizon
@@ -73,9 +78,10 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
     sky += (sunDisc * 5.0 + glow) * sunColor * sunFade;
 
-    // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m path)
+    // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m path);
+    // compressed band as above (the sky shader uses smoothstep up to 0.15)
     const float haze = 1.0 - exp(-ocean.fogColorDensity.a * 0.05 * 400.0);
-    sky = mix(sky, ocean.fogColorDensity.rgb, haze * (1.0 - smoothstep(-0.05, 0.15, direction.z)));
+    sky = mix(sky, ocean.fogColorDensity.rgb, haze * (1.0 - smoothstep(-0.05, 0.04, direction.z)));
     return sky;
 }
 
@@ -129,7 +135,9 @@ vec2 rippleSlope(vec2 p, float t, float fade)
 {
     if (fade <= 0.0) return vec2(0.0);
 
-    const float sea = clamp(ocean.amplitude[7].x / 0.4, 0.0, 1.5); // 1.0 at the default sea state
+    // the capillary ripples follow the WIND (less wind = fewer ripples): 1.0 at the
+    // default 5 m/s breeze, near calm below ~2 m/s, saturated above ~10 m/s
+    const float sea = pow(clamp(ocean.direction[0].z / 5.0, 0.0, 1.0), 1.5) + clamp((ocean.direction[0].z - 10.0) / 10.0, 0.0, 0.5);
     const vec2 wind = normalize(ocean.direction[7].xy + vec2(1e-5, 0.0));
     const mat2 windFrame = mat2(wind.x, -wind.y, wind.y, wind.x);
 
@@ -181,7 +189,7 @@ void main()
     const vec3 halfway = normalize(toEye + sunDirection);
     const float sunFade = clamp(sunDirection.z * 10.0 + 0.5, 0.0, 1.0);
     const float glitter = pow(max(dot(n, halfway), 0.0), 256.0) * 4.0;
-    const float glare = pow(max(dot(n, halfway), 0.0), 32.0) * 0.25;
+    const float glare = pow(max(dot(n, halfway), 0.0), 96.0) * 0.12;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
 
     vec3 color;
