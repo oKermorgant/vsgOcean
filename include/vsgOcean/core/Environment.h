@@ -58,12 +58,13 @@ namespace vsgOcean
         /// Unit vector pointing towards the sun, computed from elevation and azimuth (+Z up).
         [[nodiscard]] vsg::dvec3 sunDirection() const;
 
-        /// Atmospheric fog density, normalized 0..1: 0 disables fogging, 1.0 is a
+        /// Atmospheric fog density, normalized 0..1: 0 disables foging, 1.0 is a
         /// practical maximum (an extinction of 0.05 1/m - at that point a boat can
         /// barely see its own bow), 0.1 a hazy sea (~600 m visibility), 0.02 a clear
         /// day (~2 km). The haze follows Beer-Lambert over the view distance,
         /// 1 - exp(-extinction * distance), with the extinction from
-        /// fogExtinction(). Default 0.1.
+        /// fogExtinction(). Default 0.02 (the example islands sit hundreds of
+        /// metres out; at the hazy 0.1 they disappear into the fog).
         void setFogDensity(double density);
         double fogDensity() const { return fogDensity_; }
 
@@ -120,7 +121,7 @@ namespace vsgOcean
     protected:
         double sunElevation_{35.0};
         double sunAzimuth_{135.0};
-        double fogDensity_{0.1};
+        double fogDensity_{0.02};
         vsg::vec3 fogColor_ = {0.65f, 0.72f, 0.80f}; // light blue grey
         double windSpeed_{5.0};
         double windDirection_{0.0};
