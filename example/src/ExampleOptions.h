@@ -48,9 +48,10 @@ namespace vsgOceanExample
         bool overrideEye = false;
         vsg::dvec3 eye{0.0, 0.0, 0.0};
 
-        // demo animation: the sun moves through a full day (1 simulated hour per
-        // second), paused at runtime through the environment controls
-        bool sunCycle = true;
+        // demo animation: with --sun-cycle the sun moves through a full day (one
+        // simulated hour per second), from the sun pose given by --sun; off by
+        // default, and paused at runtime through the environment controls
+        bool sunCycle = false;
 
         // environment overrides
         bool overrideSun = false;
@@ -226,7 +227,7 @@ namespace vsgOceanExample
         }
 
         settings.autoPlay = !arguments.read({"--no-auto-play", "--nop"});
-        settings.sunCycle = !arguments.read("--no-sun-cycle");
+        settings.sunCycle = arguments.read("--sun-cycle");
 
         // debugging: start the camera at a given position (e.g. underwater); parsed
         // before the positional scene arguments are collected

@@ -23,9 +23,9 @@ namespace vsgOcean
 
     void EnvironmentControls::apply(vsg::KeyPressEvent& keyPress)
     {
-        // while the GUI captures the input the keys are its - except H, which must
-        // always be able to hide the panel
-        if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h) return;
+        // while the GUI captures the input the keys are its - except H and V, which
+        // must always be able to hide the panel and the camera widget
+        if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_v) return;
         if (!scene_) return;
         const auto environment = scene_->environment();
         const auto surface = scene_->surface();
@@ -111,6 +111,9 @@ namespace vsgOcean
         }
         case vsg::KEY_h:
             panelVisible = !panelVisible;
+            break;
+        case vsg::KEY_v:
+            camerasVisible = !camerasVisible;
             break;
         default:
             break;

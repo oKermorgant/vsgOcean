@@ -59,14 +59,33 @@ namespace vsgOcean
 
         using CameraTexture = std::pair<std::string, vsg::ref_ptr<LiveGuiTexture>>;
 
-        // the environment panel: bindings, model tracking, sliders, camera previews
+        // the camera preview widget: the render-to-texture views of the sensor
+        // pipelines, independent of the tuning panel (V key)
+        bool drawCameraWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const std::vector<CameraTexture>& cameras)
+        {
+            if (!controls->camerasVisible) return true;
+
+            // top right corner, clear of the HUD text in the top left
+            const auto& io = ImGui::GetIO();
+            ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 336.0f, 10.0f), ImGuiCond_Once);
+            ImGui::Begin("vsgOcean cameras");
+
+            for (const auto& [name, texture] : cameras)
+            {
+                if (!texture->descriptorSet_) continue; // not compiled yet
+                ImGui::TextUnformatted(name.c_str());
+                ImGui::Image(texture->id(), ImVec2(320.0f, 240.0f));
+            }
+
+            ImGui::End();
+            return true;
+        }
+
+        // the environment panel: bindings, model tracking, sliders
         bool drawEnvironmentPanel(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene,
                                   const vsg::ref_ptr<Environment>& environment, const vsg::ref_ptr<OceanSurface>& surface,
-                                  const vsg::ref_ptr<Wavefield>& wavefield, const std::vector<CameraTexture>& cameras)
+                                  const vsg::ref_ptr<Wavefield>& wavefield)
         {
-            // let the camera controller and the keyboard controls ignore input while
-            // the GUI captures it
-            controls->guiCapturesInput = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
             if (!controls->panelVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Once);
@@ -92,13 +111,6 @@ namespace vsgOcean
                 scene->setTrackedFrame(current == 0 ? std::string{} : models[static_cast<size_t>(current) - 1]);
             }
 
-            // camera previews: the render-to-texture views of the sensor pipelines
-            for (const auto& [name, texture] : cameras)
-            {
-                if (!texture->descriptorSet_) continue; // not compiled yet
-                ImGui::TextUnformatted(name.c_str());
-                ImGui::Image(texture->id(), ImVec2(320.0f, 240.0f));
-            }
             ImGui::Separator();
 
             auto sun = static_cast<float>(environment->sunElevation());
@@ -156,7 +168,7 @@ namespace vsgOcean
             }
 
             auto fog = static_cast<float>(environment->fogDensity());
-            if (ImGui::SliderFloat("fog density", &fog, 0.0f, 0.02f, "%.4f")) environment->setFogDensity(fog);
+            if (ImGui::SliderFloat("fog density", &fog, 0.0f, 1.0f, "%.3f")) environment->setFogDensity(fog);
 
             ImGui::End();
             return true;
@@ -186,7 +198,14 @@ namespace vsgOcean
         // the texture adapters are children of the GUI node, so they compile with it
         auto gui = vsgImGui::RenderImGui::create(window,
                                                  [controls, scene, environment, surface, wavefield, cameras]()
-                                                 { return drawEnvironmentPanel(controls, scene, environment, surface, wavefield, cameras); });
+                                                 {
+                                                     // let the camera controller and the keyboard controls ignore
+                                                     // input while the GUI captures it
+                                                     controls->guiCapturesInput = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
+
+                                                     drawCameraWidget(controls, cameras);
+                                                     return drawEnvironmentPanel(controls, scene, environment, surface, wavefield);
+                                                 });
         if (auto group = gui.cast<vsg::Group>())
         {
             for (const auto& [name, texture] : cameras)

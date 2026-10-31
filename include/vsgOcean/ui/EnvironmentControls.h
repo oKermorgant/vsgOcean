@@ -31,7 +31,7 @@ namespace vsgOcean
     public:
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
-        inline static constexpr std::array<Binding, 15> bindings{{
+        inline static constexpr std::array<Binding, 16> bindings{{
             {"mouse left drag", "orbit the view (stable horizon)"},
             {"mouse right drag", "translate the camera"},
             {"mouse wheel", "dolly in / out"},
@@ -45,6 +45,7 @@ namespace vsgOcean
             {"P", "ocean surface on / off"},
             {"Space", "day cycle animation on / off"},
             {"Tab", "cycle the tracked model"},
+            {"V", "camera previews on / off"},
             {"H", "sliders panel on / off"},
             {"Esc", "quit"},
         }};
@@ -58,6 +59,10 @@ namespace vsgOcean
         /// Hidden by default: the bindings stay visible in the HUD, the sliders come
         /// with the panel.
         bool panelVisible = false;
+
+        /// Whether the camera preview widget is visible (toggled with the V key).
+        /// Independent of the tuning panel; shown by default.
+        bool camerasVisible = true;
 
         /// Whether a GUI currently captures the input (set by the environment GUI each
         /// frame from the ImGui state). The keyboard controls ignore keys while it is

@@ -262,7 +262,7 @@ int main(int argc, char** argv)
         const auto colorFormat = window->surfaceFormat().format;
         const auto depthFormat = window->depthFormat();
         auto makeSensorCamera = [sensorExtent]() {
-            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.05, 200.0),
+            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.1, 200.0),
                                        vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 0.0), vsg::dvec3(0.0, 1.0, 0.0), vsg::dvec3(0.0, 0.0, 1.0)),
                                        vsg::ViewportState::create(sensorExtent));
         };
@@ -380,28 +380,35 @@ int main(int argc, char** argv)
                 const auto angle = 2.0 * vsg::PI * t / 60.0;
                 vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), -0.3)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
 
-                // the boat camera rides its vehicle, looking along the direction of travel
+                // the boat camera rides at the bow, above the hulls, looking along the
+                // direction of travel (a forward-facing camera sees little of its boat)
                 if (boatPipeline)
                 {
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
-                    lookAt->eye = vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), 1.2);
-                    lookAt->center = lookAt->eye + vsg::dvec3(-std::sin(angle), std::cos(angle), -0.15) * 5.0;
+                    const vsg::dvec3 travel(-std::sin(angle), std::cos(angle), 0.0);
+                    lookAt->eye = vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), 0.0) + travel * 1.5 + vsg::dvec3(0.0, 0.0, 1.6);
+                    lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.6);
                 }
             }
 
             if (vsg_scene->model("bluerov2"))
             {
-                // the ROV circles below the surface (Z < 0), at its own pace
-                const auto angle = -2.0 * vsg::PI * t / 40.0;
-                vsg_scene->setPose("bluerov2", vsg::translate(vsg::dvec3(6.0 * std::cos(angle), 6.0 * std::sin(angle), -3.0)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
+                // the ROV circles the wreck at (12, 0, -48), facing it. The vehicle
+                // frame is x-front, y-port, z-up: the heading rotation points the
+                // model's +X at the wreck, and the pitch tilts the nose down towards
+                // it, so the forward camera takes in more of the wreck
+                const auto angle = -2.0 * vsg::PI * t / 60.0;
+                const vsg::dvec3 position(12.0 + 8.0 * std::cos(angle), 8.0 * std::sin(angle), -37.0);
+                const auto attitude = vsg::rotate(angle + vsg::PI, 0.0, 0.0, 1.0) * vsg::rotate(vsg::radians(25.0), 0.0, 1.0, 0.0);
+                vsg_scene->setPose("bluerov2", vsg::translate(position) * attitude);
 
-                // the ROV camera rides its vehicle, slightly above the body, looking
-                // along the direction of travel
+                // the ROV camera is forward-facing, at the vehicle's nose: it looks at
+                // the wreck it circles, without the vehicle in view
                 if (rovPipeline)
                 {
                     const auto lookAt = rovPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
-                    lookAt->eye = vsg::dvec3(6.0 * std::cos(angle), 6.0 * std::sin(angle), -2.85);
-                    lookAt->center = lookAt->eye + vsg::dvec3(std::sin(angle), -std::cos(angle), 0.0) * 5.0;
+                    lookAt->eye = position + attitude * vsg::dvec3(0.55, 0.0, 0.15);
+                    lookAt->center = lookAt->eye + (attitude * vsg::dvec3(1.0, 0.0, 0.0)) * 8.0;
                 }
             }
 
