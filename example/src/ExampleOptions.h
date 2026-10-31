@@ -81,11 +81,14 @@ namespace vsgOceanExample
         std::vector<vsg::Path> sceneFilenames;
     };
 
-    // generate debug info in the shaders of the standard shader sets
-    inline void enableGenerateDebugInfo(const vsg::ref_ptr<vsg::Options>& options)
+    // assign the standard vsg shader sets (text, flat, phong, pbr) to the options, so
+    // the models loaded through vsgXchange shade with the scene's lights; without them
+    // the loaders fall back to their own default shaders, which ignore the scene
+    // lighting and render the meshes dark. generateDebugInfo adds the debug hints.
+    inline void assignStandardShaderSets(const vsg::ref_ptr<vsg::Options>& options, bool generateDebugInfo)
     {
         auto shaderHints = vsg::ShaderCompileSettings::create();
-        shaderHints->generateDebugInfo = true;
+        shaderHints->generateDebugInfo = generateDebugInfo;
 
         auto& text = options->shaderSets["text"] = vsg::createTextShaderSet(options);
         text->defaultShaderHints = shaderHints;
@@ -188,11 +191,14 @@ namespace vsgOceanExample
             return settings;
         }
 
-        if (arguments.read({"--shader-debug-info", "--sdi"}))
+        const bool shaderDebugInfo = arguments.read({"--shader-debug-info", "--sdi"});
+        if (shaderDebugInfo)
         {
-            enableGenerateDebugInfo(settings.options);
             settings.windowTraits->deviceExtensionNames.push_back(VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME);
         }
+
+        // always shade the models with the scene's lights (see assignStandardShaderSets)
+        assignStandardShaderSets(settings.options, shaderDebugInfo);
 
         settings.logFilename = arguments.value<vsg::Path>("", "--log");
 

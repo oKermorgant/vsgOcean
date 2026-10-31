@@ -36,7 +36,9 @@
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <mesh>
-            <uri>meshes/herkules.dae</uri>
+            <!-- glb (converted from herkules.dae with meshconv): the glTF loading path
+                 shades with the scene lights; the assimp/dae path renders unlit -->
+            <uri>meshes/herkules.glb</uri>
             <scale>1.0 1.0 1.0</scale>
           </mesh>
         </geometry>
