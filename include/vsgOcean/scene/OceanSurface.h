@@ -18,7 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    /// The ocean surface: a grid mesh displaced by the same Gerstner component waves as its
+    /// The ocean surface: a mesh displaced by the same Gerstner component waves as its
     /// Wavefield (the Gazebo wave model), so that the rendered waves and the waves evaluated
     /// on the CPU for dynamics are the same. The shading uses the Environment (sun, fog,
     /// Jerlov water colour).
@@ -28,9 +28,13 @@ namespace vsgOcean
     class VSG_OCEAN_EXPORT OceanSurface : public vsg::Inherit<vsg::Group, OceanSurface>
     {
     public:
-        /// size: extent of the surface grid in metres (centred at the origin),
-        /// cells: number of grid cells per side
-        explicit OceanSurface(double size = 1200.0, uint32_t cells = 512);
+        /// rings, segments: the resolution of the surface mesh. The mesh is a
+        /// camera-following disc of concentric rings with an exponentially growing radius,
+        /// from sub-metre cells around the camera (resolving the shortest waves) to
+        /// horizon-scale cells far away (sub-pixel there) - the ocean is endless, and the
+        /// wave field is sampled at world positions, so the waves stay fixed in the world
+        /// as the mesh follows the camera.
+        explicit OceanSurface(uint32_t rings = 96, uint32_t segments = 128);
 
         /// The wave field of the surface (the Gazebo wave model), tunable at any time.
         vsg::ref_ptr<Wavefield> wavefield() const { return wavefield_; }
@@ -47,7 +51,8 @@ namespace vsgOcean
         vsg::ref_ptr<Wavefield> wavefield_;
 
         // uniform block layout: [0] sun direction, [1] fog color + density, [2] water color,
-        // [3] params (t, tau, number, water depth), [4] sea level, [5..44] component wave arrays
+        // [3] params (t, tau, number, water depth), [4] attenuation + sea level,
+        // [5..44] component wave arrays
         vsg::ref_ptr<vsg::vec4Array> uniform_;
     };
 }

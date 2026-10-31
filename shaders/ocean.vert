@@ -40,7 +40,12 @@ void main()
     const int number = int(ocean.params.z);
     const float grow = 1.0 - exp(-t / ocean.params.y);
 
-    vec3 p = position;
+    // the camera position of this view, from the modelview push constant; the disc
+    // re-centres on it, so the ocean is endless. The wave field is evaluated at world
+    // positions: the waves stay fixed in the world as the mesh follows the camera
+    cameraEye = vec3(inverse(pc.modelview) * vec4(0.0, 0.0, 0.0, 1.0));
+
+    vec3 p = position + vec3(cameraEye.x, cameraEye.y, 0.0);
 
     // tangent along x, binormal along y and normal of the displaced surface,
     // accumulated over the component waves (Gerstner form of Tessendorf, as the
@@ -81,9 +86,6 @@ void main()
 
     // the mean water level offset (sea level)
     p.z += ocean.seaLevel.w;
-
-    // the camera position of this view, from the modelview push constant
-    cameraEye = vec3(inverse(pc.modelview) * vec4(0.0, 0.0, 0.0, 1.0));
 
     worldPosition = p;
     worldNormal = normalize(N);

@@ -21,37 +21,55 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    OceanSurface::OceanSurface(double size, uint32_t cells) :
+    OceanSurface::OceanSurface(uint32_t rings, uint32_t segments) :
         wavefield_(Wavefield::create())
     {
-        // flat grid on the mean water level (z = 0), centred at the origin
-        const auto verticesPerSide = cells + 1;
-        auto vertices = vsg::vec3Array::create(static_cast<size_t>(verticesPerSide) * verticesPerSide);
-        auto indices = vsg::uintArray::create(static_cast<size_t>(cells) * cells * 6);
+        // a camera-following disc of concentric rings with an exponentially growing
+        // radius: sub-metre cells around the camera resolve the shortest component
+        // waves, horizon-scale cells far away are sub-pixel. The vertex shader
+        // re-centres the disc on each view's camera; the wave field is sampled at
+        // world positions, so the waves stay fixed in the world (an endless ocean)
+        constexpr double innerRadius{0.25};     // metres; the disc centre is a fan
+        constexpr double outerRadius{16000.0}; // metres; beyond any far plane
+        const auto growth = std::pow(outerRadius / innerRadius, 1.0 / static_cast<double>(rings - 1));
 
-        const float step = static_cast<float>(size / cells);
-        const float halfSize = static_cast<float>(size) * 0.5f;
-
-        for (uint32_t j = 0; j < verticesPerSide; ++j)
+        // vertices: the disc centre, then one ring per radius step
+        auto vertices = vsg::vec3Array::create(1 + static_cast<size_t>(rings) * segments);
+        (*vertices)[0] = vsg::vec3(0.0f, 0.0f, 0.0f);
+        for (uint32_t r = 0; r < rings; ++r)
         {
-            for (uint32_t i = 0; i < verticesPerSide; ++i)
+            const auto radius = static_cast<float>(innerRadius * std::pow(growth, static_cast<double>(r)));
+            for (uint32_t s = 0; s < segments; ++s)
             {
-                (*vertices)[j * verticesPerSide + i] = vsg::vec3(-halfSize + i * step, -halfSize + j * step, 0.0f);
+                const auto theta = 2.0 * vsg::PI * static_cast<double>(s) / static_cast<double>(segments);
+                (*vertices)[1 + static_cast<size_t>(r) * segments + s] = vsg::vec3(radius * static_cast<float>(std::cos(theta)),
+                                                                                   radius * static_cast<float>(std::sin(theta)), 0.0f);
             }
         }
 
+        // indices: a fan at the centre, then quads between the rings (wrapping around)
+        auto indices = vsg::uintArray::create(static_cast<size_t>(segments) * 3 + static_cast<size_t>(rings - 1) * segments * 6);
         size_t index = 0;
-        for (uint32_t j = 0; j < cells; ++j)
+        for (uint32_t s = 0; s < segments; ++s)
         {
-            for (uint32_t i = 0; i < cells; ++i)
+            const auto next = (s + 1) % segments;
+            (*indices)[index++] = 0;
+            (*indices)[index++] = 1 + s;
+            (*indices)[index++] = 1 + next;
+        }
+        for (uint32_t r = 0; r + 1 < rings; ++r)
+        {
+            const auto inner = 1 + r * segments;
+            const auto outer = 1 + (r + 1) * segments;
+            for (uint32_t s = 0; s < segments; ++s)
             {
-                const auto base = j * verticesPerSide + i;
-                (*indices)[index++] = base;
-                (*indices)[index++] = base + 1;
-                (*indices)[index++] = base + verticesPerSide;
-                (*indices)[index++] = base + 1;
-                (*indices)[index++] = base + verticesPerSide + 1;
-                (*indices)[index++] = base + verticesPerSide;
+                const auto next = (s + 1) % segments;
+                (*indices)[index++] = inner + s;
+                (*indices)[index++] = outer + s;
+                (*indices)[index++] = inner + next;
+                (*indices)[index++] = inner + next;
+                (*indices)[index++] = outer + s;
+                (*indices)[index++] = outer + next;
             }
         }
 
@@ -130,7 +148,7 @@ namespace vsgOcean
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
 
         (*uniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), 0.0f);
-        (*uniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogDensity()));
+        (*uniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogExtinction()));
         (*uniform_)[2] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
         (*uniform_)[3] = vsg::vec4(static_cast<float>(t), static_cast<float>(wavefield_->tau()),
                                   static_cast<float>(wavefield_->amplitudes().size()), 5.0f); // 5 m assumed water depth
