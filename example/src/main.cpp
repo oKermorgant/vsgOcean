@@ -375,11 +375,15 @@ int main(int argc, char** argv)
 
             if (vsg_scene->model("aquabot"))
             {
-                // the surface vehicle performs a large circle on the surface; slightly
-                // below z = 0 so the hulls have a visible draft (the mesh waterline is
-                // at its origin, the hull bottom 0.026 m above)
+                // the surface vehicle performs a large circle, riding the waves: the
+                // wave field is sampled at its position, slightly below the local
+                // surface so the hulls keep a visible draft (the mesh waterline is at
+                // its origin, the hull bottom 0.026 m above)
                 const auto angle = 2.0 * vsg::PI * t / 60.0;
-                vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), -0.3)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
+                const double x = 10.0 * std::cos(angle);
+                const double y = 10.0 * std::sin(angle);
+                const double surfaceZ = wavefield->height(x, y, t);
+                vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.03)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
 
                 // the boat camera rides at the bow, above the hulls, looking along the
                 // direction of travel (a forward-facing camera sees little of its boat)
@@ -387,7 +391,7 @@ int main(int argc, char** argv)
                 {
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     const vsg::dvec3 travel(-std::sin(angle), std::cos(angle), 0.0);
-                    lookAt->eye = vsg::dvec3(10.0 * std::cos(angle), 10.0 * std::sin(angle), 0.0) + travel * 1.5 + vsg::dvec3(0.0, 0.0, 1.6);
+                    lookAt->eye = vsg::dvec3(x, y, surfaceZ) + travel * 1.5 + vsg::dvec3(0.0, 0.0, 1.6);
                     lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.6);
                 }
             }
