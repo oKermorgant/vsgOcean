@@ -47,6 +47,8 @@ namespace vsgOceanExample
         double horizonMountainHeight = 0.0;
         bool overrideEye = false;
         vsg::dvec3 eye{0.0, 0.0, 0.0};
+        bool overrideCenter = false;
+        vsg::dvec3 center{0.0, 0.0, 0.0};
 
         // demo animation: with --sun-cycle the sun moves through a full day (one
         // simulated hour per second), from the sun pose given by --sun; off by
@@ -238,6 +240,10 @@ namespace vsgOceanExample
         // debugging: start the camera at a given position (e.g. underwater); parsed
         // before the positional scene arguments are collected
         if (arguments.read("--eye", settings.eye.x, settings.eye.y, settings.eye.z)) settings.overrideEye = true;
+
+        // aim the camera at a fixed point (the fallback camera looks at the scene
+        // bounds centre; --center overrides that for deterministic framing)
+        if (arguments.read("--center", settings.center.x, settings.center.y, settings.center.z)) settings.overrideCenter = true;
 
         // capture: write the main view to a PNG file when the render loop ends
         settings.screenshotPath = arguments.value<vsg::Path>("", "--screenshot");

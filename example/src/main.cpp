@@ -297,6 +297,7 @@ int main(int argc, char** argv)
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         if (settings.overrideEye) lookAt->eye = settings.eye;
+        if (settings.overrideCenter) lookAt->center = settings.center;
 
         if (settings.instrumentation) viewer->assignInstrumentation(settings.instrumentation);
 
