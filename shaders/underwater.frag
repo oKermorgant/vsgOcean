@@ -40,7 +40,7 @@ void main()
     // reversed depth (vsg convention): 1 near, 0 cleared / background
     const float depth = texture(sceneDepth, uv).r;
 
-    // pixels with no scene geometry: the sky pass already renders its own horizon
+    // the light path through the water: from a submerged camera up to the surface
     // haze and underwater background - keep the scene color as is
     if (depth <= 0.0)
     {
@@ -49,7 +49,8 @@ void main()
     }
 
     // fragment world position and view distance, reconstructed from the depth buffer
-    const vec4 worldH = env.inverseViewProjection * vec4(ndc, depth * 2.0 - 1.0, 1.0);
+    // (reversed depth, Vulkan NDC z in [0,1]: the window depth is the NDC z as is)
+    const vec4 worldH = env.inverseViewProjection * vec4(ndc, depth, 1.0);
     const vec3 world = worldH.xyz / worldH.w;
     const float dist = length(world - env.eye.xyz);
 

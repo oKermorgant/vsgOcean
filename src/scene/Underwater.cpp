@@ -127,9 +127,9 @@ namespace vsgOcean
         {
             const auto projection = camera->projectionMatrix->transform();
             const auto view = camera->viewMatrix->transform();
-            // vsg's matrix product composes left-to-right (view first, then the
-            // projection), unlike the GLSL product in the shaders
-            const auto inverse = vsg::mat4(vsg::inverse(view * projection));
+            // vsg matrices are standard column-convention: the composite is
+            // projection * view, and vsg's columns upload as GLSL columns as is
+            const auto inverse = vsg::mat4(vsg::inverse(projection * view));
 
             for (uint32_t i = 0; i < 4; ++i)
             {
