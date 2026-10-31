@@ -89,7 +89,19 @@ void main()
         // submersion when below, the surface when looking down from above
         const float depth = max(env.eye.w, 0.0);
         const float light = exp(-env.water.a * max(depth, 0.5)) * max(env.attenuation.w, 0.0);
-        const vec3 scatter = env.water.rgb * light;
+        // the in-scattered light is the sum of the multiply-scattered ambient
+        // (isotropic, the water colour) and the singly-scattered sun light, which
+        // follows the Henyey-Greenstein phase (g = 0.924, strongly forward-peaked -
+        // the same model as Stonefish): bright when looking towards the sun, faint
+        // elsewhere. The sun vector is reconstructed from [6].w (height) + [7].z (az)
+        const vec3 sunDir = normalize(vec3(cos(env.attenuation.w) * cos(env.extent.z),
+                                           cos(env.attenuation.w) * sin(env.extent.z),
+                                           env.attenuation.w));
+        const vec3 viewDir = normalize(world - env.eye.xyz);
+        const float cosTheta = dot(viewDir, sunDir);
+        const float g = 0.924;
+        const float phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
+        const vec3 scatter = env.water.rgb * light * (1.0 + 0.003 * phase);
         const vec3 underwater = color * transmit + scatter * (1.0 - transmit);
 
         // the transport applies fully to the water segment; the fade-in only spans

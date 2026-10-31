@@ -29,7 +29,7 @@ namespace vsgOcean
              {-1.0f, 3.0f, 0.0f}});
 
         // uniform block: [0..3] inverse view projection, [4] eye + submersion, [5] water,
-        // [6] attenuation + sun height, [7] extent + sea level, [8] fog
+        // [6] attenuation + sun height, [7] extent + sun azimuth + sea level, [8] fog
         uniform_ = vsg::vec4Array::create(9);
         uniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
 
@@ -143,15 +143,18 @@ namespace vsgOcean
                                           static_cast<float>(lookAt->eye.z), static_cast<float>(submersion));
             }
 
+            // [7].z packs the sun azimuth: with [6].w (the sun height) the shader can
+            // reconstruct the full sun direction for the directional in-scattering
+            const auto sunAzimuth = static_cast<float>(environment.sunAzimuth() * vsg::radians(1.0));
             if (camera->viewportState && !camera->viewportState->viewports.empty())
             {
                 (*uniform_)[7] = vsg::vec4(static_cast<float>(camera->viewportState->viewports[0].width),
-                                          static_cast<float>(camera->viewportState->viewports[0].height), 0.0f,
+                                          static_cast<float>(camera->viewportState->viewports[0].height), sunAzimuth,
                                           static_cast<float>(environment.seaLevel()));
             }
             else
             {
-                (*uniform_)[7] = vsg::vec4(1.0f, 1.0f, 0.0f, static_cast<float>(environment.seaLevel()));
+                (*uniform_)[7] = vsg::vec4(1.0f, 1.0f, sunAzimuth, static_cast<float>(environment.seaLevel()));
             }
         }
 

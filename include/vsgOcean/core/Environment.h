@@ -115,6 +115,12 @@ namespace vsgOcean
         /// water type, after Jerlov's optical classification tables; used by underwater rendering.
         [[nodiscard]] vsg::vec3 underwaterAttenuation() const;
 
+        /// The approximate total per-channel scattering coefficients (1/m, R/G/B)
+        /// of the selected Jerlov water type - the singly-scattered light follows
+        /// the Henyey-Greenstein phase (g ~ 0.92); used by the volumetric light
+        /// transport (lamp cones, sun shafts).
+        [[nodiscard]] vsg::vec3 underwaterScattering() const;
+
         /// Approximate water colour of the current Jerlov water type.
         [[nodiscard]] vsg::vec3 underwaterColor() const;
 
