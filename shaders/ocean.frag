@@ -1,16 +1,23 @@
-// vsgOcean ocean surface: baseline water shading, fragment stage
+// vsgOcean ocean surface: the boundary between air and water, shaded in both
+// directions around the analytic sky model (shared with sky.frag - keep in sync):
+//
+// - seen from ABOVE: the surface reflects the sky (Fresnel) and transmits the
+//   refracted underwater view; the sun shows as the specular glitter path, broadened
+//   by a glare lobe (osgOcean-style) on the rippled normals
+// - seen from BELOW: the view refracts through the surface into the Snell window
+//   (the sky compressed into a ~97 deg cone); beyond the critical angle the surface
+//   totally internally reflects the water body - the physical reason the outside of
+//   the window is a dark mirror
+// - the composite pass then applies the water transport over the surface pixels
+//   (vertical attenuation by the viewer's submersion here, horizontal Beer-Lambert
+//   with the beam attenuation there)
 #version 450
-
-layout(location = 0) in vec3 worldPosition;
-layout(location = 1) in vec3 worldNormal;
-layout(location = 2) in vec3 cameraEye; // world position of the camera of this view
-layout(location = 0) out vec4 fragColor;
 
 layout(std140, set = 0, binding = 0) uniform Ocean
 {
     vec4 sunDirection;    // xyz: unit vector towards the sun
     vec4 fogColorDensity; // rgb: fog color, a: fog density
-    vec4 waterColor;      // rgb: water body colour from the Jerlov water type, a: mean attenuation (1/m)
+    vec4 waterColor;      // rgb: water body colour from the Jerlov water type, a: mean vertical attenuation (1/m)
     vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: assumed water depth [m]
     vec4 seaLevel;        // rgb: per-channel vertical Jerlov attenuation (1/m), w: mean sea level (m)
     vec4 amplitude[8];
@@ -20,102 +27,180 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 direction[8];    // xy: horizontal direction of the component
 } ocean;
 
-// interleaved gradient noise: a stable per-pixel pattern used for dithering
+layout(location = 0) in vec3 worldPosition;
+layout(location = 1) in vec3 worldNormal;
+layout(location = 2) in vec3 cameraEye; // world position of the camera of this view
+layout(location = 0) out vec4 fragColor;
+
+// the interleaved gradient noise used for dithering (shared with the sky shader)
 float ign(vec2 p)
 {
     return fract(52.9829189 * fract(0.06711056 * p.x + 0.00583715 * p.y));
 }
 
-// the height of the wave field at a horizontal position, from the component waves
-float waveHeight(vec2 p)
+// ---- shared sky model (keep in sync with sky.frag; the stars are omitted here: they
+// are far below the surface's reflectance floor) ----
+vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
 {
-    const float t = ocean.params.x;
-    const float grow = 1.0 - exp(-t / max(ocean.params.y, 1e-3));
-    const int number = int(ocean.params.z);
+    const float sunHeight = sunDirection.z;
+    const float day = smoothstep(-0.05, 0.25, sunHeight);
+    const float dusk = 1.0 - clamp(abs(sunHeight) / 0.2, 0.0, 1.0);
 
-    float height = ocean.seaLevel.w; // mean sea level
+    const vec3 zenithDay = vec3(0.20, 0.42, 0.80);
+    const vec3 horizonDay = vec3(0.75, 0.85, 0.95);
+    const vec3 zenithNight = vec3(0.001, 0.0015, 0.003);
+    const vec3 horizonNight = vec3(0.002, 0.003, 0.006);
+
+    const float up = clamp(direction.z, 0.0, 1.0);
+    const float gradient = pow(up, 0.4);
+    vec3 sky = mix(mix(horizonNight, horizonDay, day), mix(zenithNight, zenithDay, day), gradient);
+
+    // dusk glow around the sun azimuth near the horizon
+    const vec2 sunHorizontal = normalize(sunDirection.xy + vec2(1e-5, 0.0));
+    const float towardsSun = max(dot(normalize(direction.xy + vec2(1e-5, 0.0)), sunHorizontal), 0.0);
+    sky += dusk * pow(1.0 - up, 4.0) * pow(towardsSun, 4.0) * vec3(0.9, 0.45, 0.15) * 0.8;
+
+    // sun disc with an edge smoothed over the pixel footprint and a smooth glow,
+    // worked in 1 - cos(angle) space (acos has catastrophic precision near 1 in fp32)
+    const float sunRadius = 0.01; // radians, about twice the real sun
+    const float cosSun = 1.0 - clamp(dot(direction, sunDirection), -1.0, 1.0);
+    const float discCenter = 0.5 * sunRadius * sunRadius;
+    const float discEdge = max(pixelAngle * 1.5, 0.002) * sunRadius;
+    const float sunDisc = 1.0 - smoothstep(discCenter - discEdge, discCenter + discEdge, cosSun);
+    const float sunAngle = sqrt(2.0 * cosSun);
+    const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
+    const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
+    const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
+    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade;
+
+    // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m path)
+    const float haze = 1.0 - exp(-ocean.fogColorDensity.a * 0.05 * 400.0);
+    sky = mix(sky, ocean.fogColorDensity.rgb, haze * (1.0 - smoothstep(-0.05, 0.15, direction.z)));
+    return sky;
+}
+
+// ---- shared underwater background (keep in sync with sky.frag) ----
+vec3 underwaterColor(vec3 direction, vec3 sunDirection, float depth)
+{
+    const float k = ocean.waterColor.a;
+    const float light = exp(-k * max(depth, 0.5)) * max(sunDirection.z, 0.0);
+    const float up = clamp(direction.z * 0.5 + 0.5, 0.0, 1.0);
+    vec3 water = ocean.waterColor.rgb * light * (0.45 + 0.55 * up);
+
+    // the sun glowing down through the water
+    const float cosSun = 1.0 - clamp(dot(direction, sunDirection), -1.0, 1.0);
+    const float sunAngle = sqrt(2.0 * cosSun);
+    water += exp(-sunAngle / 0.3) * vec3(0.6, 0.95, 1.0) * 0.4 * light * max(sunDirection.z, 0.0);
+    return water;
+}
+
+// ripple detail: a small spectrum of short waves on top of the low-frequency Gerstner
+// geometry, evaluated as slopes per pixel. The directions are golden-angle spaced
+// around the wind (never aligned, so no cross-hatch pattern), the wavelengths are
+// incommensurate, and the amplitude follows the sea state (the wave field's largest
+// component). Fades with distance where the slopes would alias to sub-pixel noise.
+vec2 rippleSlope(vec2 p, float t, float fade)
+{
+    if (fade <= 0.0) return vec2(0.0);
+
+    const float sea = clamp(ocean.amplitude[7].x / 0.4, 0.0, 1.5); // 1.0 at the default sea state
+    const vec2 wind = normalize(ocean.direction[7].xy + vec2(1e-5, 0.0));
+    const mat2 windFrame = mat2(wind.x, -wind.y, wind.y, wind.x);
+
+    // wavelength [m], golden-angle offset [rad], slope at the default sea state
+    const vec3 ripple[8] = vec3[8](
+        vec3(1.60, 0.0, 0.055), vec3(1.10, 2.399, 0.050), vec3(0.76, 4.798, 0.046),
+        vec3(0.53, 7.197, 0.042), vec3(0.37, 9.596, 0.038), vec3(0.26, 11.995, 0.034),
+        vec3(0.42, 14.394, 0.030), vec3(0.31, 16.793, 0.026));
+
+    vec2 slope = vec2(0.0);
     for (int i = 0; i < 8; ++i)
     {
-        if (i >= number) break;
-        const float theta = dot(ocean.direction[i].xy, p) * ocean.wavenumber[i].x - ocean.omega[i].x * t;
-        height += ocean.amplitude[i].x * grow * cos(theta);
+        const float k = 6.2831853 / ripple[i].x;
+        const float omega = sqrt(9.81 * k); // deep-water dispersion
+        const vec2 d = windFrame * vec2(cos(ripple[i].y), sin(ripple[i].y));
+        const float theta = dot(d, p) * k - omega * t;
+        slope += ripple[i].z * sea * fade * d * sin(theta);
     }
-    return height;
+    return slope;
 }
 
 void main()
 {
     const vec3 sunDirection = normalize(ocean.sunDirection.xyz);
     const vec3 toEye = normalize(cameraEye - worldPosition);
-
-    // ripple detail: short wind-drifting slope perturbations evaluated per pixel, on
-    // top of the low-frequency Gerstner geometry (8 components, shortest ~2.4 m, is
-    // far too smooth up close - the surface read as large patches of flat normal).
-    // They fade with distance where they would alias to sub-pixel noise
     const float t = ocean.params.x;
+
+    // the fragment normal: the Gerstner geometry plus the ripple slopes; the ripple
+    // detail fades with distance and only stirs the surface tangent, never flips it
     const float rippleFade = exp(-length(cameraEye - worldPosition) * 0.03);
-    const vec2 wind = normalize(ocean.direction[4].xy + vec2(1e-5, 0.0));
-    vec2 rippleSlope = vec2(0.0);
-    // (wavelength [m], direction offset [rad], slope) - deep-water dispersion. The
-    // slopes are the capillary-scale variance of a real surface (total ~0.2): enough
-    // for the Fresnel and the sun glitter to shimmer at mid distance
-    const vec3 rippleParams[3] = vec3[3](vec3(1.6, 0.0, 0.060), vec3(0.9, 0.7, 0.055), vec3(0.5, -0.45, 0.045));
-    for (int i = 0; i < 3; ++i)
-    {
-        const float wavelength = rippleParams[i].x;
-        const float k = 6.2831853 / wavelength;
-        const float omega = sqrt(9.81 * k);
-        const vec2 d = vec2(cos(rippleParams[i].y), sin(rippleParams[i].y)) * mat2(wind.x, -wind.y, wind.y, wind.x);
-        const float theta = dot(d, worldPosition.xy) * k - omega * t;
-        rippleSlope += rippleParams[i].z * d * sin(theta);
-    }
-    const vec3 n = normalize(worldNormal + vec3(-rippleSlope.x, -rippleSlope.y, 0.0) * rippleFade);
+    const vec2 slope = rippleSlope(worldPosition.xy, t, rippleFade);
+    const vec3 n = normalize(worldNormal + vec3(-slope.x, -slope.y, 0.0));
 
     // day factor matching the scene lighting: black at night, no ambient floor
     const float day = smoothstep(-0.05, 0.25, sunDirection.z);
 
-    // Fresnel reflectance of the water surface (Schlick, F0 = 0.02)
+    // the viewer's side of the surface (the mean sea level criterion)
+    const float submersion = max(ocean.seaLevel.w - cameraEye.z, 0.0);
+
+    // Fresnel reflectance (Schlick, F0 = 0.02)
     const float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(n, toEye), 0.0), 5.0);
 
-    // reflection of the sky, approximated by the same gradient as the sky shader;
-    // the milky horizon colour only applies to truly near-horizontal reflections -
-    // the old pow(reflected.z, 0.4) spread it over half the up hemisphere, which
-    // showed as whitish patches wherever a wave facet tilted the reflection over
-    const vec3 reflected = reflect(-toEye, n);
-    const vec3 zenith = mix(vec3(0.015, 0.02, 0.05), vec3(0.20, 0.42, 0.80), day);
-    const vec3 horizon = mix(vec3(0.002, 0.003, 0.006), vec3(0.75, 0.85, 0.95), day);
-    const vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.35, clamp(reflected.z, 0.0, 1.0)));
-
-    // sun specular (Blinn-Phong), warm at low sun, fading below the horizon
+    // the sun's specular glitter on the rippled normals, plus a wide glare lobe
     const vec3 halfway = normalize(toEye + sunDirection);
     const float sunFade = clamp(sunDirection.z * 10.0 + 0.5, 0.0, 1.0);
-    const float specular = pow(max(dot(n, halfway), 0.0), 256.0) * 4.0 * sunFade;
+    const float glitter = pow(max(dot(n, halfway), 0.0), 256.0) * 4.0;
+    const float glare = pow(max(dot(n, halfway), 0.0), 32.0) * 0.25;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
 
-    // water body colour from the Jerlov water type, sun-driven only
-    const vec3 water = ocean.waterColor.rgb * day;
+    vec3 color;
+    float alpha;
 
-    // transparency: the water column absorbs light according to the Jerlov attenuation
-    // over an assumed depth, and the surface is more transparent looking straight down
-    // (small Fresnel) and mirror-like at grazing angles
-    const float clarity = exp(-ocean.waterColor.a * ocean.params.w);
-    float alpha = fresnel + (1.0 - fresnel) * (1.0 - clarity);
-
-    vec3 color = mix(water, sky, fresnel) + specular * sunColor;
-
-    // surface colours by the viewer's submersion depth, per channel (red is absorbed
-    // first) - the light path is vertical, so the vertical diffuse Jerlov attenuation
-    // applies, unlike the horizontal beam of the composite. The depth uses the MEAN
-    // sea level (the same stable underwater criterion as the composite and the sky)
-    const float submersion = max(ocean.seaLevel.w - cameraEye.z, 0.0);
-    if (submersion > 0.0)
+    if (submersion <= 0.0)
     {
-        color *= exp(-ocean.seaLevel.rgb * submersion);
-    }
+        // seen from ABOVE: reflect the sky, transmit the refracted underwater view
+        const vec3 reflected = reflect(-toEye, n);
+        const vec3 reflectedSky = skyColor(reflected, sunDirection, length(fwidth(reflected)));
 
-    // the atmospheric fog by distance is applied on the whole scene by the composite
-    // pass, which uses this surface's depth (the surface writes depth: it is drawn
-    // after the opaque scene, so nothing is drawn after it in the scene pass)
+        // the refracted view into the water: the near-surface volume back-scatters the
+        // sunlight in the Jerlov colour over a shallow effective depth (~1.5 m, the
+        // reason the sea reads bright blue from a boat while the deep is dark); the
+        // scene behind still shows through the alpha
+        const vec3 intoWater = refract(-toEye, n, 1.0 / 1.33);
+        const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0);
+        const vec3 throughWater = ocean.waterColor.rgb * scatter + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
+
+        color = mix(throughWater, reflectedSky, fresnel) + (glitter + glare) * sunColor * sunFade;
+
+        // transparency towards the scene behind the surface: more mirror-like at
+        // grazing angles, more transparent looking straight down
+        const float clarity = exp(-ocean.waterColor.a * ocean.params.w);
+        alpha = fresnel + (1.0 - fresnel) * (1.0 - clarity);
+    }
+    else
+    {
+        // seen from BELOW: the view refracts through the surface into the Snell
+        // window (the whole above-surface sky compressed into the critical cone);
+        // beyond the critical angle (~48.6 deg) the surface totally internally
+        // reflects the water body - a dark mirror ring around the bright window
+        const vec3 view = -toEye; // from the eye towards the surface
+        const vec3 mirrored = underwaterColor(reflect(view, n), sunDirection, submersion);
+        vec3 through = mirrored;
+        // refract wants the normal opposing the incoming ray: from below that is -n
+        const vec3 outRay = refract(view, -n, 1.33); // water -> air; zero on TIR
+        if (dot(outRay, outRay) > 0.0)
+        {
+            // the water -> air reflectance from the transmitted angle: it rises to
+            // total reflection as the incidence approaches the critical angle
+            const float reflectance = 0.02 + 0.98 * pow(1.0 - clamp(dot(outRay, n), 0.0, 1.0), 5.0);
+            through = mix(mirrored, skyColor(outRay, sunDirection, length(fwidth(outRay))), 1.0 - reflectance);
+        }
+        color = through;
+
+        // the light from above survives the viewer's submersion depth, per channel
+        color *= exp(-ocean.seaLevel.rgb * submersion);
+        alpha = 1.0;
+    }
 
     // dithering to avoid banding in the gradients on 8 bit framebuffers
     color += (ign(gl_FragCoord.xy) - 0.5) / 255.0;
