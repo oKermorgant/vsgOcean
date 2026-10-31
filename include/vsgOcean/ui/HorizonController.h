@@ -22,11 +22,11 @@ namespace vsgOcean
 {
     /// Camera controller with a stable horizon, intended as the default for vsgOcean scenes:
     ///
-    /// - left drag orbits around the view centre - yaw about the world up axis (+Z) and
+    /// - left drag translates the view (pan in the camera plane, scaled by the distance
+    ///   to the view centre)
+    /// - right drag orbits around the view centre - yaw about the world up axis (+Z) and
     ///   pitch about the horizontal axis - so the view never rolls and the horizon stays
     ///   level, FPS-like
-    /// - right drag translates the view (pan in the camera plane, scaled by the distance
-    ///   to the view centre)
     /// - the wheel dollies towards / away from the view centre
     ///
     /// inputBlocked, when set, is consulted on mouse press and wheel events; the camera

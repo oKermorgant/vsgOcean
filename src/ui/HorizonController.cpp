@@ -28,8 +28,8 @@ namespace vsgOcean
     {
         if (inputBlocked && inputBlocked()) return;
 
-        // left drag orbits, right drag translates
-        if (event.mask & (vsg::BUTTON_MASK_1 | vsg::BUTTON_MASK_2))
+        // left drag translates, right drag orbits (X11 button 3 = BUTTON_MASK_3)
+        if (event.mask & (vsg::BUTTON_MASK_1 | vsg::BUTTON_MASK_3))
         {
             dragButton_ = event.mask;
             lastPosition_ = vsg::ivec2(event.x, event.y);
@@ -53,18 +53,18 @@ namespace vsgOcean
         const auto delta = position - lastPosition_;
         lastPosition_ = position;
 
-        if (dragButton_ & vsg::BUTTON_MASK_2)
+        if (dragButton_ & vsg::BUTTON_MASK_3)
         {
-            // right drag: translate, scaled by the distance to the view centre
-            const auto distance = vsg::length(lookAt_->eye - lookAt_->center);
-            const auto scale = panScale * distance / static_cast<double>(extent.width);
-            translate(-delta.x * scale, delta.y * scale);
+            // right drag: dragging across the full window width orbits half a turn
+            const auto scale = vsg::PI / static_cast<double>(extent.width);
+            orbit(-static_cast<double>(delta.x) * scale, static_cast<double>(delta.y) * scale);
         }
         else
         {
-            // left drag: dragging across the full window width orbits half a turn
-            const auto scale = vsg::PI / static_cast<double>(extent.width);
-            orbit(-static_cast<double>(delta.x) * scale, static_cast<double>(delta.y) * scale);
+            // left drag: translate, scaled by the distance to the view centre
+            const auto distance = vsg::length(lookAt_->eye - lookAt_->center);
+            const auto scale = panScale * distance / static_cast<double>(extent.width);
+            translate(-delta.x * scale, delta.y * scale);
         }
     }
 

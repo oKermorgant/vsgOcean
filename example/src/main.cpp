@@ -234,7 +234,7 @@ int main(int argc, char** argv)
         controls->sunCycleEnabled = settings.sunCycle;
         viewer->addEventHandler(controls);
 
-        // camera controller: horizon-level orbit (left drag), translate (right drag), dolly (wheel);
+        // camera controller: translate (left drag), horizon-level orbit (right drag), dolly (wheel);
         // ignores input while the GUI captures it
         auto cameraController = vsgOcean::HorizonController::create(camera);
         cameraController->inputBlocked = [controls]() { return controls->guiCapturesInput; };

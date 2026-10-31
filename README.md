@@ -11,7 +11,7 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 - **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime.
 - **Sky**: analytic shader sky (day/night cycle from the sun elevation, constellations at night), with scene lighting that follows the sun.
 - **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the component count, scale and angle are tunable (GUI sliders or `--wave-*`).
-- **Underwater rendering**: when the camera dives below the waves (right-drag to move it), the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the view distance to each object (red is absorbed first), in-scatter towards the water colour, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
+- **Underwater rendering**: when the camera dives below the waves (left-drag to move it), the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the view distance to each object (red is absorbed first), in-scatter towards the water colour, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
 - **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic.
 
 The example application renders an islands scene with a surface vehicle (aquabot) and an ROV (BlueROV2), animated in real time, with a day/night cycle and moving waves.
@@ -55,7 +55,7 @@ feature also usable headless through the keyboard):
 
 | input | action |
 | --- | --- |
-| left drag / right drag / wheel | orbit (stable horizon) / translate / dolly |
+| left drag / right drag / wheel | translate / orbit (stable horizon) / dolly |
 | Up, Down | sun elevation |
 | Left, Right | sun azimuth |
 | Page Up, Page Down | sea level |
