@@ -144,18 +144,24 @@ namespace vsgOcean
             }
 
             // [7].z packs the sun azimuth: with [6].w (the sun height) the shader can
-            // reconstruct the full sun direction for the directional in-scattering
+            // reconstruct the full sun direction for the directional in-scattering.
+            // [7].xy is the extent of the SAMPLED SCENE TARGET, NOT the camera's
+            // viewportState: vsg's WindowResizeHandler rescales the camera viewport
+            // to the window while the offscreen target stays fixed, and normalizing
+            // the composite's uv by the window extent would sample the wrong
+            // sub-rectangle after a resize (the image shifts and smears)
             const auto sunAzimuth = static_cast<float>(environment.sunAzimuth() * vsg::radians(1.0));
-            if (camera->viewportState && !camera->viewportState->viewports.empty())
+            uint32_t extentX = 1, extentY = 1;
+            if (colorDescriptor_ && !colorDescriptor_->imageInfoList.empty())
             {
-                (*uniform_)[7] = vsg::vec4(static_cast<float>(camera->viewportState->viewports[0].width),
-                                          static_cast<float>(camera->viewportState->viewports[0].height), sunAzimuth,
-                                          static_cast<float>(environment.seaLevel()));
+                if (const auto& view = colorDescriptor_->imageInfoList[0]->imageView)
+                {
+                    extentX = view->image->extent.width;
+                    extentY = view->image->extent.height;
+                }
             }
-            else
-            {
-                (*uniform_)[7] = vsg::vec4(1.0f, 1.0f, sunAzimuth, static_cast<float>(environment.seaLevel()));
-            }
+            (*uniform_)[7] = vsg::vec4(static_cast<float>(extentX), static_cast<float>(extentY), sunAzimuth,
+                                      static_cast<float>(environment.seaLevel()));
         }
 
         uniform_->dirty();
