@@ -33,12 +33,55 @@ layout(std140, set = 0, binding = 0) uniform Composite
 layout(set = 0, binding = 1) uniform sampler2D sceneColor;
 layout(set = 0, binding = 2) uniform sampler2D sceneDepth;
 
+// FXAA (the compact 3.11 console variant): the offscreen render target has no
+// multisampling (the software rasterizer makes MSAA prohibitively expensive), so
+// the composite blends the scene colour across aliased geometric edges before the
+// water transport. Both the presented window and the screenshots inherit it.
+vec3 fxaa(vec2 uv, vec2 texel)
+{
+    const vec3 lum = vec3(0.299, 0.587, 0.114);
+
+    const vec3 rgbNW = texture(sceneColor, uv + vec2(-1.0, -1.0) * texel).rgb;
+    const vec3 rgbNE = texture(sceneColor, uv + vec2( 1.0, -1.0) * texel).rgb;
+    const vec3 rgbSW = texture(sceneColor, uv + vec2(-1.0,  1.0) * texel).rgb;
+    const vec3 rgbSE = texture(sceneColor, uv + vec2( 1.0,  1.0) * texel).rgb;
+    const vec3 rgbM  = texture(sceneColor, uv).rgb;
+
+    const float lNW = dot(rgbNW, lum);
+    const float lNE = dot(rgbNE, lum);
+    const float lSW = dot(rgbSW, lum);
+    const float lSE = dot(rgbSE, lum);
+    const float lM  = dot(rgbM, lum);
+    const float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
+    const float lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+
+    // no edge in the neighbourhood: keep the centre sample
+    if (lMax - lMin < lMax * 0.125) return rgbM;
+
+    // the edge direction, scaled by the local contrast
+    vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));
+    const float dirReduce = max((lNW + lNE + lSW + lSE) * 0.125, 1.0 / 128.0);
+    const float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+    dir = clamp(dir * rcpDirMin, vec2(-8.0), vec2(8.0)) * texel;
+
+    // blend along the edge
+    const vec3 rgbA = 0.5 * (texture(sceneColor, uv + dir * (1.0 / 3.0 - 0.5)).rgb
+                           + texture(sceneColor, uv + dir * (2.0 / 3.0 - 0.5)).rgb);
+    const vec3 rgbB = rgbA * 0.5 + 0.25 * (texture(sceneColor, uv + dir * -0.5).rgb
+                                          + texture(sceneColor, uv + dir *  0.5).rgb);
+    const float lB = dot(rgbB, lum);
+    return (lB < lMin || lB > lMax) ? rgbA : rgbB;
+}
+
 void main()
 {
     const vec2 uv = gl_FragCoord.xy / env.extent.xy;
-    vec3 color = texture(sceneColor, uv).rgb;
     // reversed depth (vsg convention): 1 near, 0 cleared / background
     const float depth = texture(sceneDepth, uv).r;
+    // the anti-aliased scene colour: only geometry edges alias (the background
+    // sky and open-water gradients are smooth), so the FXAA's extra taps are
+    // paid only where there is scene geometry
+    vec3 color = depth > 0.0 ? fxaa(uv, 1.0 / env.extent.xy) : texture(sceneColor, uv).rgb;
 
     // the light path through the water: from a submerged camera up to the surface
     // haze and underwater background - keep the scene color as is

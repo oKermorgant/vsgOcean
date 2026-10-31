@@ -51,12 +51,14 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const vec3 zenithNight = vec3(0.001, 0.0015, 0.003);
     const vec3 horizonNight = vec3(0.002, 0.003, 0.006);
 
-    const float up = clamp(direction.z, 0.0, 1.0);
-    // the reflection sees the horizon band COMPRESSED relative to the sky itself (the
-    // intentional difference from sky.frag): the milky horizon colour of a hazy day
-    // reads as a thin strip in reflections - the sky's pow(up, 0.4) band is wide
-    // enough that the surface broke into water-colour and milky patches at the
-    // Fresnel transition
+    // the reflection sees the horizon band REMOVED relative to the sky itself (the
+    // intentional difference from sky.frag): grazing reflections would otherwise be
+    // dominated by the sky's milky horizon colour, dimming the far surface into
+    // grey-white patches against the near blue water. The gradient clamps its
+    // elevation from below, so the reflection never samples the sky below ~10 deg -
+    // the sun disc, glow and dusk terms below keep the TRUE direction, so the
+    // glitter path stays aligned with the sun
+    const float up = clamp(max(direction.z, 0.18), 0.0, 1.0);
     const float gradient = smoothstep(0.0, 0.15, up);
     vec3 sky = mix(mix(horizonNight, horizonDay, day), mix(zenithNight, zenithDay, day), gradient);
 
@@ -78,10 +80,10 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
     sky += (sunDisc * 5.0 + glow) * sunColor * sunFade;
 
-    // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m path);
-    // compressed band as above (the sky shader uses smoothstep up to 0.15)
+    // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m
+    // path); the band follows the same clamped elevation as the gradient
     const float haze = 1.0 - exp(-ocean.fogColorDensity.a * 0.05 * 400.0);
-    sky = mix(sky, ocean.fogColorDensity.rgb, haze * (1.0 - smoothstep(-0.05, 0.04, direction.z)));
+    sky = mix(sky, ocean.fogColorDensity.rgb, haze * (1.0 - smoothstep(-0.05, 0.04, up)));
     return sky;
 }
 
