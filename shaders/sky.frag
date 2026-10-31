@@ -99,9 +99,11 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     }
 
     // haze: blend towards the fog color at and below the horizon, in proportion to
-    // the extinction coefficient (calibrated so the default density reads like a
-    // hazy day at the horizon, not a full white-out)
-    const float haze = clamp(env.fogColorDensity.a * 60.0, 0.0, 1.0);
+    // haze: blend towards the fog color at and below the horizon. Beer-Lambert over
+    // an effective horizontal path (~400 m), so it saturates smoothly at heavy fog
+    // instead of clamping: the pre-normalization "density * 60" formula saturated to
+    // a full white-out horizon at any density above 0.0167
+    const float haze = 1.0 - exp(-env.fogColorDensity.a * 0.05 * 400.0);
     sky = mix(sky, env.fogColorDensity.rgb, haze * (1.0 - smoothstep(-0.05, 0.15, direction.z)));
 
     return sky;
