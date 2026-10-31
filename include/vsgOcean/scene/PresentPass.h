@@ -32,6 +32,11 @@ namespace vsgOcean
         /// (vsg::CompileManager) rebinds it.
         void setCompositeView(vsg::ref_ptr<vsg::ImageView> composite);
 
+        /// The window extent the composite is presented to; the composite is fitted
+        /// into it (aspect preserved, letterboxed). Cheap: only a uniform update, no
+        /// Vulkan objects are touched, so this is safe to call on a window resize.
+        void setWindowExtent(VkExtent2D extent);
+
     protected:
         vsg::ref_ptr<vsg::vec4Array> uniform_;
         vsg::ref_ptr<vsg::DescriptorImage> imageDescriptor_;

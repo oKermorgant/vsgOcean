@@ -192,6 +192,7 @@ namespace vsgOcean
         buildCompositePass();
 
         presentPass_ = PresentPass::create(outputView_);
+        presentPass_->setWindowExtent(window->extent2D());
     }
 
     RenderPipeline::RenderPipeline(const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Device> device, vsg::ref_ptr<vsg::Camera> camera,
@@ -212,6 +213,12 @@ namespace vsgOcean
     void RenderPipeline::resize(VkExtent2D extent)
     {
         extent_ = extent;
+
+        // rebuild while nothing is in flight: in-flight frames may still hold the old
+        // attachments (framebuffers, samplers), and tearing them down mid-flight
+        // deadlocks the record of the next frame (reproduced on llvmpipe)
+        // quiesce the queue: in-flight frames may still hold the old attachments
+        if (device_) device_->getQueue(0)->waitIdle();
 
         // keep the previous resources alive until the next rebuild, safely past the
         // frames that may still be rendering into and sampling them

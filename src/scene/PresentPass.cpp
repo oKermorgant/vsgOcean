@@ -88,6 +88,14 @@ namespace vsgOcean
         addChild(stateGroup);
     }
 
+    void PresentPass::setWindowExtent(VkExtent2D extent)
+    {
+        // the composite extent (xy) stays: the offscreen target is fixed size
+        (*uniform_)[0].z = static_cast<float>(extent.width);
+        (*uniform_)[0].w = static_cast<float>(extent.height);
+        uniform_->dirty();
+    }
+
     void PresentPass::setCompositeView(vsg::ref_ptr<vsg::ImageView> composite)
     {
         if (!imageDescriptor_ || imageDescriptor_->imageInfoList.empty()) return;
@@ -98,7 +106,7 @@ namespace vsgOcean
         if (auto view = imageDescriptor_->imageInfoList[0]->imageView)
         {
             (*uniform_)[0] = vsg::vec4(static_cast<float>(view->image->extent.width),
-                                       static_cast<float>(view->image->extent.height), 0.0f, 0.0f);
+                                       static_cast<float>(view->image->extent.height), (*uniform_)[0].z, (*uniform_)[0].w);
             uniform_->dirty();
         }
         descriptorSet_->release(); // the next compile (vsg::CompileManager) rebinds the view

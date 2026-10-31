@@ -249,38 +249,23 @@ namespace vsgOcean
             {
                 const auto windowExtent = window_->extent2D();
                 if (windowExtent.width == 0 || windowExtent.height == 0) return; // minimized
-                if (windowExtent.width == pipeline_->target()->extent().width &&
-                    windowExtent.height == pipeline_->target()->extent().height)
+                if (windowExtent.width == lastSeen_.width && windowExtent.height == lastSeen_.height)
                     return;
 
-                // a new size: wait until it has been stable
-                const auto now = vsg::clock::now();
-                if (windowExtent.width != lastSeen_.width || windowExtent.height != lastSeen_.height)
-                {
-                    lastSeen_ = windowExtent;
-                    stableSince_ = now;
-                    return;
-                }
-                if (now - stableSince_ < std::chrono::milliseconds(250)) return;
-
-                // rebuild the pipeline's target and composited image
-                const auto oldExtent = pipeline_->target()->extent();
-                pipeline_->resize(windowExtent);
+                // The window size changed. The offscreen render target stays at its
+                // FIXED size: rebuilding it mid-run means releasing and rebinding
+                // live Vulkan objects (attachments the in-flight frames still use),
+                // which deadlocks or breaks the following frames (reproduced on
+                // llvmpipe). Instead the composite is fitted to the window by the
+                // present pass (aspect preserved, letterboxed) - a uniform update
+                // only, touching no Vulkan objects.
+                pipeline_->presentNode()->setWindowExtent(windowExtent);
                 lastSeen_ = windowExtent;
 
-                // the camera viewport and projection aspect follow the window
-                camera_->viewportState = vsg::ViewportState::create(0, 0, windowExtent.width, windowExtent.height);
-                if (camera_->projectionMatrix) camera_->projectionMatrix->changeExtent(oldExtent, windowExtent);
-
-                // HUD overlays follow the window too
-                if (hud_) hud_->resize(windowExtent);
-
-                // rebind the composite and present passes to the new attachments
-                if (viewer_->compileManager)
-                {
-                    viewer_->compileManager->compile(pipeline_->composite());
-                    viewer_->compileManager->compile(pipeline_->presentNode());
-                }
+                // The HUD text is NOT rebuilt here: vsg::Text geometry needs a
+                // recompile after a rebuild, and compiling mid-run (while frames are
+                // in flight) is what crashed the resized window - the text keeps its
+                // original anchored position instead.
             }
 
         protected:
@@ -292,7 +277,7 @@ namespace vsgOcean
             vsg::ref_ptr<RenderPipeline> pipeline_;
             vsg::ref_ptr<Hud> hud_;
             VkExtent2D lastSeen_{std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()};
-            vsg::clock::time_point stableSince_{};
+
         };
     }
     vsg::ref_ptr<vsg::CommandGraph> createCommandGraph(vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Viewer> viewer, vsg::ref_ptr<vsg::Camera> camera, const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Node> overlay)
