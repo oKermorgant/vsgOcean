@@ -112,10 +112,11 @@ namespace vsgOcean
         // attenuation of the Jerlov classification (scattering dominates the beam)
         const vsg::vec3 beam(attenuation.x / 3.0f, attenuation.y / 3.0f, attenuation.z / 3.0f);
 
-        // atmospheric fog color, dimmed at night like the sky horizon
+        // atmospheric fog color, near-black at night like the sky (a moonless night
+        // has no haze light source)
         const auto day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
         const double dayFactor = day * day * (3.0 - 2.0 * day); // smoothstep
-        const vsg::vec3 fogColor = vsg::mix(vsg::vec3(0.05f, 0.06f, 0.10f), environment.fogColor(), static_cast<float>(dayFactor));
+        const vsg::vec3 fogColor = vsg::mix(vsg::vec3(0.002f, 0.003f, 0.006f), environment.fogColor(), static_cast<float>(dayFactor));
 
         (*uniform_)[4] = vsg::vec4(0.0f, 0.0f, 0.0f, static_cast<float>(submersion));
         (*uniform_)[5] = vsg::vec4(environment.underwaterColor(), meanAttenuation);

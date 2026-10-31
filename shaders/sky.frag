@@ -54,8 +54,10 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
 
     const vec3 zenithDay = vec3(0.20, 0.42, 0.80);
     const vec3 horizonDay = vec3(0.75, 0.85, 0.95);
-    const vec3 zenithNight = vec3(0.015, 0.02, 0.05);
-    const vec3 horizonNight = vec3(0.05, 0.06, 0.10);
+    // moonless night: essentially black, a faint deep-blue hint only - the sea must
+    // disappear at night (the stars render on top of this)
+    const vec3 zenithNight = vec3(0.001, 0.0015, 0.003);
+    const vec3 horizonNight = vec3(0.002, 0.003, 0.006);
 
     const float up = clamp(direction.z, 0.0, 1.0);
     const float gradient = pow(up, 0.4);
