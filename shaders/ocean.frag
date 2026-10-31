@@ -199,9 +199,15 @@ void main()
 
     if (submersion <= 0.0)
     {
-        // seen from ABOVE: reflect the sky, transmit the refracted underwater view
+        // seen from ABOVE: reflect the sky, transmit the refracted underwater view.
+        // The sky mirror fades IN with distance: the near and mid water keeps its
+        // body colour (the sky's pale gradient extends too deep into the surface
+        // otherwise - the horizon-hugging compromise), and only the far field
+        // approaches the full grazing-angle Fresnel reflection
         const vec3 reflected = reflect(-toEye, n);
         const vec3 reflectedSky = skyColor(reflected, sunDirection, length(fwidth(reflected)));
+        const float viewDistance = length(worldPosition - cameraEye);
+        const float skyWeight = mix(0.15, 1.0, smoothstep(20.0, 300.0, viewDistance));
 
         // the refracted view into the water: the near-surface volume back-scatters the
         // sunlight in the Jerlov colour over a shallow effective depth (~1.5 m, the
@@ -211,7 +217,7 @@ void main()
         const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0);
         const vec3 throughWater = ocean.waterColor.rgb * scatter + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
 
-        color = mix(throughWater, reflectedSky, fresnel) + (glitter + glare) * sunColor * sunFade;
+        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade;
 
         // transparency towards the scene behind the surface: more mirror-like at
         // grazing angles, more transparent looking straight down
