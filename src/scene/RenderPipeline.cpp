@@ -235,16 +235,16 @@ namespace vsgOcean
 
     void RenderPipeline::update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t)
     {
-        // this camera's submersion below the surface: each pipeline tracks its own camera
+        // this camera's submersion below the surface: each pipeline tracks its own camera.
+        // The MEAN sea level is the underwater criterion (stable across waves, no
+        // per-frame wave sampling); the exact Wavefield::height stays available for
+        // features that need it
         auto submersion = 0.0;
         if (camera && scene && scene->surfaceEnabled())
         {
             if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
             {
-                const auto wavefield = scene->surface() ? scene->surface()->wavefield() : nullptr;
-                const auto waveHeight = wavefield ? scene->environment()->seaLevel() + wavefield->height(lookAt->eye.x, lookAt->eye.y, t)
-                                                   : scene->environment()->seaLevel();
-                submersion = waveHeight - lookAt->eye.z; // positive below the surface
+                submersion = scene->environment()->seaLevel() - lookAt->eye.z; // positive below the surface
             }
         }
 

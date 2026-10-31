@@ -24,18 +24,11 @@ layout(std140, set = 0, binding = 0) uniform Environment
 // gets its own underwater sky (the main view and the sensor cameras are independent)
 float cameraSubmersion()
 {
-    const float t = env.params.x;
-    const float grow = 1.0 - exp(-t / max(env.params.y, 1e-3));
-    const int number = int(env.params.w);
-
-    float height = env.params.z; // mean sea level
-    for (int i = 0; i < 8; ++i)
-    {
-        if (i >= number) break;
-        const float theta = dot(env.direction[i].xy, cameraEye.xy) * env.wavenumber[i].x - env.omega[i].x * t;
-        height += env.amplitude[i].x * grow * cos(theta);
-    }
-    return max(height - cameraEye.z, 0.0);
+    // the camera's underwater criterion uses the MEAN sea level, not the exact wave
+    // height at the camera: the mode switch is stable across waves and costs nothing
+    // per pixel (the exact Wavefield::height(x, y, t) stays available for features
+    // that need it, like the demo's boat riding the waves)
+    return max(env.params.z - cameraEye.z, 0.0);
 }
 
 // interleaved gradient noise: a stable per-pixel pattern used for dithering

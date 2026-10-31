@@ -151,8 +151,10 @@ namespace vsgOcean
             {
                 if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
                 {
-                    const auto waveHeight = environment_->seaLevel() + surface_->wavefield()->height(lookAt->eye.x, lookAt->eye.y, t);
-                    submersion = waveHeight - lookAt->eye.z; // positive below the surface
+                    // the mean sea level is the underwater criterion (stable across
+                    // waves, no per-frame wave sampling); the exact Wavefield::height
+                    // stays available for features that need it
+                    submersion = environment_->seaLevel() - lookAt->eye.z; // positive below the surface
                 }
             }
             underwater_->update(*environment_, camera, submersion);

@@ -78,11 +78,11 @@ void main()
 
     vec3 color = mix(water, sky, fresnel) + specular * sunColor;
 
-    // seen from below, the water between the viewer and the surface attenuates the
     // surface colours by the viewer's submersion depth, per channel (red is absorbed
     // first) - the light path is vertical, so the vertical diffuse Jerlov attenuation
-    // applies, unlike the horizontal beam of the composite
-    const float submersion = max(waveHeight(cameraEye.xy) - cameraEye.z, 0.0);
+    // applies, unlike the horizontal beam of the composite. The depth uses the MEAN
+    // sea level (the same stable underwater criterion as the composite and the sky)
+    const float submersion = max(ocean.seaLevel.w - cameraEye.z, 0.0);
     if (submersion > 0.0)
     {
         color *= exp(-ocean.seaLevel.rgb * submersion);
