@@ -46,8 +46,30 @@ float waveHeight(vec2 p)
 void main()
 {
     const vec3 sunDirection = normalize(ocean.sunDirection.xyz);
-    const vec3 n = normalize(worldNormal);
     const vec3 toEye = normalize(cameraEye - worldPosition);
+
+    // ripple detail: short wind-drifting slope perturbations evaluated per pixel, on
+    // top of the low-frequency Gerstner geometry (8 components, shortest ~2.4 m, is
+    // far too smooth up close - the surface read as large patches of flat normal).
+    // They fade with distance where they would alias to sub-pixel noise
+    const float t = ocean.params.x;
+    const float rippleFade = exp(-length(cameraEye - worldPosition) * 0.03);
+    const vec2 wind = normalize(ocean.direction[4].xy + vec2(1e-5, 0.0));
+    vec2 rippleSlope = vec2(0.0);
+    // (wavelength [m], direction offset [rad], slope) - deep-water dispersion. The
+    // slopes are the capillary-scale variance of a real surface (total ~0.2): enough
+    // for the Fresnel and the sun glitter to shimmer at mid distance
+    const vec3 rippleParams[3] = vec3[3](vec3(1.6, 0.0, 0.060), vec3(0.9, 0.7, 0.055), vec3(0.5, -0.45, 0.045));
+    for (int i = 0; i < 3; ++i)
+    {
+        const float wavelength = rippleParams[i].x;
+        const float k = 6.2831853 / wavelength;
+        const float omega = sqrt(9.81 * k);
+        const vec2 d = vec2(cos(rippleParams[i].y), sin(rippleParams[i].y)) * mat2(wind.x, -wind.y, wind.y, wind.x);
+        const float theta = dot(d, worldPosition.xy) * k - omega * t;
+        rippleSlope += rippleParams[i].z * d * sin(theta);
+    }
+    const vec3 n = normalize(worldNormal + vec3(-rippleSlope.x, -rippleSlope.y, 0.0) * rippleFade);
 
     // day factor matching the scene lighting: black at night, no ambient floor
     const float day = smoothstep(-0.05, 0.25, sunDirection.z);
@@ -55,11 +77,14 @@ void main()
     // Fresnel reflectance of the water surface (Schlick, F0 = 0.02)
     const float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(n, toEye), 0.0), 5.0);
 
-    // reflection of the sky, approximated by the same gradient as the sky shader
+    // reflection of the sky, approximated by the same gradient as the sky shader;
+    // the milky horizon colour only applies to truly near-horizontal reflections -
+    // the old pow(reflected.z, 0.4) spread it over half the up hemisphere, which
+    // showed as whitish patches wherever a wave facet tilted the reflection over
     const vec3 reflected = reflect(-toEye, n);
     const vec3 zenith = mix(vec3(0.015, 0.02, 0.05), vec3(0.20, 0.42, 0.80), day);
     const vec3 horizon = mix(vec3(0.002, 0.003, 0.006), vec3(0.75, 0.85, 0.95), day);
-    const vec3 sky = mix(horizon, zenith, pow(clamp(reflected.z, 0.0, 1.0), 0.4));
+    const vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.35, clamp(reflected.z, 0.0, 1.0)));
 
     // sun specular (Blinn-Phong), warm at low sun, fading below the horizon
     const vec3 halfway = normalize(toEye + sunDirection);
