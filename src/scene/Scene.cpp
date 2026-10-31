@@ -256,14 +256,17 @@ namespace vsgOcean
                 // FIXED size: rebuilding it mid-run means releasing and rebinding
                 // live Vulkan objects (attachments the in-flight frames still use),
                 // which deadlocks or breaks the following frames (reproduced on
-                // llvmpipe). Instead the resize EXTENDS the view: the projection
-                // aspect follows the window (changeExtent, a plain matrix update -
-                // crash-safe), the composite renders the widened/narrowed frustum
-                // anamorphically into the fixed target, and the present pass
-                // stretches it to fill the window: no black bars, no distortion,
-                // the view centre is kept.
+                // llvmpipe). Instead the resize EXTENDS the view: vsg's own
+                // WindowResizeHandler (attached to the window render graph) updates
+                // the pipeline camera's projection aspect (changeExtent - it visits
+                // the present View's camera), the composite renders the
+                // widened/narrowed frustum anamorphically into the fixed target, and
+                // this pass's window-extent update makes the present shader stretch
+                // it to fill the window: no black bars, no distortion, the view
+                // centre is kept. Do NOT apply changeExtent here as well: the aspect
+                // would be scaled twice per resize (the double application was the
+                // resize "shift").
                 pipeline_->presentNode()->setWindowExtent(windowExtent);
-                camera_->projectionMatrix->changeExtent(lastSeen_, windowExtent);
                 lastSeen_ = windowExtent;
 
                 // The HUD text is NOT rebuilt here: vsg::Text geometry needs a
