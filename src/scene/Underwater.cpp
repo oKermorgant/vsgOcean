@@ -121,7 +121,7 @@ namespace vsgOcean
         (*uniform_)[5] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
         (*uniform_)[6] = vsg::vec4(beam, static_cast<float>(sun.z));
         (*uniform_)[7] = vsg::vec4(1.0f, 1.0f, 0.0f, static_cast<float>(environment.seaLevel()));
-        (*uniform_)[8] = vsg::vec4(fogColor, static_cast<float>(environment.fogDensity()));
+        (*uniform_)[8] = vsg::vec4(fogColor, static_cast<float>(environment.fogExtinction()));
 
         if (camera && camera->projectionMatrix && camera->viewMatrix)
         {

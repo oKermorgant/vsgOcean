@@ -47,7 +47,7 @@ namespace vsgOcean
     protected:
         // uniform block: [0..3] inverse view projection, [4] eye + submersion depth,
         // [5] water color + mean attenuation, [6] per-channel attenuation + sun height,
-        // [7] render extent + sea level, [8] fog color + density
+        // [7] render extent + sea level, [8] fog color + extinction (1/m)
         vsg::ref_ptr<vsg::vec4Array> uniform_;
 
         vsg::ref_ptr<vsg::DescriptorImage> colorDescriptor_;

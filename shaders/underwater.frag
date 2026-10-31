@@ -67,8 +67,9 @@ void main()
         }
     }
 
-    // atmospheric fog over the air segment of the ray
-    const float haze = 1.0 - exp(-env.fog.a * (dist - waterPath) * 10.0);
+    // atmospheric fog over the air segment of the ray: the density is the air's
+    // extinction coefficient (Beer-Lambert): haze = 1 - exp(-density * distance)
+    const float haze = 1.0 - exp(-env.fog.a * (dist - waterPath));
     color = mix(color, env.fog.rgb, haze);
 
     // underwater: Beer-Lambert per channel over the water segment, with the

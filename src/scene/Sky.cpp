@@ -130,7 +130,7 @@ namespace vsgOcean
     {
         const auto sun = environment.sunDirection();
         (*environmentUniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), 0.0f);
-        (*environmentUniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogDensity()));
+        (*environmentUniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogExtinction()));
 
         // the water (Jerlov type); the underwater mode is evaluated per camera, in-shader
         const auto attenuation = environment.underwaterAttenuation();
