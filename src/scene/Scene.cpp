@@ -117,6 +117,7 @@ namespace vsgOcean
     void Scene::setTrackedFrame(const std::string& frameName)
     {
         trackedFrame_ = frameName;
+        trackedPoseValid_ = false; // the relative viewpoint is re-established
     }
 
     void Scene::update(const vsg::Camera* camera, double t)
@@ -157,8 +158,10 @@ namespace vsgOcean
             underwater_->update(*environment_, camera, submersion);
         }
 
-        // camera tracking: keep the camera centred on the tracked model, preserving
-        // the view direction and distance, so orbiting and dollying still work
+        // camera tracking: the camera follows the tracked frame with a constant
+        // relative viewpoint - the frame's rotation rotates the view with it, and
+        // the camera controls (orbit, translate, dolly) adjust that relative
+        // viewpoint. The frame's previous pose carries the viewpoint across frames
         if (!trackedFrame_.empty() && camera && camera->viewMatrix)
         {
             if (auto lookAt = camera->viewMatrix.cast<vsg::LookAt>())
@@ -166,9 +169,14 @@ namespace vsgOcean
                 vsg::dmat4 pose;
                 if (frameWorldPose(trackedFrame_, pose))
                 {
-                    const vsg::dvec3 position(pose[3][0], pose[3][1], pose[3][2]);
-                    lookAt->eye += position - lookAt->center;
-                    lookAt->center = position;
+                    if (trackedPoseValid_)
+                    {
+                        const auto previous = vsg::inverse(trackedPose_);
+                        lookAt->eye = pose * (previous * lookAt->eye);
+                        lookAt->center = pose * (previous * lookAt->center);
+                    }
+                    trackedPose_ = pose;
+                    trackedPoseValid_ = true;
                 }
             }
         }

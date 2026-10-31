@@ -58,9 +58,10 @@ namespace vsgOcean
         /// when unknown.
         [[nodiscard]] bool frameWorldPose(const std::string& frameName, vsg::dmat4& pose) const;
 
-        /// The model the camera tracks (empty: none). Scene::update() keeps the camera
-        /// centred on it every frame, preserving the view direction and distance, so
-        /// orbiting and dollying still work around the tracked model.
+        /// The model the camera tracks (empty: none). Scene::update() keeps the
+        /// camera's viewpoint relative to the tracked frame: the frame's rotation
+        /// rotates the view with it, and orbiting / translating / dollying adjust
+        /// that relative viewpoint.
         void setTrackedFrame(const std::string& frameName);
         const std::string& trackedFrame() const { return trackedFrame_; }
 
@@ -114,6 +115,8 @@ namespace vsgOcean
         vsg::ref_ptr<vsg::AmbientLight> ambientLight_;
         vsg::ref_ptr<vsg::DirectionalLight> sunLight_;
         std::string trackedFrame_;
+        vsg::dmat4 trackedPose_;     // the tracked frame's world pose of the last update
+        bool trackedPoseValid_{false};
     };
 
     /// Build the record graph for a scene: the scene (sky, lighting, models, ocean
