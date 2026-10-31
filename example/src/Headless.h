@@ -24,6 +24,7 @@
 #include <vsg/vk/Instance.h>
 #include <vsg/vk/PhysicalDevice.h>
 
+
 #include <functional>
 
 namespace vsgOcean::Headless
@@ -135,7 +136,10 @@ namespace vsgOcean::Headless
             viewer->recordAndSubmit();
         }
 
-        if (!settings.screenshotPath.empty()) pipeline->writeScreenshot(settings.screenshotPath);
+        if (!settings.screenshotPath.empty())
+        {
+            if (!pipeline->writeScreenshot(settings.screenshotPath)) return 1;
+        }
         return 0;
     }
 }

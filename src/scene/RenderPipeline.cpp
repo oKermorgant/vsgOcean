@@ -210,36 +210,6 @@ namespace vsgOcean
         buildCompositePass();
     }
 
-    void RenderPipeline::resize(VkExtent2D extent)
-    {
-        extent_ = extent;
-
-        // rebuild while nothing is in flight: in-flight frames may still hold the old
-        // attachments (framebuffers, samplers), and tearing them down mid-flight
-        // deadlocks the record of the next frame (reproduced on llvmpipe)
-        // quiesce the queue: in-flight frames may still hold the old attachments
-        if (device_) device_->getQueue(0)->waitIdle();
-
-        // keep the previous resources alive until the next rebuild, safely past the
-        // frames that may still be rendering into and sampling them
-        retainedTarget_ = target_;
-        retainedImage_ = outputImage_;
-
-        target_ = RenderTarget::create(device_, extent, colorFormat_, depthFormat_);
-        sceneRenderGraph_->framebuffer = target_->framebuffer();
-        sceneRenderGraph_->renderArea = VkRect2D{{0, 0}, extent};
-        sceneRenderGraph_->viewportState = vsg::ViewportState::create(0, 0, extent.width, extent.height);
-
-        createOutputImage(extent);
-        compositeRenderGraph_->framebuffer = vsg::Framebuffer::create(compositeRenderGraph_->renderPass, vsg::ImageViews{outputView_}, extent.width, extent.height, 1);
-        compositeRenderGraph_->renderArea = VkRect2D{{0, 0}, extent};
-        compositeRenderGraph_->viewportState = vsg::ViewportState::create(0, 0, extent.width, extent.height);
-
-        // rebind the passes to the new attachments (the caller recompiles them)
-        composite_->setSceneTextures(target_->colorView(), target_->depthView());
-        if (presentPass_) presentPass_->setCompositeView(outputView_);
-    }
-
     void RenderPipeline::update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t)
     {
         // this camera's submersion below the surface: each pipeline tracks its own camera.

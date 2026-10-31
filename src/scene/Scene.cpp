@@ -226,12 +226,9 @@ namespace vsgOcean
 
     namespace
     {
-        // Watches the window size and rebuilds the main pipeline's render target and
-        // composited image once the size has been stable for a moment, so an
-        // interactive resize is not interrupted by rebuilds (and their resource
-        // allocation). The pipeline keeps the previous resources alive until the next
-        // rebuild, safely past the frames that may still be in flight and sampling
-        // them.
+        // Watches the window size and adapts the main pipeline to it. The offscreen
+        // target is never rebuilt mid-run (see run()); the resize only updates the
+        // present pass's window extent and the camera projection's aspect ratio.
         class RenderTargetResize : public vsg::Inherit<vsg::Operation, RenderTargetResize>
         {
         public:
@@ -243,6 +240,9 @@ namespace vsgOcean
                 pipeline_(pipeline),
                 hud_(std::move(hud))
             {
+                // the extent the projection was created with (its aspect source of
+                // truth for changeExtent); updated as the resizes are applied
+                lastSeen_ = window_->extent2D();
             }
 
             void run() override
@@ -256,10 +256,14 @@ namespace vsgOcean
                 // FIXED size: rebuilding it mid-run means releasing and rebinding
                 // live Vulkan objects (attachments the in-flight frames still use),
                 // which deadlocks or breaks the following frames (reproduced on
-                // llvmpipe). Instead the composite is fitted to the window by the
-                // present pass (aspect preserved, letterboxed) - a uniform update
-                // only, touching no Vulkan objects.
+                // llvmpipe). Instead the resize EXTENDS the view: the projection
+                // aspect follows the window (changeExtent, a plain matrix update -
+                // crash-safe), the composite renders the widened/narrowed frustum
+                // anamorphically into the fixed target, and the present pass
+                // stretches it to fill the window: no black bars, no distortion,
+                // the view centre is kept.
                 pipeline_->presentNode()->setWindowExtent(windowExtent);
+                camera_->projectionMatrix->changeExtent(lastSeen_, windowExtent);
                 lastSeen_ = windowExtent;
 
                 // The HUD text is NOT rebuilt here: vsg::Text geometry needs a
@@ -276,7 +280,7 @@ namespace vsgOcean
             vsg::ref_ptr<vsg::Camera> camera_;
             vsg::ref_ptr<RenderPipeline> pipeline_;
             vsg::ref_ptr<Hud> hud_;
-            VkExtent2D lastSeen_{std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()};
+            VkExtent2D lastSeen_{}; // initialized to the window extent in the constructor
 
         };
     }

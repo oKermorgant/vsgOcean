@@ -95,20 +95,4 @@ namespace vsgOcean
         (*uniform_)[0].w = static_cast<float>(extent.height);
         uniform_->dirty();
     }
-
-    void PresentPass::setCompositeView(vsg::ref_ptr<vsg::ImageView> composite)
-    {
-        if (!imageDescriptor_ || imageDescriptor_->imageInfoList.empty()) return;
-
-        imageDescriptor_->imageInfoList[0]->imageView = std::move(composite);
-
-        // the sampled extent follows the composited image (e.g. after a resize)
-        if (auto view = imageDescriptor_->imageInfoList[0]->imageView)
-        {
-            (*uniform_)[0] = vsg::vec4(static_cast<float>(view->image->extent.width),
-                                       static_cast<float>(view->image->extent.height), (*uniform_)[0].z, (*uniform_)[0].w);
-            uniform_->dirty();
-        }
-        descriptorSet_->release(); // the next compile (vsg::CompileManager) rebinds the view
-    }
 }

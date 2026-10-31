@@ -22,9 +22,10 @@ namespace vsgOcean
     /// the underwater composite (see vsgOcean::createCommandGraph). Both attachments
     /// end the scene render pass in SHADER_READ_ONLY layout, ready to be sampled.
     ///
-    /// The target is created at the window extent; createCommandGraph watches the
-    /// window size and rebuilds it when it has been stable for a moment (so an
-    /// interactive resize is not interrupted by rebuilds).
+    /// The target is created at the window extent and stays at that FIXED size for
+    /// the run (a mid-run rebuild deadlocks the render); a window resize instead
+    /// widens/narrows the camera frustum and the present pass stretches the
+    /// composite over the window (see RenderTargetResize in Scene.cpp).
     class VSG_OCEAN_EXPORT RenderTarget : public vsg::Inherit<vsg::Object, RenderTarget>
     {
     public:

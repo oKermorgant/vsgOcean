@@ -476,7 +476,10 @@ int main(int argc, char** argv)
             viewer->present();
         }
 
-        if (!settings.screenshotPath.empty()) mainPipeline->writeScreenshot(settings.screenshotPath);
+        if (!settings.screenshotPath.empty())
+        {
+            if (!mainPipeline->writeScreenshot(settings.screenshotPath)) return 1;
+        }
 
         if (settings.reportAverageFrameRate)
         {

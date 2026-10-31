@@ -27,14 +27,10 @@ namespace vsgOcean
         /// composite: the pipeline's composited image to present
         explicit PresentPass(vsg::ref_ptr<vsg::ImageView> composite);
 
-        /// Point at a new composited image (after a render target rebuild): swaps the
-        /// sampled view and releases the descriptor set, so the next compile
-        /// (vsg::CompileManager) rebinds it.
-        void setCompositeView(vsg::ref_ptr<vsg::ImageView> composite);
-
-        /// The window extent the composite is presented to; the composite is fitted
-        /// into it (aspect preserved, letterboxed). Cheap: only a uniform update, no
-        /// Vulkan objects are touched, so this is safe to call on a window resize.
+        /// The window extent the composite is stretched over (the projection aspect
+        /// follows the window, so the stretch carries no distortion). Cheap: only a
+        /// uniform update, no Vulkan objects are touched, so this is safe to call on
+        /// a window resize.
         void setWindowExtent(VkExtent2D extent);
 
     protected:

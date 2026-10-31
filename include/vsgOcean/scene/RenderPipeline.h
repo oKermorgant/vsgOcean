@@ -64,11 +64,6 @@ namespace vsgOcean
         /// The offscreen target the scene pass renders into.
         [[nodiscard]] const vsg::ref_ptr<RenderTarget>& target() const { return target_; }
 
-        /// Rebuild the render target and the composited image at a new extent (window
-        /// resize). After calling, recompile the composite and present passes with
-        /// the viewer's vsg::CompileManager so their descriptors rebind.
-        void resize(VkExtent2D extent);
-
         /// Write the composited image to a PNG file. Runs a one-off transfer on the
         /// graphics queue, so call it outside of frame rendering (e.g. after the last
         /// present). False when the capture or the write failed.
@@ -91,12 +86,10 @@ namespace vsgOcean
         VkFormat depthFormat_ = VK_FORMAT_UNDEFINED;
 
         vsg::ref_ptr<RenderTarget> target_;
-        vsg::ref_ptr<RenderTarget> retainedTarget_;
         vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph_;
         vsg::ref_ptr<vsg::RenderGraph> compositeRenderGraph_;
         vsg::ref_ptr<vsg::Image> outputImage_;
         vsg::ref_ptr<vsg::ImageView> outputView_;
-        vsg::ref_ptr<vsg::Image> retainedImage_;
         vsg::ref_ptr<Underwater> composite_;
         vsg::ref_ptr<PresentPass> presentPass_;
     };
