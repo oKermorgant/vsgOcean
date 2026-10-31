@@ -50,6 +50,11 @@ namespace vsgOceanExample
         bool overrideCenter = false;
         vsg::dvec3 center{0.0, 0.0, 0.0};
 
+        // headless offscreen rendering (no window / swapchain): renders the frames
+        // and writes the screenshot; prefers a hardware GPU (the render group)
+        bool headless = false;
+        VkExtent2D headlessExtent{1280, 1024};
+
         // demo animation: with --sun-cycle the sun moves through a full day (one
         // simulated hour per second), from the sun pose given by --sun; off by
         // default, and paused at runtime through the environment controls
@@ -240,6 +245,9 @@ namespace vsgOceanExample
         // debugging: start the camera at a given position (e.g. underwater); parsed
         // before the positional scene arguments are collected
         if (arguments.read("--eye", settings.eye.x, settings.eye.y, settings.eye.z)) settings.overrideEye = true;
+
+        if (arguments.read("--headless")) settings.headless = true;
+        if (arguments.read("--extent", settings.headlessExtent.width, settings.headlessExtent.height)) {}
 
         // aim the camera at a fixed point (the fallback camera looks at the scene
         // bounds centre; --center overrides that for deterministic framing)

@@ -5,6 +5,7 @@
 #endif
 
 #include "ExampleOptions.h"
+#include "Headless.h"
 
 #include <vsgOcean/ui/EnvironmentControls.h>
 #include <vsgOcean/scene/RenderPipeline.h>
@@ -121,6 +122,88 @@ int main(int argc, char** argv)
         for (const auto& linkName : spinningLinks)
         {
             if (auto link = vsg_scene->frame(linkName)) initialLinkPoses[linkName] = link->matrix;
+        }
+
+        // the sensor pipelines (created in the windowed path below); the demo animation
+        // references their cameras, so they are declared here and stay null in headless
+        vsg::ref_ptr<vsgOcean::RenderPipeline> rovPipeline, boatPipeline;
+
+        // the demo animation: the model poses wrt the world model and the link poses
+        // wrt their parent frame (the parent is guessed by vsgOcean from the model
+        // tree). Shared by the windowed and the headless render loops.
+        const auto demoFrame = [&](double t)
+        {
+            if (vsg_scene->model("aquabot"))
+            {
+                // the surface vehicle performs a large circle, riding the waves: the
+                // wave field is sampled at its position, slightly below the local
+                // surface so the hulls keep a visible draft (the mesh waterline is at
+                // its origin, the hull bottom 0.026 m above)
+                const auto angle = 2.0 * vsg::PI * t / 60.0;
+                const double x = 10.0 * std::cos(angle);
+                const double y = 10.0 * std::sin(angle);
+                const double surfaceZ = wavefield->height(x, y, t);
+                vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.03)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
+
+                // the boat camera rides at the bow, above the hulls, looking along the
+                // direction of travel (a forward-facing camera sees little of its boat)
+                if (boatPipeline)
+                {
+                    const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
+                    const vsg::dvec3 travel(-std::sin(angle), std::cos(angle), 0.0);
+                    lookAt->eye = vsg::dvec3(x, y, surfaceZ) + travel * 1.5 + vsg::dvec3(0.0, 0.0, 1.6);
+                    lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.6);
+                }
+            }
+
+            if (vsg_scene->model("bluerov2"))
+            {
+                // the ROV circles the wreck at (12, 0, -48), facing it. The vehicle
+                // frame is x-front, y-port, z-up: the heading rotation points the
+                // model's +X at the wreck, and the pitch tilts the nose down towards
+                // it, so the forward camera takes in more of the wreck
+                const auto angle = -2.0 * vsg::PI * t / 60.0;
+                const vsg::dvec3 position(12.0 + 8.0 * std::cos(angle), 8.0 * std::sin(angle), -37.0);
+                const auto attitude = vsg::rotate(angle + vsg::PI, 0.0, 0.0, 1.0) * vsg::rotate(vsg::radians(25.0), 0.0, 1.0, 0.0);
+                vsg_scene->setPose("bluerov2", vsg::translate(position) * attitude);
+
+                // the ROV camera is forward-facing, at the vehicle's nose: it looks at
+                // the wreck it circles, without the vehicle in view
+                if (rovPipeline)
+                {
+                    const auto lookAt = rovPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
+                    lookAt->eye = position + attitude * vsg::dvec3(0.55, 0.0, 0.15);
+                    lookAt->center = lookAt->eye + (attitude * vsg::dvec3(1.0, 0.0, 0.0)) * 8.0;
+                }
+            }
+
+            // steering pods of the surface vehicle: rotation about the local Z axis of the pod
+            const auto steer = 0.5 * std::sin(2.0 * vsg::PI * t / 10.0);
+            for (const auto& linkName : steeredLinks)
+            {
+                if (initialLinkPoses.count(linkName))
+                {
+                    vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(steer, 0.0, 0.0, 1.0));
+                }
+            }
+
+            // spinning propellers and thrusters: rotation about the local X axis of the link
+            const auto spin = 2.0 * vsg::PI * 5.0 * t;
+            for (const auto& linkName : spinningLinks)
+            {
+                if (initialLinkPoses.count(linkName))
+                {
+                    vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(spin, 1.0, 0.0, 0.0));
+                }
+            }
+        };
+
+        // headless: render offscreen (a hardware GPU when the render group allows it,
+        // no window or swapchain) and write the screenshot - over ssh -X the hardware
+        // cannot present, but the offscreen rendering is ~50x faster than software
+        if (settings.headless)
+        {
+            return vsgOcean::Headless::run(vsg_scene, settings, demoFrame);
         }
 
         // create the viewer and assign window(s) to it
@@ -267,7 +350,6 @@ int main(int argc, char** argv)
                                        vsg::ViewportState::create(sensorExtent));
         };
 
-        vsg::ref_ptr<vsgOcean::RenderPipeline> rovPipeline, boatPipeline;
         if (vsg_scene->model("bluerov2")) rovPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
         if (vsg_scene->model("aquabot")) boatPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
 
@@ -369,73 +451,9 @@ int main(int argc, char** argv)
 
             viewer->update();
 
-            // demo: update the model poses wrt the world model and the link poses wrt their
-            // parent frame (the parent is guessed by vsgOcean from the model tree)
+            // demo: update the model poses and the link poses for this frame
             const auto t = viewer->getFrameStamp()->simulationTime;
-
-            if (vsg_scene->model("aquabot"))
-            {
-                // the surface vehicle performs a large circle, riding the waves: the
-                // wave field is sampled at its position, slightly below the local
-                // surface so the hulls keep a visible draft (the mesh waterline is at
-                // its origin, the hull bottom 0.026 m above)
-                const auto angle = 2.0 * vsg::PI * t / 60.0;
-                const double x = 10.0 * std::cos(angle);
-                const double y = 10.0 * std::sin(angle);
-                const double surfaceZ = wavefield->height(x, y, t);
-                vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.03)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
-
-                // the boat camera rides at the bow, above the hulls, looking along the
-                // direction of travel (a forward-facing camera sees little of its boat)
-                if (boatPipeline)
-                {
-                    const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
-                    const vsg::dvec3 travel(-std::sin(angle), std::cos(angle), 0.0);
-                    lookAt->eye = vsg::dvec3(x, y, surfaceZ) + travel * 1.5 + vsg::dvec3(0.0, 0.0, 1.6);
-                    lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.6);
-                }
-            }
-
-            if (vsg_scene->model("bluerov2"))
-            {
-                // the ROV circles the wreck at (12, 0, -48), facing it. The vehicle
-                // frame is x-front, y-port, z-up: the heading rotation points the
-                // model's +X at the wreck, and the pitch tilts the nose down towards
-                // it, so the forward camera takes in more of the wreck
-                const auto angle = -2.0 * vsg::PI * t / 60.0;
-                const vsg::dvec3 position(12.0 + 8.0 * std::cos(angle), 8.0 * std::sin(angle), -37.0);
-                const auto attitude = vsg::rotate(angle + vsg::PI, 0.0, 0.0, 1.0) * vsg::rotate(vsg::radians(25.0), 0.0, 1.0, 0.0);
-                vsg_scene->setPose("bluerov2", vsg::translate(position) * attitude);
-
-                // the ROV camera is forward-facing, at the vehicle's nose: it looks at
-                // the wreck it circles, without the vehicle in view
-                if (rovPipeline)
-                {
-                    const auto lookAt = rovPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
-                    lookAt->eye = position + attitude * vsg::dvec3(0.55, 0.0, 0.15);
-                    lookAt->center = lookAt->eye + (attitude * vsg::dvec3(1.0, 0.0, 0.0)) * 8.0;
-                }
-            }
-
-            // steering pods of the surface vehicle: rotation about the local Z axis of the pod
-            const auto steer = 0.5 * std::sin(2.0 * vsg::PI * t / 10.0);
-            for (const auto& linkName : steeredLinks)
-            {
-                if (initialLinkPoses.count(linkName))
-                {
-                    vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(steer, 0.0, 0.0, 1.0));
-                }
-            }
-
-            // spinning propellers and thrusters: rotation about the local X axis of the link
-            const auto spin = 2.0 * vsg::PI * 5.0 * t;
-            for (const auto& linkName : spinningLinks)
-            {
-                if (initialLinkPoses.count(linkName))
-                {
-                    vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(spin, 1.0, 0.0, 0.0));
-                }
-            }
+            demoFrame(t);
 
             // demo: the sun moves slowly through the sky, 1 simulated hour per second
             if (controls->sunCycleEnabled)
