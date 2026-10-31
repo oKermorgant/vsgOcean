@@ -30,6 +30,45 @@
           <box><size>0.464714527531344 0.29044657970709 0.116178631882836</size></box>
         </geometry>
       </collision>
+      <!-- two dive lamps at the nose, aiming forward and slightly down and out, so the
+           circling ROV sweeps its beams across the wreck. The intensity is scaled for the
+           renderer's physical 1/(d^2+1) light falloff (tens, not Gazebo's ~1) -->
+      <light name="lamp_port" type="spot">
+        <pose>0.2 0.1 -0.02 0 0 0</pose>
+        <diffuse>1 0.95 0.85 1</diffuse>
+        <specular>0.1 0.1 0.1 1</specular>
+        <attenuation>
+          <range>30</range>
+          <constant>1</constant>
+          <linear>0.1</linear>
+          <quadratic>0.01</quadratic>
+        </attenuation>
+        <direction>1 0.15 -0.2</direction>
+        <intensity>60</intensity>
+        <spot>
+          <inner_angle>0.25</inner_angle>
+          <outer_angle>0.5</outer_angle>
+          <falloff>1</falloff>
+        </spot>
+      </light>
+      <light name="lamp_starboard" type="spot">
+        <pose>0.2 -0.1 -0.02 0 0 0</pose>
+        <diffuse>1 0.95 0.85 1</diffuse>
+        <specular>0.1 0.1 0.1 1</specular>
+        <attenuation>
+          <range>30</range>
+          <constant>1</constant>
+          <linear>0.1</linear>
+          <quadratic>0.01</quadratic>
+        </attenuation>
+        <direction>1 -0.15 -0.2</direction>
+        <intensity>60</intensity>
+        <spot>
+          <inner_angle>0.25</inner_angle>
+          <outer_angle>0.5</outer_angle>
+          <falloff>1</falloff>
+        </spot>
+      </light>
     </link>
     <link name="bluerov2/thruster1">
       <pose relative_to="thruster1">0 0 0 0 0 0</pose>

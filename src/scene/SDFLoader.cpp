@@ -18,6 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <sdf/World.hh>
 #include <sdf/Model.hh>
 #include <sdf/Link.hh>
+#include <sdf/Light.hh>
 #include <sdf/Visual.hh>
 #include <sdf/Mesh.hh>
 #include <sdf/Box.hh>
@@ -33,7 +34,7 @@ namespace vsgOcean
 {
     namespace
     {
-        // gz::math pose to a vsg column-major matrix
+        // gz::math pose to a vsg column-convention matrix
         vsg::dmat4 toVsgMatrix(const gz::math::Pose3d& pose)
         {
             const auto& pos = pose.Pos();
@@ -41,15 +42,16 @@ namespace vsgOcean
 
             const auto x = rot.X(), y = rot.Y(), z = rot.Z(), w = rot.W();
 
+            // standard quaternion rotation matrix, columns 0..2 (vsg: M * v)
             vsg::dmat4 matrix;
             matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);
-            matrix[1][0] = 2.0 * (x * y - z * w);
-            matrix[2][0] = 2.0 * (x * z + y * w);
-            matrix[0][1] = 2.0 * (x * y + z * w);
+            matrix[1][0] = 2.0 * (x * y + z * w);
+            matrix[2][0] = 2.0 * (x * z - y * w);
+            matrix[0][1] = 2.0 * (x * y - z * w);
             matrix[1][1] = 1.0 - 2.0 * (x * x + z * z);
-            matrix[2][1] = 2.0 * (y * z - x * w);
-            matrix[0][2] = 2.0 * (x * z - y * w);
-            matrix[1][2] = 2.0 * (y * z + x * w);
+            matrix[2][1] = 2.0 * (y * z + x * w);
+            matrix[0][2] = 2.0 * (x * z + y * w);
+            matrix[1][2] = 2.0 * (y * z - x * w);
             matrix[2][2] = 1.0 - 2.0 * (x * x + y * y);
             matrix[3][0] = pos.X();
             matrix[3][1] = pos.Y();
@@ -178,6 +180,74 @@ namespace vsgOcean
             }
         }
 
+        // an SDF light as a vsg light node, placed by the light's own pose. The node is
+        // attached to a frame (the owning link's frame, or the scene world), so it
+        // follows the model at runtime; the recorded ancestor transform places it.
+        // The SDF <direction> is expressed in the light's own frame and aims the spot:
+        // with the default identity pose and direction (1, 0, 0) the lamp shines
+        // along the frame's +X (a vehicle's front).
+        vsg::ref_ptr<vsg::Light> buildLight(const sdf::Light& light)
+        {
+            const auto pose = resolvedPose(light.SemanticPose(), light.Name());
+
+            vsg::ref_ptr<vsg::Light> node;
+            switch (light.Type())
+            {
+            case sdf::LightType::POINT:
+                node = vsg::PointLight::create();
+                break;
+            case sdf::LightType::SPOT:
+                node = vsg::SpotLight::create();
+                break;
+            case sdf::LightType::DIRECTIONAL:
+                node = vsg::DirectionalLight::create();
+                break;
+            default:
+                vsg::warn("vsgOcean::SDFLoader - unsupported light type in ", light.Name());
+                return {};
+            }
+
+            node->name = light.Name();
+            const auto& diffuse = light.Diffuse();
+            node->color.set(static_cast<float>(diffuse.R()), static_cast<float>(diffuse.G()),
+                            static_cast<float>(diffuse.B()));
+            node->intensity = static_cast<float>(light.Intensity());
+
+            // the aim direction, rotated from the light's frame into its parent frame
+            // (the pose translation must not apply to it)
+            auto rotation = pose;
+            rotation[3].set(0.0, 0.0, 0.0, 1.0);
+            const auto& dir = light.Direction();
+            const vsg::dvec3 direction = rotation * vsg::dvec3(dir.X(), dir.Y(), dir.Z());
+
+            // the cutoff radius of the distance falloff; vsg's radius 0 would extinguish
+            // the light entirely, so an unspecified SDF range (<range> 0) means "far"
+            const double range = light.AttenuationRange();
+            const double radius = range > 0.0 ? range : 1000.0;
+
+            if (auto point = node.cast<vsg::PointLight>())
+            {
+                point->position = pose * vsg::dvec3(0.0, 0.0, 0.0);
+                point->radius = radius;
+            }
+            else if (auto spot = node.cast<vsg::SpotLight>())
+            {
+                spot->position = pose * vsg::dvec3(0.0, 0.0, 0.0);
+                spot->direction = vsg::normalize(direction);
+                // the bright inner cone and the lit outer cone (the aperture), in
+                // radians from the SDF <spot> element; the outer cone must be the wider
+                spot->innerAngle = light.SpotInnerAngle().Radian();
+                spot->outerAngle = std::max(light.SpotOuterAngle().Radian(), spot->innerAngle + 0.01);
+                spot->radius = radius;
+            }
+            else if (auto directional = node.cast<vsg::DirectionalLight>())
+            {
+                directional->direction = vsg::normalize(direction);
+            }
+
+            return node;
+        }
+
         vsg::ref_ptr<Model> loadModelFromSdf(const sdf::Model& sdfModel, const vsg::Path& baseDir,
                                              const UriResolver& resolver, vsg::ref_ptr<vsg::Options> options)
         {
@@ -224,6 +294,16 @@ namespace vsgOcean
                     auto visualTransform = vsg::MatrixTransform::create(visualMatrix);
                     visualTransform->addChild(node);
                     linkFrame->addChild(visualTransform);
+                }
+
+                // link lights: lamps, beacons... attached to the link frame, so they
+                // follow the model and any runtime link pose
+                for (size_t li = 0; li < link->LightCount(); ++li)
+                {
+                    if (const sdf::Light* light = link->LightByIndex(li))
+                    {
+                        if (auto lightNode = buildLight(*light)) linkFrame->addChild(lightNode);
+                    }
                 }
 
                 model->addFrame(linkFrame);
@@ -351,6 +431,15 @@ namespace vsgOcean
             {
                 scene->environment()->setLatitude(spherical->LatitudeReference().Degree());
                 scene->environment()->setLongitude(spherical->LongitudeReference().Degree());
+            }
+
+            // world lights: static lights placed in the world frame
+            for (size_t li = 0; li < world->LightCount(); ++li)
+            {
+                if (const sdf::Light* light = world->LightByIndex(li))
+                {
+                    if (auto lightNode = buildLight(*light)) scene->world()->addChild(lightNode);
+                }
             }
 
             for (size_t m = 0; m < world->ModelCount(); ++m)
