@@ -8,13 +8,15 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 
 - **Scene model**: a tree of named, nestable `Model`s rooted at a `world` model, holding meshes under fixed or dynamic transforms. Frames are addressable by name and movable at runtime through `setPose()` — the seam for driving visuals from a dynamics simulator.
 - **SDF loading** *(optional, requires [sdformat](https://github.com/gazebosim/sdformat))*: SDF worlds and models become the scene model, with poses resolved through SDF semantic poses, `package://` / `model://` / `file://` URI resolution, and mesh scales.
-- **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime.
+- **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime. Night is moonless and genuinely dark: every light path (sky, fog, in-scatter, scene lighting) is sun-driven, so an unlit night scene is lit only by its own lamps.
 - **Sky**: analytic shader sky (day/night cycle from the sun elevation, constellations at night), with scene lighting that follows the sun.
-- **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the component count, scale and angle are tunable (GUI sliders or `--wave-*`).
-- **Underwater rendering**: when the camera dives below the waves (left-drag to move it), the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the view distance to each object (red is absorbed first), in-scatter towards the water colour, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
-- **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic.
+- **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the component count, scale and angle are tunable (GUI sliders or `--wave-*`). Wind-driven ripple detail is layered on top as a drifting noise field. The surface shades around the shared analytic sky in both directions: above, Fresnel-weighted sky reflection (fading in toward the horizon), sun glitter and glare, and the transmitted Jerlov body colour; from below, the Snell window with total internal reflection beyond the critical angle. The composite applies FXAA anti-aliasing.
+- **Underwater rendering**: when the camera dives below the waves, the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the true submerged view segment (red is absorbed first), Henyey-Greenstein forward in-scatter (g = 0.924) with a Petzold-family scattering table under the Jerlov taxonomy, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
+- **SDF lights**: `<light>` elements (point, spot with cone aperture and range, directional) become scene lights attached to their frame, so vehicle lamps follow the vehicle.
+- **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic, and the composited image can be written to a PNG (`--screenshot`).
+- **Headless rendering**: `--headless` renders offscreen without a window or swapchain and writes the screenshot — for servers and CI, and for GPUs that can render but not present (e.g. over a forwarded X connection).
 
-The example application renders an islands scene with a surface vehicle (aquabot) and an ROV (BlueROV2), animated in real time, with a day/night cycle and moving waves.
+The example application renders an islands scene with a surface vehicle (aquabot), an ROV (BlueROV2) diving around a ship wreck, animated in real time, with a day/night cycle (opt-in) and moving waves.
 
 ## Building
 
@@ -36,16 +38,25 @@ cmake --build build -j
 ## The example
 
 ```bash
-# default: islands + aquabot + bluerov2, animated sun (1 simulated hour per second) and waves
+# default: islands + aquabot + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth) and waves
 ./vsgOcean_example
 
 # customise
-./vsgOcean_example --sun 20 200 --no-sun-cycle   # static sun at 20 deg elevation, azimuth 200
+./vsgOcean_example --sun-cycle                     # animate the sun (1 simulated hour per second; Space pauses)
+./vsgOcean_example --sun 20 200                    # static sun at 20 deg elevation, azimuth 200
 ./vsgOcean_example --wind 8 45 --wave-amplitude 0.2 --wave-period 6
 ./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
-./vsgOcean_example --jerlov 8                    # turbid coastal water (Coastal9)
-./vsgOcean_example --fog 0.01
-./vsgOcean_example --debug --eye 12 5 -40        # validation layers, camera near the wreck
+./vsgOcean_example --jerlov 8                      # turbid coastal water
+./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
+./vsgOcean_example --debug --eye 12 5 -40          # validation layers, camera near the wreck
+./vsgOcean_example --eye 12 5 -40 --center 12 0 -48   # fully deterministic view
+
+# headless: render N frames offscreen (no window) and write a PNG
+./vsgOcean_example --headless -f 20 --sun 35 135 --screenshot shot.png
+./vsgOcean_example --headless --extent 1920 1080 -f 60 --screenshot shot.png
+
+# custom scenes: pass SDF files as positional arguments
+./vsgOcean_example my_world.sdf
 ```
 
 ### Runtime controls
@@ -64,6 +75,7 @@ feature also usable headless through the keyboard):
 | P | ocean surface on / off |
 | Space | day cycle animation on / off |
 | Tab | cycle the tracked model (camera follows) |
+| V | camera preview widget on / off (shown by default) |
 | H | sliders panel on / off (hidden by default) |
 
 The key bindings are always visible in a small HUD in a corner of the window. When
@@ -75,12 +87,11 @@ variable).
 ## Roadmap
 
 - Underwater rendering refinements
-    - marine snow
-    - wavelength-dependent absorption
-    - caustics
-- Arbitrary (coloured?) light sources
+    - ray-marched volumetric light cones (visible lamp beams in dark water)
+    - marine snow, god rays
+    - wave-field caustics on geometry
+- Surface refinements: planar reflection / refraction passes of the actual scene
 - Spectral (FFT) wave synthesis on top of the same wave-field interface
-- Multi-camera / sensor rendering (offscreen render-to-image for ROS integration)
 - A separate ROS wrapper package (tf-driven poses, image topics)
 - A separate Gazebo rendering plugin (Gazebo-driven poses, image topics)
 
