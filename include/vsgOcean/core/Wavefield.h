@@ -131,7 +131,7 @@ namespace vsgOcean
         double scale_{2.0};
         double angle_{0.2 * vsg::PI};
         double steepness_{1.0};
-        double amplitude_{0.1};
+        double amplitude_{0.05};
         double period_{5.0};
         double phase_{0.0};
         double direction_{0.0};
