@@ -54,18 +54,25 @@ void main()
     const vec3 world = worldH.xyz / worldH.w;
     const float dist = length(world - env.eye.xyz);
 
-    // the light path through the water: from a submerged camera up to the surface
-    // crossing - geometry above the water, seen from below, only attenuates over
-    // the submerged part of the ray
+    // the submerged segment of the view ray: the water path runs between the
+    // camera and the geometry, split at the mean sea level plane - from below the
+    // surface it ends at the crossing, from above it starts there
     const float seaLevel = env.extent.w;
     float waterPath = 0.0;
     if (env.eye.w > 0.0)
     {
         waterPath = dist;
-        if (world.z > seaLevel)
+        if (world.z > seaLevel) // geometry above the surface, seen from below
         {
             waterPath *= clamp((env.eye.z - seaLevel) / (env.eye.z - world.z), 0.0, 1.0);
         }
+    }
+    else if (world.z < seaLevel) // geometry below the surface, seen from above
+    {
+        // the ray crosses the surface plane partway along: only the segment past
+        // the crossing is water (for the surface itself that is next to nothing)
+        const float crossing = clamp((seaLevel - env.eye.z) / (world.z - env.eye.z), 0.0, 1.0);
+        waterPath = dist * (1.0 - crossing);
     }
 
     // atmospheric fog over the air segment of the ray: the density is the air's
@@ -73,18 +80,23 @@ void main()
     const float haze = 1.0 - exp(-env.fog.a * (dist - waterPath));
     color = mix(color, env.fog.rgb, haze);
 
-    // underwater: Beer-Lambert per channel over the water segment, with the
-    // in-scattered water light filling in. No ambient floor: the water light is
-    // sun-driven only, so a deep night scene attenuates to black
-    if (env.eye.w > 0.0)
+    // underwater transport over the water segment: per-channel Beer-Lambert with
+    // the in-scattered water light filling in. No ambient floor: the water light
+    // is sun-driven only, so a deep night scene attenuates to black
     {
         const vec3 transmit = exp(-env.attenuation.rgb * waterPath);
-        const float light = exp(-env.water.a * max(env.eye.w, 0.5)) * max(env.attenuation.w, 0.0);
+        // the sun light surviving to the depth of the viewed water: the camera's
+        // submersion when below, the surface when looking down from above
+        const float depth = max(env.eye.w, 0.0);
+        const float light = exp(-env.water.a * max(depth, 0.5)) * max(env.attenuation.w, 0.0);
         const vec3 scatter = env.water.rgb * light;
         const vec3 underwater = color * transmit + scatter * (1.0 - transmit);
 
-        // fade in smoothly as the camera dives below the waves
-        color = mix(color, underwater, smoothstep(0.0, 0.5, env.eye.w));
+        // the transport applies fully to the water segment; the fade-in only spans
+        // the first centimetres as the camera dips through the waves, so there is
+        // no clear band just below the surface
+        const float inWater = env.eye.w > 0.0 ? smoothstep(0.0, 0.05, env.eye.w) : 1.0;
+        color = mix(color, underwater, inWater);
     }
 
     fragColor = vec4(color, 1.0);
