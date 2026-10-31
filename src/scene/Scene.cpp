@@ -175,6 +175,14 @@ namespace vsgOcean
                         lookAt->eye = pose * (previous * lookAt->eye);
                         lookAt->center = pose * (previous * lookAt->center);
                     }
+                    else
+                    {
+                        // tracking just started: centre the tracked object,
+                        // preserving the view direction and distance
+                        const vsg::dvec3 position(pose[3][0], pose[3][1], pose[3][2]);
+                        lookAt->eye += position - lookAt->center;
+                        lookAt->center = position;
+                    }
                     trackedPose_ = pose;
                     trackedPoseValid_ = true;
                 }
