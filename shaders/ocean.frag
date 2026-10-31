@@ -94,11 +94,37 @@ vec3 underwaterColor(vec3 direction, vec3 sunDirection, float depth)
     return water;
 }
 
-// ripple detail: a small spectrum of short waves on top of the low-frequency Gerstner
-// geometry, evaluated as slopes per pixel. The directions are golden-angle spaced
-// around the wind (never aligned, so no cross-hatch pattern), the wavelengths are
-// incommensurate, and the amplitude follows the sea state (the wave field's largest
-// component). Fades with distance where the slopes would alias to sub-pixel noise.
+// smooth value noise (the classic hash + smoothstep interpolation), the workhorse
+// behind the ripple detail: a continuum of directions with no periodic lattice, the
+// way a real capillary-scale water surface is organized
+float rippleHash(vec2 p)
+{
+    // the Hoskins hash: cheaper than the classic sin() hash (which is slow on
+    // software rasterizers) and without its large-scale lattice artefacts
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float rippleNoise(vec2 p)
+{
+    const vec2 i = floor(p);
+    const vec2 f = fract(p);
+    const vec2 u = f * f * (3.0 - 2.0 * f);
+    const float a = rippleHash(i);
+    const float b = rippleHash(i + vec2(1.0, 0.0));
+    const float c = rippleHash(i + vec2(0.0, 1.0));
+    const float d = rippleHash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
+}
+
+// ripple detail: drifting octave bands of the noise above, evaluated as slopes per
+// pixel on top of the low-frequency Gerstner geometry. Each octave drifts along a
+// wind-relative direction at its deep-water phase speed; the amplitude follows the
+// sea state (the wave field's largest component) and fades with distance where the
+// slopes would alias to sub-pixel noise. Unlike a sum of discrete plane waves (the
+// earlier attempt, whose superposition organized into square-like interference
+// cells), noise has no preferred directions: the surface reads organic.
 vec2 rippleSlope(vec2 p, float t, float fade)
 {
     if (fade <= 0.0) return vec2(0.0);
@@ -107,20 +133,25 @@ vec2 rippleSlope(vec2 p, float t, float fade)
     const vec2 wind = normalize(ocean.direction[7].xy + vec2(1e-5, 0.0));
     const mat2 windFrame = mat2(wind.x, -wind.y, wind.y, wind.x);
 
-    // wavelength [m], golden-angle offset [rad], slope at the default sea state
-    const vec3 ripple[8] = vec3[8](
-        vec3(1.60, 0.0, 0.055), vec3(1.10, 2.399, 0.050), vec3(0.76, 4.798, 0.046),
-        vec3(0.53, 7.197, 0.042), vec3(0.37, 9.596, 0.038), vec3(0.26, 11.995, 0.034),
-        vec3(0.42, 14.394, 0.030), vec3(0.31, 16.793, 0.026));
+    // characteristic wavelength [m], wind-relative drift direction [rad], slope at
+    // the default sea state - two octave bands spanning the capillary range
+    const vec3 octave[2] = vec3[2](vec3(1.1, 0.0, 0.09), vec3(0.45, 1.1, 0.06));
 
     vec2 slope = vec2(0.0);
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < 2; ++i)
     {
-        const float k = 6.2831853 / ripple[i].x;
-        const float omega = sqrt(9.81 * k); // deep-water dispersion
-        const vec2 d = windFrame * vec2(cos(ripple[i].y), sin(ripple[i].y));
-        const float theta = dot(d, p) * k - omega * t;
-        slope += ripple[i].z * sea * fade * d * sin(theta);
+        const float k = 6.2831853 / octave[i].x;
+        const float speed = sqrt(9.81 / k); // deep-water phase speed sqrt(g/k)
+        const vec2 dir = windFrame * vec2(cos(octave[i].y), sin(octave[i].y));
+        const vec2 q = (p - dir * speed * t) * k; // the noise domain, in radians
+
+        // the slope from the noise gradient (central differences over a fraction of
+        // the characteristic period, smoothed by the interpolation)
+        const float e = 0.25;
+        const float n0 = rippleNoise(q);
+        const float nx = rippleNoise(q + vec2(e, 0.0));
+        const float ny = rippleNoise(q + vec2(0.0, e));
+        slope += octave[i].z * sea * fade * vec2(nx - n0, ny - n0) / e;
     }
     return slope;
 }
