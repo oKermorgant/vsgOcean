@@ -47,8 +47,15 @@ namespace vsgOcean
         /// any number of cameras. Call every frame, before record.
         void update(const Environment& environment, double t);
 
+        /// The sun's visibility to the camera (0 occluded by world geometry ..
+        /// 1 clear sky): the specular glitter, the glare lobe and the reflected
+        /// sun disc require the sun to actually reach the viewer. Computed by
+        /// the Scene against the world geometry; defaults to fully visible.
+        void setSunVisibility(float visibility) { sunVisibility_ = visibility; }
+
     protected:
         vsg::ref_ptr<Wavefield> wavefield_;
+        float sunVisibility_ = 1.0f;
 
         // uniform block layout: [0] sun direction, [1] fog color + density, [2] water color,
         // [3] params (t, tau, number, water depth), [4] attenuation + sea level,

@@ -103,7 +103,8 @@ set(VSGOCEAN_LIBRARY_SOURCES
     src/scene/Scene.cpp
     src/scene/Sky.cpp
     src/scene/Underwater.cpp
-    # ui: runtime controls, GUI panel, HUD, camera controller
+    # ui: runtime controls, GUI panel, HUD, camera controllers
+    src/ui/CameraFrame.cpp
     src/ui/EnvironmentControls.cpp
     src/ui/EnvironmentGui.cpp
     src/ui/HorizonController.cpp

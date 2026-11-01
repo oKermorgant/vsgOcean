@@ -125,6 +125,8 @@ namespace vsgOcean
         vsg::ref_ptr<vsg::Switch> surfaceSwitch_;
         vsg::ref_ptr<Underwater> underwater_;
         std::vector<LampLight> lampLights_;
+        // the smoothed sun visibility driving the ocean's sun reflection terms
+        float sunVisibility_ = 1.0f;
         vsg::ref_ptr<vsg::AmbientLight> ambientLight_;
         vsg::ref_ptr<vsg::DirectionalLight> sunLight_;
         std::string trackedFrame_;

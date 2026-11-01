@@ -26,6 +26,10 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 steepness[8];
     vec4 direction[8];    // xy: horizontal direction of the component
 } ocean;
+// the sun's visibility to the camera (0 occluded .. 1 clear sky - a ray from
+// the camera towards the sun against the world geometry, smoothed) rides in
+// the spare amplitude[0].y: the specular glitter, the glare lobe and the
+// reflected sun disc need the sun to actually reach the viewer
 
 layout(location = 0) in vec3 worldPosition;
 layout(location = 1) in vec3 worldNormal;
@@ -84,7 +88,7 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
-    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 2.0);
+    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 2.0) * ocean.amplitude[0].y;
 
     // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m
     // path); the band follows the same clamped elevation as the gradient
@@ -104,7 +108,7 @@ vec3 underwaterColor(vec3 direction, vec3 sunDirection, float depth)
     // the sun glowing down through the water
     const float cosSun = 1.0 - clamp(dot(direction, sunDirection), -1.0, 1.0);
     const float sunAngle = sqrt(2.0 * cosSun);
-    water += exp(-sunAngle / 0.3) * vec3(0.6, 0.95, 1.0) * 0.4 * light * max(sunDirection.z, 0.0);
+    water += exp(-sunAngle / 0.3) * vec3(0.6, 0.95, 1.0) * 0.4 * light * max(sunDirection.z, 0.0) * ocean.amplitude[0].y;
     return water;
 }
 
@@ -247,7 +251,7 @@ void main()
         const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0) * (1.0 - ocean.sunDirection.w);
         const vec3 throughWater = ocean.waterColor.rgb * scatter + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
 
-        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0);
+        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0) * ocean.amplitude[0].y;
 
         // transparency towards the scene behind the surface: more mirror-like at
         // grazing angles, more transparent looking straight down

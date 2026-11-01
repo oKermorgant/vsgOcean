@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgOcean/scene/Scene.h>
 #include <vsgOcean/scene/RenderTarget.h>
+#include <vsg/utils/LineSegmentIntersector.h>
 #include <vsgOcean/scene/RenderPipeline.h>
 #include <vsgOcean/ui/Hud.h>
 #include <vsgOcean/scene/Underwater.h>
@@ -145,6 +146,28 @@ namespace vsgOcean
         sunLight_->intensity = static_cast<float>(0.95 * dayFactor * (1.0 - 0.85 * environment_->cloudiness() / 8.0));
         sunLight_->color = vsg::mix(vsg::vec3(1.0f, 0.55f, 0.25f), vsg::vec3(1.0f, 0.97f, 0.90f), static_cast<float>(dayFactor));
         ambientLight_->intensity = static_cast<float>(0.07 * dayFactor);
+
+        // the sun's reflection terms on the water (glitter, glare lobe, the
+        // reflected sun disc) require the sun to actually reach the camera:
+        // one ray per frame from the camera towards the sun, against the world
+        // geometry only (the ocean and sky are excluded by construction - the
+        // ray points away from the surface and the sky is not geometry). The
+        // result is smoothed so an island edge sliding over the sun fades the
+        // reflection path instead of popping it. Sensor pipelines share the
+        // main camera's visibility.
+        if (camera && camera->viewMatrix && world_ && sun.z > 0.0)
+        {
+            const auto lookAt = camera->viewMatrix.cast<vsg::LookAt>();
+            vsg::LineSegmentIntersector intersector{lookAt->eye, lookAt->eye + sun * 10000.0};
+            world_->accept(intersector);
+            const float visible = intersector.intersections.empty() ? 1.0f : 0.0f;
+            sunVisibility_ += (visible - sunVisibility_) * 0.25f;
+        }
+        else
+        {
+            sunVisibility_ += (1.0f - sunVisibility_) * 0.25f;
+        }
+        surface_->setSunVisibility(sunVisibility_);
 
         surface_->update(*environment_, t);
 

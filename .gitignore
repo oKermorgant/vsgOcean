@@ -14,7 +14,7 @@
 *.so
 *.pyc
 nogit/
-build/
+build*/
 build-debug/
 build_w/
 LLM/
