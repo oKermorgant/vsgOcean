@@ -115,7 +115,7 @@ namespace vsgOcean
         // unit field (4096 flakes), the pool is 10x that - so the density range
         // 0..10 maps to the fraction 0..1
         const float fraction = static_cast<float>(environment.marineSnowDensity()) * (4096.0f / static_cast<float>(particles_));
-        (*uniform_)[0] = vsg::vec4(static_cast<float>(t), fraction, box_, static_cast<float>(environment.cloudiness()));
+        (*uniform_)[0] = vsg::vec4(static_cast<float>(t), fraction, box_, static_cast<float>(environment.cloudiness() / 8.0));
         (*uniform_)[1] = vsg::vec4(environment.waterCurrent(), static_cast<float>(environment.seaLevel()));
         (*uniform_)[2] = vsg::vec4(environment.sunDirection(), 0.0f);
         (*uniform_)[3] = vsg::vec4(environment.underwaterColor(), meanAttenuation);

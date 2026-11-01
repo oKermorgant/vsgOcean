@@ -107,12 +107,12 @@ namespace vsgOcean
         void setMarineSnowDensity(double density);
         double marineSnowDensity() const { return marineSnowDensity_; }
 
-        /// Cloud cover above the water, normalized 0..1: 0 a clear sky, 1.0
-        /// overcast. INDEPENDENT of the fog (the distance haze): the clouds dim
-        /// the sun disc and its glow, hide the stars, grey the sky gradient and
-        /// dim the scene's sun lighting - a cloudy night has no constellations.
-        /// Default 0 (clear).
-        void setCloudiness(double cloudiness);
+        /// Cloud cover above the water on the classical meteorological okta scale,
+        /// 0..8: 0 a clear sky, 8 overcast (each okta is one eighth of the sky).
+        /// INDEPENDENT of the fog (the distance haze): the clouds dim the sun disc
+        /// and its glow, hide the stars, grey the sky gradient and dim the scene's
+        /// sun lighting - a cloudy night has no constellations. Default 0 (clear).
+        void setCloudiness(double oktas);
         double cloudiness() const { return cloudiness_; }
 
         /// The underwater depth-of-field blur (as osgOcean's underwater DOF): the
@@ -162,7 +162,7 @@ namespace vsgOcean
         JerlovType jerlovType_ = JerlovType::OceanicI;
         double seaLevel_{0.0};
         double marineSnowDensity_{0.6};
-        double cloudiness_{0.0};
+        double cloudiness_{0.0}; // oktas, 0..8
         bool underwaterBlur_{true};
         vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame
         double latitude_{0.0};

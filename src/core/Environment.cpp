@@ -105,9 +105,9 @@ namespace vsgOcean
         waterCurrent_ = current;
     }
 
-    void Environment::setCloudiness(double cloudiness)
+    void Environment::setCloudiness(double oktas)
     {
-        cloudiness_ = std::clamp(cloudiness, 0.0, 1.0);
+        cloudiness_ = std::clamp(oktas, 0.0, 8.0);
     }
 
     void Environment::setUnderwaterBlur(bool enabled)

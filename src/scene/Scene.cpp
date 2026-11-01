@@ -142,7 +142,7 @@ namespace vsgOcean
         sunLight_->direction = sun;
         // the cloud cover dims the scene lighting like it dims the sun itself (an
         // overcast day is ~15% of the clear-sun light, not black)
-        sunLight_->intensity = static_cast<float>(0.95 * dayFactor * (1.0 - 0.85 * environment_->cloudiness()));
+        sunLight_->intensity = static_cast<float>(0.95 * dayFactor * (1.0 - 0.85 * environment_->cloudiness() / 8.0));
         sunLight_->color = vsg::mix(vsg::vec3(1.0f, 0.55f, 0.25f), vsg::vec3(1.0f, 0.97f, 0.90f), static_cast<float>(dayFactor));
         ambientLight_->intensity = static_cast<float>(0.07 * dayFactor);
 

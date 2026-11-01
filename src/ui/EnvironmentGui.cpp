@@ -222,8 +222,8 @@ namespace vsgOcean
             auto fog = static_cast<float>(environment->fogDensity());
             if (ImGui::SliderFloat("fog density", &fog, 0.0f, 1.0f, "%.3f")) environment->setFogDensity(fog);
 
-            auto clouds = static_cast<float>(environment->cloudiness());
-            if (ImGui::SliderFloat("cloud cover", &clouds, 0.0f, 1.0f)) environment->setCloudiness(clouds);
+            auto clouds = static_cast<int>(environment->cloudiness());
+            if (ImGui::SliderInt("cloud cover (oktas)", &clouds, 0, 8)) environment->setCloudiness(static_cast<double>(clouds));
 
             ImGui::End();
             return true;
