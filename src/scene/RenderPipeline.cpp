@@ -225,7 +225,7 @@ namespace vsgOcean
             }
         }
 
-        composite_->update(*scene->environment(), camera, submersion);
+        composite_->update(*scene->environment(), camera, submersion, scene->world().get());
     }
 
     bool RenderPipeline::writeScreenshot(const vsg::Path& filename) const

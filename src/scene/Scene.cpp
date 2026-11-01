@@ -157,7 +157,7 @@ namespace vsgOcean
                     submersion = environment_->seaLevel() - lookAt->eye.z; // positive below the surface
                 }
             }
-            underwater_->update(*environment_, camera, submersion);
+            underwater_->update(*environment_, camera, submersion, world_.get());
         }
 
         // camera tracking: the camera follows the tracked frame with a constant

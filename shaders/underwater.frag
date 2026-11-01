@@ -33,6 +33,17 @@ layout(std140, set = 0, binding = 0) uniform Composite
 layout(set = 0, binding = 1) uniform sampler2D sceneColor;
 layout(set = 0, binding = 2) uniform sampler2D sceneDepth;
 
+// the scene's point and spot lights (collected in world space each frame): the
+// underwater composite ray-marches them as volumetric light cones over the
+// submerged segment of each view ray (the 9-slot Composite block is full, so the
+// lights travel in this second block, together with the scattering coefficient)
+layout(std140, set = 0, binding = 3) uniform Lamps
+{
+    vec4 header; // x: light count, yzw: per-channel scattering coefficient b (1/m)
+    vec4 lamp[32]; // 4 per light: position + intensity, direction + cos(inner),
+                   // cos(outer) + range, colour
+} lamps;
+
 // FXAA (the compact 3.11 console variant): the offscreen render target has no
 // multisampling (the software rasterizer makes MSAA prohibitively expensive), so
 // the composite blends the scene colour across aliased geometric edges before the
@@ -73,6 +84,82 @@ vec3 fxaa(vec2 uv, vec2 texel)
     return (lB < lMin || lB > lMax) ? rgbA : rgbB;
 }
 
+// The volumetric lamp cones: single scattering ray-marched per light over a
+// submerged segment of the view ray (Stonefish-style): the lamp's 1/(d^2+1)
+// light with a smooth cone aperture and range cutoff, per-channel Beer-Lambert
+// from the lamp to the sample and on to the eye, and the Henyey-Greenstein phase
+// (the same g as the sun in-scatter) for the scatter towards the eye.
+vec3 lampMarch(vec3 viewDir, float tStart, float tEnd)
+{
+    vec3 inscatter = vec3(0.0);
+    if (tEnd <= tStart || lamps.header.x < 0.5) return inscatter;
+
+    const int lightCount = int(lamps.header.x);
+    const float g = 0.924;
+    for (int i = 0; i < lightCount; ++i)
+    {
+        const vec4 posIntensity = lamps.lamp[i * 4 + 0];
+        const vec4 dirCosInner = lamps.lamp[i * 4 + 1];
+        const vec4 coneRange = lamps.lamp[i * 4 + 2];
+        const vec4 lampColor = lamps.lamp[i * 4 + 3];
+
+        // clip the march to the sphere of the light's reach (range 0: far)
+        const vec3 lampPos = posIntensity.xyz;
+        const float radius = coneRange.y > 0.0 ? coneRange.y : 1.0e5;
+        const vec3 oc = lampPos - env.eye.xyz;
+        const float projection = dot(oc, viewDir);
+        const float disc = projection * projection - (dot(oc, oc) - radius * radius);
+        if (disc <= 0.0) continue;
+        const float hit = sqrt(disc);
+        const float nearT = max(projection - hit, tStart);
+        const float farT = min(projection + hit, tEnd);
+        if (farT <= nearT) continue;
+
+        // ~0.5 m steps, clamped: short water paths stay cheap
+        const int steps = int(clamp((farT - nearT) * 2.0, 4.0, 24.0));
+        const float dt = (farT - nearT) / float(steps);
+        for (int s = 0; s < steps; ++s)
+        {
+            const float t = nearT + dt * (float(s) + 0.5);
+            const vec3 p = env.eye.xyz + viewDir * t;
+            const vec3 toLamp = lampPos - p;
+            const float d = length(toLamp);
+            const vec3 incident = -toLamp / max(d, 1.0e-4); // the light's travel direction at the sample
+
+            // the spot aperture: smooth falloff between the bright inner cone and
+            // the outer (point lights carry no cone). incident points from the lamp
+            // to the sample, so its alignment with the lamp's axis is the cone test
+            float aperture = 1.0;
+            if (dirCosInner.w > -0.999)
+            {
+                aperture = smoothstep(coneRange.x, dirCosInner.w, dot(incident, dirCosInner.xyz));
+            }
+            if (aperture <= 0.0) continue;
+
+            // the light reaching the sample: inverse-square falloff softened near
+            // the lamp, Beer-Lambert through the water over the lamp distance. The
+            // SDF/vsg light intensities are calibrated for the surface shading pass,
+            // so the volumetric term carries a scale bridge between the two
+            // conventions (tuned on the night wreck scene: the cone reads bright at
+            // the lamp and grades out over its range)
+            const float lampScale = 0.125;
+            const vec3 arriving = lampColor.rgb * (posIntensity.w * lampScale) * aperture
+                                / (d * d + 1.0) * exp(-env.attenuation.rgb * d);
+
+            // scattered towards the eye and attenuated over the remaining water
+            // path. The phase is the Henyey-Greenstein peak (the same g as the sun
+            // in-scatter) clamped - the raw g = 0.924 peak is so narrow that an
+            // oncoming beam saturates to white over metres - plus an isotropic
+            // floor: the multiply-scattered light that real water builds, without
+            // which a beam is invisible from the side in clear water
+            const float cosTheta = dot(incident, -viewDir);
+            const float phase = min((1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5), 12.0) + 0.5;
+            inscatter += lamps.header.yzw * phase * arriving * exp(-env.attenuation.rgb * t) * dt;
+        }
+    }
+    return inscatter;
+}
+
 void main()
 {
     const vec2 uv = gl_FragCoord.xy / env.extent.xy;
@@ -84,9 +171,22 @@ void main()
     vec3 color = depth > 0.0 ? fxaa(uv, 1.0 / env.extent.xy) : texture(sceneColor, uv).rgb;
 
     // the light path through the water: from a submerged camera up to the surface
-    // haze and underwater background - keep the scene color as is
+    // haze and underwater background - keep the scene color as is, but a submerged
+    // camera still sees the volumetric lamp cones against the open water: march the
+    // ray out to the surface crossing when looking up, or the fog-out distance
+    // (beyond it the lamps' inverse-square falloff makes the contribution negligible)
     if (depth <= 0.0)
     {
+        if (env.eye.w > 0.0)
+        {
+            // the view ray through a background pixel: unprojected at the far plane
+            const vec4 backgroundH = env.inverseViewProjection * vec4(ndc, 1.0, 1.0);
+            const vec3 backgroundDir = normalize(backgroundH.xyz / backgroundH.w - env.eye.xyz);
+            float backgroundEnd;
+            if (backgroundDir.z > 1.0e-4) backgroundEnd = (env.extent.w - env.eye.z) / backgroundDir.z;
+            else backgroundEnd = 150.0;
+            color += lampMarch(backgroundDir, 0.0, backgroundEnd);
+        }
         fragColor = vec4(color, 1.0);
         return;
     }
@@ -145,7 +245,17 @@ void main()
         const float g = 0.924;
         const float phase = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5);
         const vec3 scatter = env.water.rgb * light * (1.0 + 0.003 * phase);
-        const vec3 underwater = color * transmit + scatter * (1.0 - transmit);
+
+        // the volumetric lamp cones over this ray's submerged segment: from a
+        // submerged camera the whole path to the geometry/crossing, from above the
+        // segment past the surface crossing
+        float lampStart = 0.0;
+        float lampEnd = -1.0;
+        if (env.eye.w > 0.0) lampEnd = waterPath;
+        else if (waterPath > 0.0) { lampEnd = dist; lampStart = dist - waterPath; }
+        const vec3 lampInscatter = lampMarch(viewDir, lampStart, lampEnd);
+
+        const vec3 underwater = color * transmit + scatter * (1.0 - transmit) + lampInscatter;
 
         // the transport applies fully to the water segment; the fade-in only spans
         // the first centimetres as the camera dips through the waves, so there is
