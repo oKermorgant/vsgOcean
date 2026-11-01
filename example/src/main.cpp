@@ -370,10 +370,8 @@ int main(int argc, char** argv)
         auto commandGraph = vsgOcean::createCommandGraph(window, viewer, mainPipeline, overlay);
 
         // the sensor pipelines render into the same command graph, before the window
-        // pass (their composited images are sampled by the GUI previews). Their render
-        // graphs are MASKED OUT whenever the previews are not on screen: the record
-        // traversal skips masked children, so the two full scene renders are skipped -
-        // a plain mask field, no Vulkan object is touched (safe mid-run)
+        // pass (their composited images are sampled by the GUI previews). Their draws
+        // are masked out each frame while the previews are off screen (see the loop)
         std::vector<vsg::ref_ptr<vsg::RenderGraph>> sensorGraphs;
         for (const auto& pipeline : {rovPipeline, boatPipeline})
         {
@@ -476,9 +474,9 @@ int main(int argc, char** argv)
             // own submersion, so the ROV camera renders underwater). The refresh is
             // cheap and keeps their state current, so a re-shown preview is right in
             // the first frame; only the expensive scene renders are skipped while
-            // the previews are off screen (the panel and the camera widget both gate
-            // them)
-            const bool previewsVisible = guiBuilt && controls->panelVisible && controls->camerasVisible;
+            // the previews are off screen. The camera widget is INDEPENDENT of the
+            // tuning panel (it sits in the corner, gated by the V key alone)
+            const bool previewsVisible = guiBuilt && controls->camerasVisible;
             if (rovPipeline) rovPipeline->setEnabled(previewsVisible);
             if (boatPipeline) boatPipeline->setEnabled(previewsVisible);
             if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->camera().get(), t);
