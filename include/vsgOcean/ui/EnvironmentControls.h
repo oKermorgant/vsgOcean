@@ -54,8 +54,9 @@ namespace vsgOcean
         /// visible in the HUD.
         bool helpVisible = false;
 
-        /// Whether the camera preview widget is visible (the C key). Shown by default.
-        bool camerasVisible = true;
+        /// Whether the camera preview widget is visible (the C key). Hidden by default;
+        /// with no camera rendering it only says so.
+        bool camerasVisible = false;
 
         /// Whether the sky widget is visible (the S key): sun, day cycle, fog, clouds.
         bool skyVisible = false;

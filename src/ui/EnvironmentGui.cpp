@@ -78,6 +78,8 @@ namespace vsgOcean
             ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 336.0f, 10.0f), ImGuiCond_Once);
             ImGui::Begin("vsgOcean cameras", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
+            if (cameras.empty()) ImGui::TextUnformatted("no camera is rendering");
+
             for (const auto& [name, texture] : cameras)
             {
                 if (!texture->descriptorSet_) continue; // not compiled yet

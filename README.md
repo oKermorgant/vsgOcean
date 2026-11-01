@@ -74,7 +74,7 @@ tuning lives in the widgets:
 | --- | --- |
 | left drag / right drag / wheel | translate / orbit (stable horizon) / dolly |
 | H | help window on / off (the bindings and the model tracking) |
-| C | camera previews on / off (shown by default) |
+| C | camera previews on / off (hidden by default; says so when no camera is rendering) |
 | S | sky widget on / off (sun, day cycle, fog, cloud cover) |
 | O | ocean surface widget on / off (wind, waves) |
 | U | underwater widget on / off (water optics, current, snow, DOF blur) |
