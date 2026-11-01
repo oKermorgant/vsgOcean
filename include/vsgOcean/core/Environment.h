@@ -167,7 +167,7 @@ namespace vsgOcean
         double seaLevel_{0.0};
         double marineSnowDensity_{0.6};
         double cloudiness_{0.0}; // oktas, 0..8
-        bool underwaterBlur_{true};
+        bool underwaterBlur_{false};
         vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame
         double latitude_{0.0};
         double longitude_{0.0};

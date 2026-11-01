@@ -50,7 +50,7 @@ cmake --build build -j
 ./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
 ./vsgOcean_example --jerlov 8                      # turbid coastal water
 ./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
-./vsgOcean_example --snow 8 --current 0.5 0 --blur 0  # heavy snow, drifting East, no DOF blur
+./vsgOcean_example --snow 8 --current 0.5 0 --blur 1  # heavy snow, drifting East, with DOF blur
 ./vsgOcean_example --latitude -35 --longitude 18   # the southern hemisphere: Crux replaces the Dipper
 ./vsgOcean_example --clouds 7                         # overcast: no sun disc, no stars
 ./vsgOcean_example --debug --eye 12 5 -40          # validation layers, camera near the wreck
@@ -93,7 +93,7 @@ The font for the HUD is loaded from the system (override with the `VSGOCEAN_FONT
 environment variable).
 
 The underwater widget also carries the **underwater depth-of-field blur** (as
-osgOcean's underwater DOF, on by default, `--blur 0/1` on the example): the water's
+osgOcean's underwater DOF, off by default, `--blur 0/1` on the example): the water's
 turbidity blurs the view with the water path length — near objects stay sharp, distant
 ones dissolve into the water — following the Jerlov beam attenuation, so a coastal
 water blurs much sooner than a clear oceanic one.

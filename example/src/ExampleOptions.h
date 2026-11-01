@@ -55,7 +55,7 @@ namespace vsgOceanExample
         double snowDensity = 0.0;
         bool overrideClouds = false;
         bool overrideBlur = false;
-        bool underwaterBlur = true;
+        bool underwaterBlur = false;
         double cloudiness = 0.0;
         bool overrideCurrent = false;
         vsg::vec3 waterCurrent{0.0f, 0.0f, 0.0f};
