@@ -19,6 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/scene/MarineSnow.h>
 #include <vsgOcean/scene/Sky.h>
 #include <vsgOcean/scene/Underwater.h>
+#include <optional>
 
 namespace vsgOcean
 {
@@ -104,7 +105,9 @@ namespace vsgOcean
         vsg::ref_ptr<vsg::DirectionalLight> sunLight() const { return sunLight_; }
 
         /// Refresh the sky, lighting and ocean surface from the environment, camera and
-        /// simulation time t in seconds. Call every frame, before record.
+        /// simulation time t in seconds. Call every frame, before record. The animations
+        /// run from the first t received: the shaders work in single precision, which
+        /// cannot hold a large absolute time (a wall clock epoch freezes the waves).
         void update(const vsg::Camera* camera, double t);
 
         // --- scene loading ---
@@ -127,6 +130,7 @@ namespace vsgOcean
         std::vector<LampLight> lampLights_;
         // the smoothed sun visibility driving the ocean's sun reflection terms
         float sunVisibility_ = 1.0f;
+        std::optional<double> timeOrigin_; // the t of the first update()
         vsg::ref_ptr<vsg::AmbientLight> ambientLight_;
         vsg::ref_ptr<vsg::DirectionalLight> sunLight_;
         std::string trackedFrame_;

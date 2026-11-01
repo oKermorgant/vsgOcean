@@ -127,6 +127,9 @@ namespace vsgOcean
 
     void Scene::update(const vsg::Camera* camera, double t)
     {
+        if (!timeOrigin_) timeOrigin_ = t;
+        t -= *timeOrigin_;
+
         // the sky evaluates its own underwater mode per camera, in-shader (each
         // render pipeline's camera gets its own submersion below the wave field)
         sky_->update(*environment_, t, surfaceEnabled() ? surface_->wavefield() : nullptr);
