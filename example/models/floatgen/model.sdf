@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <!-- vsgOcean floatgen: a floating wind turbine, converted from the floatgen
      xacro (URDF macro, floating variant). The meshes are the original COLLADA
-     converted to glTF (the COLLADA loader path ignores the scene lights); the
-     pole mesh is baked with a +90 deg X rotation - its vertex data was authored
-     along +Y in a file declaring Z up, while the blades joint expects the tower
-     vertical (the rotor sits at z = 16.864, the tower top).
+     converted to glTF with assimp's PreTransformVertices baked in (the
+     COLLADA Z-up -> glTF Y-up root rotation folds into the vertices), so the
+     glbs need no extra rotation; the COLLADA loader path would ignore the
+     scene lights, hence the glTF conversion.
      The rotor joint "floatgen" (axis X) is spun by the demo animation. -->
 <sdf version="1.9">
   <model name="floatgen">
