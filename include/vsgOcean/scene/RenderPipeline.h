@@ -69,9 +69,9 @@ namespace vsgOcean
         /// present). False when the capture or the write failed.
         [[nodiscard]] bool writeScreenshot(const vsg::Path& filename) const;
 
-        /// Refresh the composite from the scene (submersion of this camera, wave state)
-        /// and the environment. Call every frame, before record.
-        void update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t);
+        /// Refresh the composite from the scene and this camera's submersion.
+        /// Call every frame, before record.
+        void update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera);
 
         /// Skip or resume this pipeline's draws (e.g. a sensor pipeline whose preview
         /// is off screen): the scene and composite views are masked out of the record

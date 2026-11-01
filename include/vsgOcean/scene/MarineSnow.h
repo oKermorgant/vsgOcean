@@ -25,11 +25,12 @@ namespace vsgOcean
     ///
     /// The particles live in a box wrapped around the camera: the box re-centres
     /// on the eye each frame, so a fixed set of particles covers the view wherever
-    /// it goes; they advect along the water current (Environment::waterCurrent -
-    /// the seam for a dynamics-driven current topic) and their number follows the
-    /// environment's marine snow density (0 disables the field). The camera state
-    /// comes through the push constants at record time, so one snow field renders
-    /// from any number of cameras; it fades in with the camera's submersion.
+    /// it goes. Each flake wanders slowly and smoothly even in still water; the
+    /// water current (Environment::waterCurrent, the seam for a dynamics-driven
+    /// current topic) adds bulk drift. Their number follows the environment's
+    /// marine snow density (0 disables the field). The camera state comes through
+    /// the push constants at record time, so one snow field renders from any
+    /// number of cameras; it fades in with the camera's submersion.
     class VSG_OCEAN_EXPORT MarineSnow : public vsg::Inherit<vsg::Group, MarineSnow>
     {
     public:

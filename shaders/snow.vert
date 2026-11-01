@@ -1,10 +1,10 @@
 // vsgOcean marine snow: drifting particles in a camera-following box, vertex stage.
 // The particles wrap around the camera (the box re-centres on the eye every frame,
-// so the snow follows the view), advect along the water current, and are lit by
-// the sun surviving to their depth plus the scene's point and spot lamps (the same
-// model as the composite's volumetric cones) - snow sparkles in the ROV beams at
-// night. The camera state comes through the push constants, so one snow field
-// renders from any number of cameras.
+// so the snow follows the view), drift with the water current, and wander slowly
+// even in still water. They are lit by the sun surviving to their depth and the
+// scene's point and spot lamps (the same model as the composite's volumetric cones).
+// The camera state comes through the push constants, so one snow field renders
+// from any number of cameras.
 #version 450
 
 layout(push_constant) uniform PushConstants
@@ -54,7 +54,12 @@ void main()
     // base position along the water current, wrapped seamlessly (mod is positive
     // in GLSL), so the field is endless and follows the view
     const float box = snow.params.z;
-    const vec3 drifted = base.xyz * box + snow.current.xyz * snow.params.x;
+    const float t = snow.params.x;
+    const vec3 phase = 6.2831853 * base.yzx + base.www * vec3(0.0, 2.1, 4.2);
+    const vec3 frequency = vec3(0.07, 0.09, 0.11) + base.zxy * 0.04;
+    const vec3 amplitude = vec3(0.25) + base.xyz * 0.5;
+    const vec3 wandering = amplitude * sin(t * frequency + phase);
+    const vec3 drifted = base.xyz * box + snow.current.xyz * t + wandering;
     const vec3 world = mod(drifted - eye + 0.5 * box, box) - 0.5 * box + eye;
 
     // the flake radius: seeded per particle

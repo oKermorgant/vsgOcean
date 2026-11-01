@@ -125,8 +125,9 @@ namespace vsgOcean::Headless
 
         viewer->start_point() = vsg::clock::now();
         auto frames = settings.numFrames < 0 ? 20 : settings.numFrames;
-        while (viewer->advanceToNextFrame() && (frames--) > 0)
+        while (frames > 0 && viewer->advanceToNextFrame())
         {
+            --frames;
             const auto t = viewer->getFrameStamp()->simulationTime;
 
             // the same per-frame work as the windowed loop, minus the presentation

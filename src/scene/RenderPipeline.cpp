@@ -48,11 +48,11 @@ namespace vsgOcean
             std::ofstream fout(filename.c_str(), std::ios::binary);
             if (!fout) return false;
 
-            const auto signature = std::vector<uint8_t>{0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
+            const std::vector<uint8_t> signature{0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
             fout.write(reinterpret_cast<const char*>(signature.data()), signature.size());
 
             // IHDR: width, height, 8-bit RGB
-            auto ihdr = std::vector<uint8_t>(13);
+            std::vector<uint8_t> ihdr(13);
             ihdr[0] = static_cast<uint8_t>(width >> 24);
             ihdr[1] = static_cast<uint8_t>(width >> 16);
             ihdr[2] = static_cast<uint8_t>(width >> 8);
@@ -69,7 +69,7 @@ namespace vsgOcean
             writeChunk(fout, "IHDR", ihdr);
 
             // IDAT: RGB rows, each prefixed with filter byte 0, deflated with zlib
-            auto rows = std::vector<uint8_t>(size_t(height) * (1 + 3 * width));
+            std::vector<uint8_t> rows(size_t(height) * (1 + 3 * width));
             for (uint32_t y = 0; y < height; ++y)
             {
                 auto row = rows.data() + size_t(y) * (1 + 3 * width);
@@ -86,7 +86,7 @@ namespace vsgOcean
             }
 
             uLongf compressedSize = compressBound(uLongf(rows.size()));
-            auto compressed = std::vector<uint8_t>(compressedSize);
+            std::vector<uint8_t> compressed(compressedSize);
             if (compress2(compressed.data(), &compressedSize, rows.data(), uLongf(rows.size()), Z_BEST_SPEED) != Z_OK)
                 return false;
             compressed.resize(compressedSize);
@@ -159,7 +159,7 @@ namespace vsgOcean
         outputAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         const auto attachments = vsg::RenderPass::Attachments{outputAttachment};
-        auto subpass = vsg::SubpassDescription{};
+        vsg::SubpassDescription subpass{};
         subpass.colorAttachments = {{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
         auto renderPass = vsg::RenderPass::create(device_.get(), attachments, vsg::RenderPass::Subpasses{subpass}, vsg::RenderPass::Dependencies{});
 
@@ -217,7 +217,7 @@ namespace vsgOcean
         if (compositeView_) compositeView_->mask = mask;
     }
 
-    void RenderPipeline::update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t)
+    void RenderPipeline::update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera)
     {
         // this camera's submersion below the surface: each pipeline tracks its own camera.
         // The MEAN sea level is the underwater criterion (stable across waves, no
@@ -275,10 +275,10 @@ namespace vsgOcean
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         if (vkCreateBuffer(vkDevice, &bufferInfo, nullptr, &stagingBuffer) != VK_SUCCESS) return false;
 
-        auto requirements = VkMemoryRequirements{};
+        VkMemoryRequirements requirements{};
         vkGetBufferMemoryRequirements(vkDevice, stagingBuffer, &requirements);
 
-        auto memoryProperties = VkPhysicalDeviceMemoryProperties{};
+        VkPhysicalDeviceMemoryProperties memoryProperties{};
         vkGetPhysicalDeviceMemoryProperties(*device_->getPhysicalDevice(), &memoryProperties);
         uint32_t memoryType = 0;
         for (; memoryType < memoryProperties.memoryTypeCount; ++memoryType)
@@ -342,7 +342,7 @@ namespace vsgOcean
                              VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                              VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toTransferSrc);
 
-        auto region = VkBufferImageCopy{};
+        VkBufferImageCopy region{};
         region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
         region.imageExtent = {width, height, 1};
         vkCmdCopyImageToBuffer(command, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &region);

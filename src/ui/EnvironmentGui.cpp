@@ -128,10 +128,10 @@ namespace vsgOcean
                             // after the comm field: 11 process fields, then utime, stime
                             if (sscanf(close + 2, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %ld %ld", &utime, &stime) == 2)
                             {
-                                const double jiffies = static_cast<double>(utime + stime);
+                                const auto jiffies = static_cast<double>(utime + stime);
                                 if (cpuJiffies > 0.0)
                                 {
-                                    const double hz = static_cast<double>(sysconf(_SC_CLK_TCK));
+                                    const auto hz = static_cast<double>(sysconf(_SC_CLK_TCK));
                                     cpuPercent = static_cast<float>((jiffies - cpuJiffies) / hz / dt * 100.0);
                                 }
                                 cpuJiffies = jiffies;
@@ -146,7 +146,9 @@ namespace vsgOcean
                     long total = 0, resident = 0;
                     if (fscanf(f, "%ld %ld", &total, &resident) == 2)
                     {
-                        rssMB = static_cast<float>(static_cast<double>(resident) * sysconf(_SC_PAGE_SIZE) / (1024.0 * 1024.0));
+                        rssMB = static_cast<float>(static_cast<double>(resident) *
+                                                   static_cast<double>(sysconf(_SC_PAGE_SIZE)) /
+                                                   (1024.0 * 1024.0));
                     }
                     fclose(f);
                 }

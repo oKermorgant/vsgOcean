@@ -262,7 +262,6 @@ int main(int argc, char** argv)
 
             // set up the camera, starting with a close view of the boat when present;
             // the far plane still covers the whole scene
-            double nearRadius = radius;
             if (auto boat = vsg_scene->model("aquabot"))
             {
                 vsg::ComputeBounds boatBounds;
@@ -274,7 +273,6 @@ int main(int argc, char** argv)
                     const double boatRadius = vsg::length(boatBounds.bounds.max - boatBounds.bounds.min) * 0.6;
 
                     lookAt = vsg::LookAt::create(boatCentre + vsg::dvec3(0.0, -boatRadius * 3.5, boatRadius * 1.5), boatCentre, vsg::dvec3(0.0, 0.0, 1.0));
-                    nearRadius = boatRadius;
                 }
             }
 
@@ -443,8 +441,12 @@ int main(int argc, char** argv)
         viewer->start_point() = vsg::clock::now();
 
         // rendering main loop
-        while (viewer->advanceToNextFrame() && (settings.numFrames < 0 || (settings.numFrames--) > 0) && (viewer->getFrameStamp()->simulationTime < settings.maxTime))
+        while ((settings.numFrames < 0 || settings.numFrames > 0) &&
+               viewer->advanceToNextFrame() &&
+               viewer->getFrameStamp()->simulationTime < settings.maxTime)
         {
+            if (settings.numFrames > 0) --settings.numFrames;
+
             // pass any events into EventHandlers assigned to the Viewer
             viewer->handleEvents();
 
@@ -474,8 +476,8 @@ int main(int argc, char** argv)
             const bool previewsVisible = guiBuilt && controls->camerasVisible;
             if (rovPipeline) rovPipeline->setEnabled(previewsVisible);
             if (boatPipeline) boatPipeline->setEnabled(previewsVisible);
-            if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->camera().get(), t);
-            if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->camera().get(), t);
+            if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->camera().get());
+            if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->camera().get());
 
             viewer->recordAndSubmit();
 
