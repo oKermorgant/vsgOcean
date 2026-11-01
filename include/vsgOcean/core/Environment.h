@@ -17,6 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/all.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace vsgOcean
@@ -72,9 +73,12 @@ namespace vsgOcean
         /// scaled to its physical range (density 1.0 -> 0.05 1/m).
         double fogExtinction() const { return fogDensity_ * 0.05; }
 
-        /// Atmospheric fog color. Default light blue grey.
+        /// Atmospheric fog color: derived from the sun elevation and cloud cover,
+        /// following the sky shader's horizon palette (sky.frag - keep in sync) -
+        /// the distance haze is the aerial perspective of the sky itself, a fixed
+        /// grey reads as oily patches on the far water at dusk and at night.
         void setFogColor(const vsg::vec3& color);
-        const vsg::vec3& fogColor() const { return fogColor_; }
+        vsg::vec3 fogColor() const;
 
         // --- ocean surface ---
 
@@ -156,7 +160,7 @@ namespace vsgOcean
         double sunElevation_{35.0};
         double sunAzimuth_{135.0};
         double fogDensity_{0.02};
-        vsg::vec3 fogColor_ = {0.65f, 0.72f, 0.80f}; // light blue grey
+        std::optional<vsg::vec3> fogColorOverride_;
         double windSpeed_{5.0};
         double windDirection_{0.0};
         JerlovType jerlovType_ = JerlovType::OceanicI;

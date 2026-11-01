@@ -70,7 +70,37 @@ namespace vsgOcean
 
     void Environment::setFogColor(const vsg::vec3& color)
     {
-        fogColor_ = color;
+        // an explicit override, valid until the sun or the cloud cover moves again
+        fogColorOverride_ = color;
+    }
+
+    vsg::vec3 Environment::fogColor() const
+    {
+        if (fogColorOverride_) return *fogColorOverride_;
+
+        // the haze is the aerial perspective of the sky's own horizon band: keep
+        // this palette in sync with sky.frag's skyColor() (the night floors and
+        // the day zenith/horizon), evaluated at the horizon and averaged over
+        // the azimuth - the dusk glow contributes its azimuthal average (the
+        // pow(towardsSun, 4) lobe averages to ~0.2 of its peak)
+        const auto sunHeight = static_cast<float>(sunDirection().z);
+        const auto ramp = std::clamp((sunHeight + 0.05f) / 0.30f, 0.0f, 1.0f);
+        const float dayF = ramp * ramp * (3.0f - 2.0f * ramp);
+        const float dusk = 1.0f - std::clamp(std::abs(sunHeight) / 0.2f, 0.0f, 1.0f);
+
+        const vsg::vec3 horizonDay{0.75f, 0.85f, 0.95f};
+        const vsg::vec3 horizonNight{0.0005f, 0.0008f, 0.0015f};
+        vsg::vec3 haze = vsg::mix(horizonNight, horizonDay, dayF);
+
+        // a hint of the dusk glow, averaged over the azimuth
+        haze += vsg::vec3(0.9f, 0.45f, 0.15f) * (0.8f * 0.2f * dusk);
+
+        // overcast flattens the sky to a daylight grey (the same overcast term
+        // as sky.frag), dark at night
+        const float clouds = static_cast<float>(cloudiness_ / 8.0);
+        const vsg::vec3 overcast{0.42f, 0.45f, 0.50f};
+        haze = vsg::mix(haze, overcast * dayF, clouds * 0.9f);
+        return haze;
     }
 
     void Environment::setWindSpeed(double speed)

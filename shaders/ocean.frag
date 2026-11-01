@@ -135,14 +135,16 @@ float rippleNoise(vec2 p)
 // ripple detail: drifting octave bands of the noise above, evaluated as slopes per
 // pixel on top of the low-frequency Gerstner geometry. Each octave drifts along a
 // wind-relative direction at its deep-water phase speed; the amplitude follows the
-// sea state (the wave field's largest component) and fades with distance where the
-// slopes would alias to sub-pixel noise. Unlike a sum of discrete plane waves (the
-// earlier attempt, whose superposition organized into square-like interference
-// cells), noise has no preferred directions: the surface reads organic.
-vec2 rippleSlope(vec2 p, float t, float fade)
+// sea state (the wave field's largest component). Each octave fades with the PIXEL
+// FOOTPRINT - the LOD criterion - so every octave hands over to the next longer one
+// with distance and the total slope detail stays roughly constant: the discrete
+// Gerstner components (8 coherent plane waves) are broken into organic facet
+// variation at every range where their smooth Fresnel bands would otherwise read
+// as oily patches. Without the intermediate band there is a spectral gap between
+// the swell (metres-tens of metres) and the capillary band (sub-metre): at mid
+// distance exactly the patch zone appeared.
+vec2 rippleSlope(vec2 p, float t, vec2 foot)
 {
-    if (fade <= 0.0) return vec2(0.0);
-
     // the capillary ripples follow the WIND (less wind = fewer ripples): 1.0 at the
     // default 5 m/s breeze, near calm below ~2 m/s, saturated above ~10 m/s
     const float sea = pow(clamp(ocean.direction[0].z / 5.0, 0.0, 1.0), 1.5) + clamp((ocean.direction[0].z - 10.0) / 10.0, 0.0, 0.5);
@@ -150,16 +152,24 @@ vec2 rippleSlope(vec2 p, float t, float fade)
     const mat2 windFrame = mat2(wind.x, -wind.y, wind.y, wind.x);
 
     // characteristic wavelength [m], wind-relative drift direction [rad], slope at
-    // the default sea state - two octave bands spanning the capillary range
-    const vec3 octave[2] = vec3[2](vec3(1.1, 0.0, 0.09), vec3(0.45, 1.1, 0.06));
+    // the default sea state - three octave bands: capillary-gravity, capillary,
+    // and the intermediate chop that bridges towards the swell
+    const vec3 octave[3] = vec3[3](vec3(1.1, 0.0, 0.09), vec3(0.45, 1.1, 0.06), vec3(3.2, -0.7, 0.05));
 
     vec2 slope = vec2(0.0);
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < 3; ++i)
     {
         const float k = 6.2831853 / octave[i].x;
         const float speed = sqrt(9.81 / k); // deep-water phase speed sqrt(g/k)
         const vec2 dir = windFrame * vec2(cos(octave[i].y), sin(octave[i].y));
         const vec2 q = (p - dir * speed * t) * k; // the noise domain, in radians
+
+        // the octave stays while its wavelength spans enough pixels (~3 to 8);
+        // foot is the per-pixel world extent (its major axis - grazing views
+        // stretch it along the view)
+        const float foot = max(foot.x, foot.y);
+        const float fade = smoothstep(3.0, 8.0, octave[i].x / foot);
+        if (fade <= 0.0) continue;
 
         // the slope from the noise gradient (central differences over a fraction of
         // the characteristic period, smoothed by the interpolation)
@@ -178,10 +188,10 @@ void main()
     const vec3 toEye = normalize(cameraEye - worldPosition);
     const float t = ocean.params.x;
 
-    // the fragment normal: the Gerstner geometry plus the ripple slopes; the ripple
-    // detail fades with distance and only stirs the surface tangent, never flips it
-    const float rippleFade = exp(-length(cameraEye - worldPosition) * 0.03);
-    const vec2 slope = rippleSlope(worldPosition.xy, t, rippleFade);
+    // the fragment normal: the Gerstner geometry plus the ripple slopes; each
+    // ripple octave fades with its per-pixel footprint (see rippleSlope) and
+    // only stirs the surface tangent, never flips it
+    const vec2 slope = rippleSlope(worldPosition.xy, t, abs(fwidth(worldPosition.xy)));
     const vec3 n = normalize(worldNormal + vec3(-slope.x, -slope.y, 0.0));
 
     // day factor matching the scene lighting: black at night, no ambient floor
@@ -190,14 +200,28 @@ void main()
     // the viewer's side of the surface (the mean sea level criterion)
     const float submersion = max(ocean.seaLevel.w - cameraEye.z, 0.0);
 
-    // Fresnel reflectance (Schlick, F0 = 0.02)
-    const float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(n, toEye), 0.0), 5.0);
+    // Fresnel reflectance (Schlick, F0 = 0.02) - TWICE, on purpose:
+    // the sun glitter below uses the FULL normal (the sparkle tracks every
+    // facet), but the sky/water COLOUR mix uses a fragmented normal: the fine
+    // ripple texture at full strength, the smooth Gerstner slope damped to a
+    // third. At 8 coherent swell components the undamped slope turns the sky
+    // mirror into smooth oil-slick bands tens of pixels wide (the reflection
+    // contrast across a wave face is much stronger than the eye expects from
+    // a facet spectrum that should be broken at every scale); the damping
+    // keeps the swell response but hands the fragmenting to the ripples
+    const vec3 nMix = normalize(vec3(worldNormal.xy * 0.35 - slope, worldNormal.z));
+    const float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(nMix, toEye), 0.0), 5.0);
 
     // the sun's specular glitter on the rippled normals, plus a wide glare lobe
+    // (the glare is the sun's broad reflection path - in a real sea it is carried
+    // by the fine facet statistics, so it follows the FRAGMENTED normal: on the
+    // full normal the smooth swell slopes sweep through the wide lobe coherently,
+    // the exact oily drifting bands this split exists to avoid; the narrow
+    // glitter sparks keep the full normal)
     const vec3 halfway = normalize(toEye + sunDirection);
     const float sunFade = clamp(sunDirection.z * 10.0 + 0.5, 0.0, 1.0);
     const float glitter = pow(max(dot(n, halfway), 0.0), 256.0) * 4.0;
-    const float glare = pow(max(dot(n, halfway), 0.0), 96.0) * 0.12;
+    const float glare = pow(max(dot(nMix, halfway), 0.0), 96.0) * 0.12;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
 
     vec3 color;
