@@ -33,9 +33,11 @@ namespace vsgOcean
     class VSG_OCEAN_EXPORT MarineSnow : public vsg::Inherit<vsg::Group, MarineSnow>
     {
     public:
-        /// particles: the number of flakes in the camera-following box (the density
-        /// scales how many of them are visible). box: the edge of the box, metres.
-        explicit MarineSnow(uint32_t particles = 4096, float box = 25.0f);
+        /// particles: the size of the flake pool in the camera-following box - the
+        /// density (Environment::marineSnowDensity, 1.0 = the unit field of 4096
+        /// flakes, up to 10.0) scales how many of them are visible. box: the edge of
+        /// the box, metres. The default pool is 10x the unit field.
+        explicit MarineSnow(uint32_t particles = 10 * 4096, float box = 25.0f);
 
         /// Refresh the snow from the environment (density, current, sun, water
         /// optics), the simulation time t in seconds, and the scene's world model
@@ -45,6 +47,7 @@ namespace vsgOcean
 
     protected:
         const float box_;
+        const uint32_t particles_;
 
         // uniform block: [0] params (t, density, box), [1] current + sea level,
         // [2] sun direction, [3] water colour + mean attenuation, [4] vertical

@@ -93,10 +93,10 @@ namespace vsgOcean
             scene_->setSurfaceEnabled(!scene_->surfaceEnabled());
             break;
         case vsg::KEY_n:
-            environment->setMarineSnowDensity(environment->marineSnowDensity() - 0.1);
+            environment->setMarineSnowDensity(environment->marineSnowDensity() - 0.25);
             break;
         case vsg::KEY_m:
-            environment->setMarineSnowDensity(environment->marineSnowDensity() + 0.1);
+            environment->setMarineSnowDensity(environment->marineSnowDensity() + 0.25);
             break;
         case vsg::KEY_Leftbracket:
         {

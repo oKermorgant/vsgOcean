@@ -31,7 +31,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 namespace vsgOcean
 {
     MarineSnow::MarineSnow(uint32_t particles, float box) :
-        box_(box)
+        box_(box),
+        particles_(particles)
     {
         // the particle base positions: random points of a unit cube, seeded so the
         // field is reproducible; w carries the per-particle random seed (the
@@ -110,7 +111,11 @@ namespace vsgOcean
         const auto attenuation = environment.underwaterAttenuation();
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
 
-        (*uniform_)[0] = vsg::vec4(static_cast<float>(t), static_cast<float>(environment.marineSnowDensity()), box_, 0.0f);
+        // the density as a fraction of the particle pool: 1.0 density unit is the
+        // unit field (4096 flakes), the pool is 10x that - so the density range
+        // 0..10 maps to the fraction 0..1
+        const float fraction = static_cast<float>(environment.marineSnowDensity()) * (4096.0f / static_cast<float>(particles_));
+        (*uniform_)[0] = vsg::vec4(static_cast<float>(t), fraction, box_, 0.0f);
         (*uniform_)[1] = vsg::vec4(environment.waterCurrent(), static_cast<float>(environment.seaLevel()));
         (*uniform_)[2] = vsg::vec4(environment.sunDirection(), 0.0f);
         (*uniform_)[3] = vsg::vec4(environment.underwaterColor(), meanAttenuation);

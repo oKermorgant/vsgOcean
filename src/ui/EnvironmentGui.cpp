@@ -140,7 +140,7 @@ namespace vsgOcean
             if (ImGui::SliderFloat("sea level (m)", &sea, -50.0f, 10.0f)) environment->setSeaLevel(sea);
 
             auto snow = static_cast<float>(environment->marineSnowDensity());
-            if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 1.0f)) environment->setMarineSnowDensity(snow);
+            if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 10.0f)) environment->setMarineSnowDensity(snow);
             auto drift = environment->waterCurrent();
             auto driftSpeed = vsg::length(vsg::vec2(drift.x, drift.y));
             if (ImGui::SliderFloat("water current (m/s)", &driftSpeed, 0.0f, 2.0f))

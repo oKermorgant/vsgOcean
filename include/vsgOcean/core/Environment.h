@@ -100,9 +100,10 @@ namespace vsgOcean
         void setSeaLevel(double metres);
         double seaLevel() const { return seaLevel_; }
 
-        /// Marine snow density, normalized 0..1: 0 disables the particles, 1.0 a
-        /// heavy snow (a storm-stirred water column). Scales the number of visible
-        /// particles drifting around the camera underwater. Default 0.3.
+        /// Marine snow density, in units of the full field: 0 disables the
+        /// particles, 1.0 the full particle pool, 10.0 ten times it (a
+        /// storm-stirred water column). Scales the number of visible particles
+        /// drifting around the camera underwater. Default 0.6.
         void setMarineSnowDensity(double density);
         double marineSnowDensity() const { return marineSnowDensity_; }
 
@@ -145,7 +146,7 @@ namespace vsgOcean
         double windDirection_{0.0};
         JerlovType jerlovType_ = JerlovType::OceanicI;
         double seaLevel_{0.0};
-        double marineSnowDensity_{0.3};
+        double marineSnowDensity_{0.6};
         vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame
         double latitude_{0.0};
         double longitude_{0.0};
