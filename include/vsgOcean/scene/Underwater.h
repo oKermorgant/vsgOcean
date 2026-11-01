@@ -52,13 +52,15 @@ namespace vsgOcean
         /// Scene::update, which collects them once per frame and shares them with the
         /// marine snow and every pipeline); null skips the march. Call every frame,
         /// before record.
+        /// waveHeight: the height scale of the surface waves in metres (Wavefield::heightScale):
+        /// geometry between the mean level and the wave troughs is not counted as submerged.
         void update(const Environment& environment, const vsg::Camera* camera, double submersion,
-                    const std::vector<LampLight>* lamps = nullptr);
+                    const std::vector<LampLight>* lamps = nullptr, double waveHeight = 0.0);
 
     protected:
         // uniform block: [0..3] inverse view projection, [4] eye + submersion depth,
         // [5] water color + mean attenuation, [6] per-channel attenuation + sun height,
-        // [7] render extent + sun azimuth + sea level, [8] fog color + extinction (1/m)
+        // [7] render extent + sun azimuth + sea level, [8] fog color + extinction (1/m), [9] wave height scale
         vsg::ref_ptr<vsg::vec4Array> uniform_;
 
         // the lamp light block: [0] light count + per-channel scattering coefficient,

@@ -197,7 +197,7 @@ void main()
     // ripple octave fades with its per-pixel footprint (see rippleSlope) and
     // only stirs the surface tangent, never flips it
     const vec2 slope = rippleSlope(worldPosition.xy, t, abs(fwidth(worldPosition.xy)));
-    const vec3 n = normalize(worldNormal + vec3(-slope.x, -slope.y, 0.0));
+    vec3 n = normalize(worldNormal + vec3(-slope.x, -slope.y, 0.0));
 
     // day factor matching the scene lighting: black at night, no ambient floor
     const float day = smoothstep(-0.05, 0.25, sunDirection.z);
@@ -214,7 +214,17 @@ void main()
     // contrast across a wave face is much stronger than the eye expects from
     // a facet spectrum that should be broken at every scale); the damping
     // keeps the swell response but hands the fragmenting to the ripples
-    const vec3 nMix = normalize(vec3(worldNormal.xy * 0.35 - slope, worldNormal.z));
+    vec3 nMix = normalize(vec3(worldNormal.xy * 0.35 - slope, worldNormal.z));
+
+    // a facet turned away from the viewer cannot be seen: at grazing angles the interpolated
+    // swell slope plus the ripples tilt some normals past the view direction, and the sky
+    // lookup of their reflection then points below the horizon - the cyan streaks along the
+    // horizon and in the troughs. Lift such normals back to just facing the viewer
+    if (submersion <= 0.0)
+    {
+        n = normalize(n + toEye * max(0.04 - dot(n, toEye), 0.0));
+        nMix = normalize(nMix + toEye * max(0.04 - dot(nMix, toEye), 0.0));
+    }
     const float fresnel = 0.02 + 0.98 * pow(1.0 - max(dot(nMix, toEye), 0.0), 5.0);
 
     // the sun's specular glitter on the rippled normals, plus a wide glare lobe
@@ -239,7 +249,8 @@ void main()
         // body colour (the sky's pale gradient extends too deep into the surface
         // otherwise - the horizon-hugging compromise), and only the far field
         // approaches the full grazing-angle Fresnel reflection
-        const vec3 reflected = reflect(-toEye, n);
+        vec3 reflected = reflect(-toEye, n);
+        reflected.z = abs(reflected.z); // a ray still dipping below the horizon bounces off the next wave
         const vec3 reflectedSky = skyColor(reflected, sunDirection, length(fwidth(reflected)));
         const float viewDistance = length(worldPosition - cameraEye);
         const float skyWeight = mix(0.15, 1.0, smoothstep(20.0, 300.0, viewDistance));

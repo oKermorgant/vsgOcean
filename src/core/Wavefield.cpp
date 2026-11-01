@@ -19,6 +19,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 namespace vsgOcean
 {
@@ -203,6 +204,12 @@ namespace vsgOcean
         parameters.windDirection = direction_;
         fft_->setParameters(parameters);
         fft_->update(t);
+    }
+
+    double Wavefield::heightScale() const
+    {
+        if (model_ == Model::FFT) return fft_->maxHeight() * (1.0 + fft_->parameters().choppiness);
+        return std::accumulate(amplitudes_.begin(), amplitudes_.end(), 0.0);
     }
 
     double Wavefield::growFactor(double t) const

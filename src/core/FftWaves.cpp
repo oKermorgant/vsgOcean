@@ -260,6 +260,7 @@ namespace vsgOcean
         for (auto& w : work_) inverseFft2d(w, n);
 
         auto& disp = *displacement_;
+        double maxHeight = 0.0;
         auto& slope = *slopes_;
         for (size_t idx = 0; idx < n * n; ++idx)
         {
@@ -278,11 +279,13 @@ namespace vsgOcean
             const double nx = dxy * hy - hx * (1.0 + dyy);
             const double ny = hx * dxy - (1.0 + dxx) * hy;
             const double nz = (1.0 + dxx) * (1.0 + dyy) - dxy * dxy;
+            maxHeight = std::max(maxHeight, std::abs(h));
             const double nzSafe = std::max(nz, 0.05);
 
             disp.data()[texel] = vsg::vec4(static_cast<float>(dx), static_cast<float>(dy), static_cast<float>(h), 0.0f);
             slope.data()[texel] = vsg::vec4(static_cast<float>(-nx / nzSafe), static_cast<float>(-ny / nzSafe), static_cast<float>(nz), 0.0f);
         }
+        maxHeight_ = maxHeight;
         displacement_->dirty();
         slopes_->dirty();
     }

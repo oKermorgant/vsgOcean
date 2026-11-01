@@ -77,6 +77,9 @@ namespace vsgOcean
         /// (dh/dx, dh/dy, jacobian, 0) per texel.
         vsg::ref_ptr<vsg::vec4Array2D> slopes() const { return slopes_; }
 
+        /// The largest absolute height of the tile at the last update() [m].
+        double maxHeight() const { return maxHeight_; }
+
         /// Bilinear height of the periodic tile at the horizontal position (x, y) [m].
         /// Valid for the last update(); the horizontal displacement is ignored.
         double height(double x, double y) const;
@@ -89,6 +92,7 @@ namespace vsgOcean
 
         Parameters parameters_;
         bool dirty_ = true;
+        double maxHeight_ = 0.0;
 
         std::vector<double> psiRoot_; ///< sqrt of the two-sided discrete variance spectrum, fft order
         std::vector<double> rho_;

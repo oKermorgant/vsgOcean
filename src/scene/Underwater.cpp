@@ -32,8 +32,8 @@ namespace vsgOcean
 
         // uniform block: [0..3] inverse view projection, [4] eye + submersion,
         // [5] water, [6] attenuation + sun height, [7] extent + sun azimuth + sea level,
-        // [8] fog
-        uniform_ = vsg::vec4Array::create(9);
+        // [8] fog, [9] wave height scale
+        uniform_ = vsg::vec4Array::create(10);
         uniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
 
         // the lamp light block: [0] count + per-channel scattering, [1 + 4i..] light i
@@ -112,7 +112,7 @@ namespace vsgOcean
     }
 
     void Underwater::update(const Environment& environment, const vsg::Camera* camera, double submersion,
-                            const std::vector<LampLight>* lamps)
+                            const std::vector<LampLight>* lamps, double waveHeight)
     {
         const auto attenuation = environment.underwaterAttenuation();
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
@@ -133,6 +133,7 @@ namespace vsgOcean
         (*uniform_)[6] = vsg::vec4(beam, static_cast<float>(sun.z));
         (*uniform_)[7] = vsg::vec4(1.0f, 1.0f, 0.0f, static_cast<float>(environment.seaLevel()));
         (*uniform_)[8] = vsg::vec4(fogColor, static_cast<float>(environment.fogExtinction()));
+        (*uniform_)[9] = vsg::vec4(static_cast<float>(waveHeight), 0.0f, 0.0f, 0.0f);
 
         if (camera && camera->projectionMatrix && camera->viewMatrix)
         {

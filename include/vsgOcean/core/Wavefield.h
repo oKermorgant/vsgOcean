@@ -133,6 +133,10 @@ namespace vsgOcean
         /// the last updateFft(), without horizontal displacement.
         double height(double x, double y, double t) const;
 
+        /// The height scale of the waves in metres: the sum of the component amplitudes, or
+        /// the largest height of the FFT tile at the last updateFft().
+        double heightScale() const;
+
         /// Exponential grow-in factor of the wave field at time t.
         double growFactor(double t) const;
 

@@ -198,7 +198,8 @@ namespace vsgOcean
                     submersion = environment_->seaLevel() - lookAt->eye.z; // positive below the surface
                 }
             }
-            underwater_->update(*environment_, camera, submersion, &lampLights_);
+            underwater_->update(*environment_, camera, submersion, &lampLights_,
+                                surfaceEnabled() ? surface_->wavefield()->heightScale() : 0.0);
         }
 
         // camera tracking: the camera follows the tracked frame with a constant

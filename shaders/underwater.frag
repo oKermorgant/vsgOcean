@@ -28,6 +28,7 @@ layout(std140, set = 0, binding = 0) uniform Composite
     vec4 attenuation; // rgb: per-channel horizontal attenuation (1/m), w: sun height
     vec4 extent;      // xy: render extent in pixels, w: mean sea level (m)
     vec4 fog;         // rgb: fog color (already dimmed for the time of day), a: fog density
+    vec4 surface;     // x: height scale of the waves (m)
 } env;
 
 layout(set = 0, binding = 1) uniform sampler2D sceneColor;
@@ -35,7 +36,7 @@ layout(set = 0, binding = 2) uniform sampler2D sceneDepth;
 
 // the scene's point and spot lights (collected in world space each frame): the
 // underwater composite ray-marches them as volumetric light cones over the
-// submerged segment of each view ray (the 9-slot Composite block is full, so the
+// submerged segment of each view ray (the 10-slot Composite block is full, so the
 // lights travel in this second block, together with the scattering coefficient)
 layout(std140, set = 0, binding = 3) uniform Lamps
 {
@@ -210,11 +211,15 @@ void main()
             waterPath *= clamp((env.eye.z - seaLevel) / (env.eye.z - world.z), 0.0, 1.0);
         }
     }
-    else if (world.z < seaLevel) // geometry below the surface, seen from above
+    else if (world.z < seaLevel - env.surface.x) // geometry below the waves, seen from above
     {
-        // the ray crosses the surface plane partway along: only the segment past
-        // the crossing is water (for the surface itself that is next to nothing)
-        const float crossing = clamp((seaLevel - env.eye.z) / (world.z - env.eye.z), 0.0, 1.0);
+        // the ray crosses the surface partway along: only the segment past the crossing is
+        // water. The crossing is taken at the trough level of the waves: the surface itself
+        // lies between the crests and the troughs, and measured from the mean level its low
+        // parts seen at a grazing angle would sit in tens of metres of tinted water
+        // (cyan streaks along the horizon and in the troughs)
+        const float troughLevel = seaLevel - env.surface.x;
+        const float crossing = clamp((troughLevel - env.eye.z) / (world.z - env.eye.z), 0.0, 1.0);
         waterPath = dist * (1.0 - crossing);
     }
 
