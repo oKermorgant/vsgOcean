@@ -34,7 +34,11 @@ namespace vsgOcean
 {
     namespace
     {
-        // gz::math pose to a vsg column-convention matrix
+        // gz::math pose to a vsg column-convention matrix (vsg: M * v).
+        // Standard quaternion rotation matrix written per component: vsg's
+        // matrix[col][row] indexing means the w-terms change sign between the
+        // (i,j) and (j,i) positions - verified numerically against
+        // vsg::rotate(quat) (a rod yawed 90 deg must map X to +Y, not -Y).
         vsg::dmat4 toVsgMatrix(const gz::math::Pose3d& pose)
         {
             const auto& pos = pose.Pos();
@@ -42,16 +46,15 @@ namespace vsgOcean
 
             const auto x = rot.X(), y = rot.Y(), z = rot.Z(), w = rot.W();
 
-            // standard quaternion rotation matrix, columns 0..2 (vsg: M * v)
             vsg::dmat4 matrix;
             matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);
-            matrix[1][0] = 2.0 * (x * y + z * w);
-            matrix[2][0] = 2.0 * (x * z - y * w);
-            matrix[0][1] = 2.0 * (x * y - z * w);
+            matrix[1][0] = 2.0 * (x * y - z * w);
+            matrix[2][0] = 2.0 * (x * z + y * w);
+            matrix[0][1] = 2.0 * (x * y + z * w);
             matrix[1][1] = 1.0 - 2.0 * (x * x + z * z);
-            matrix[2][1] = 2.0 * (y * z + x * w);
-            matrix[0][2] = 2.0 * (x * z + y * w);
-            matrix[1][2] = 2.0 * (y * z - x * w);
+            matrix[2][1] = 2.0 * (y * z - x * w);
+            matrix[0][2] = 2.0 * (x * z - y * w);
+            matrix[1][2] = 2.0 * (y * z + x * w);
             matrix[2][2] = 1.0 - 2.0 * (x * x + y * y);
             matrix[3][0] = pos.X();
             matrix[3][1] = pos.Y();

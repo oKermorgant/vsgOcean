@@ -20,6 +20,17 @@ message(STATUS "Found vsg: ${vsg_DIR}")
 
 find_package(vsgXchange REQUIRED)
 message(STATUS "Found vsgXchange: ${vsgXchange_DIR}")
+# vsgXchange/all.h aggregates every reader the library was built with; when it
+# exists, export the vsgXchange_all define so consumers (e.g. Coral) register
+# all readers in their vsg::Options through the shared target interface
+get_target_property(VSGOCEAN_XCHANGE_INCLUDE_DIRS vsgXchange::vsgXchange INTERFACE_INCLUDE_DIRECTORIES)
+list(GET VSGOCEAN_XCHANGE_INCLUDE_DIRS 0 VSGOCEAN_XCHANGE_INCLUDE_DIR)
+if(EXISTS "${VSGOCEAN_XCHANGE_INCLUDE_DIR}/vsgXchange/all.h")
+    set(VSGOCEAN_WITH_XCHANGE_ALL ON)
+    message(STATUS "vsgXchange/all.h found: exporting vsgXchange_all")
+else()
+    set(VSGOCEAN_WITH_XCHANGE_ALL OFF)
+endif()
 
 # PNG screenshots
 find_package(ZLIB REQUIRED)
@@ -103,7 +114,9 @@ if(VSGOCEAN_WITH_SDF)
     list(APPEND VSGOCEAN_LIBRARY_SOURCES src/scene/SDFLoader.cpp)
 endif()
 
-add_library(vsgOcean ${VSGOCEAN_LIBRARY_SOURCES})
+# shared library: consumers link a single .so and do not need vsgOcean's
+# private dependencies (ZLIB, sdformat, vsgImGui) at their own link time
+add_library(vsgOcean SHARED ${VSGOCEAN_LIBRARY_SOURCES})
 add_library(vsgOcean::vsgOcean ALIAS vsgOcean)
 
 target_compile_definitions(vsgOcean PRIVATE VSGOCEAN_LIBRARY)
@@ -127,8 +140,13 @@ if(VSGOCEAN_WITH_SDF)
 endif()
 
 if(VSGOCEAN_WITH_GUI)
-    target_compile_definitions(vsgOcean PRIVATE VSGOCEAN_WITH_GUI)
+    # PUBLIC: consumers may call the GUI utilities, so they must see the same flag
+    target_compile_definitions(vsgOcean PUBLIC VSGOCEAN_WITH_GUI)
     target_link_libraries(vsgOcean PRIVATE vsgImGui::vsgImGui)
+endif()
+
+if(VSGOCEAN_WITH_XCHANGE_ALL)
+    target_compile_definitions(vsgOcean PUBLIC vsgXchange_all)
 endif()
 
 # Install and export the library so that find_package(vsgOcean) works from an install tree
