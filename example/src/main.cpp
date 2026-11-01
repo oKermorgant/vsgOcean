@@ -5,6 +5,7 @@
 #endif
 
 #include "ExampleOptions.h"
+#include "DemoPoses.h"
 #include "Headless.h"
 
 #include <vsgOcean/ui/EnvironmentControls.h>
@@ -126,132 +127,66 @@ int main(int argc, char** argv)
                   " lat, ", environment->longitude(), " lon");
 
         // demo: links animated wrt their parent frame (steering pods of the surface vehicle,
-        // spinning propellers and thrusters). setPose() replaces the whole matrix, so their
-        // initial poses - as loaded from the SDF files - are captured first.
-        const std::vector<std::string> steeredLinks = {"aquabot/left_engine_link", "aquabot/right_engine_link"};
-        const std::vector<std::string> spinningLinks = {
-            "aquabot/left_propeller_link", "aquabot/right_propeller_link",
-            "bluerov2/thruster1", "bluerov2/thruster2", "bluerov2/thruster3",
-            "bluerov2/thruster4", "bluerov2/thruster5", "bluerov2/thruster6",
-            "floatgen/blades"};
-
-        std::map<std::string, vsg::dmat4> initialLinkPoses;
-        for (const auto& linkName : steeredLinks)
-        {
-            if (auto link = vsg_scene->frame(linkName)) initialLinkPoses[linkName] = link->matrix;
-        }
-        for (const auto& linkName : spinningLinks)
-        {
-            if (auto link = vsg_scene->frame(linkName)) initialLinkPoses[linkName] = link->matrix;
-        }
+        // spinning propellers and thrusters). getJoint() composes their motion on the poses
+        // captured from the SDF files at load time.
+        vsgOceanExample::DemoPoses demoPoses;
+        demoPoses.capture(*vsg_scene);
 
         // the sensor pipelines (created in the windowed path below); the demo animation
         // references their cameras, so they are declared here and stay null in headless
         vsg::ref_ptr<vsgOcean::RenderPipeline> rovPipeline, boatPipeline;
 
-        // the floating turbine's heave state: the platform tracks the wave surface at
-        // its moored position, low-passed by its inertia (a first-order lag)
-        double floatgenZ = 0.0;
-        double floatgenPrevT = -1.0;
+        // the floating turbine's heave state lives in the pose computation header
+        // (DemoPoses.h), with the rest of the demo kinematics
 
         // the demo animation: the model poses wrt the world model and the link poses
-        // wrt their parent frame (the parent is guessed by vsgOcean from the model
-        // tree). Shared by the windowed and the headless render loops.
+        // wrt their parent frame, computed by DemoPoses (the seam where a dynamics
+        // simulator will plug in). Shared by the windowed and the headless loops.
         const auto demoFrame = [&](double t)
         {
-            if (vsg_scene->model("aquabot"))
+            // the models' world poses
+            for (const auto* model : {"aquabot", "bluerov2", "floatgen"})
             {
-                // the surface vehicle performs a large circle, riding the waves: the
-                // wave field is sampled at its position, slightly below the local
-                // surface so the hulls keep a visible draft (the mesh waterline is at
-                // its origin, the hull bottom 0.026 m above)
-                const auto angle = 2.0 * vsg::PI * t / 60.0;
-                const double x = 10.0 * std::cos(angle);
-                const double y = 10.0 * std::sin(angle);
-                const double surfaceZ = wavefield->height(x, y, t);
-                vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.03)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
+                if (vsg_scene->model(model))
+                {
+                    if (auto pose = demoPoses.getPose(model, *wavefield, t)) vsg_scene->setPose(model, *pose);
+                }
+            }
 
-                // the boat camera rides at the bow, above the roofline of the
-                // central pod (the pod's front edge reaches ~2.2 m - a lower
-                // camera sees the roof in the lower half of the frame), looking
-                // along the direction of travel
-                if (boatPipeline)
+            // the boat camera rides at the bow of the surface vehicle, above the
+            // roofline of the central pod (the pod's front edge reaches ~2.2 m - a
+            // lower camera sees the roof in the lower half of the frame), looking
+            // along the direction of travel: the vehicle's +X is its heading
+            if (boatPipeline && vsg_scene->model("aquabot"))
+            {
+                if (auto pose = demoPoses.getPose("aquabot", *wavefield, t))
                 {
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
-                    const vsg::dvec3 travel(-std::sin(angle), std::cos(angle), 0.0);
-                    lookAt->eye = vsg::dvec3(x, y, surfaceZ) + travel * 2.1 + vsg::dvec3(0.0, 0.0, 2.4);
+                    const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);
+                    const vsg::dvec3 travel = vsg::normalize((*pose) * vsg::dvec3(1.0, 0.0, 0.0) - position);
+                    lookAt->eye = position + travel * 2.1 + vsg::dvec3(0.0, 0.0, 2.4);
                     lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.5);
                 }
             }
 
-            if (vsg_scene->model("bluerov2"))
+            // the ROV camera is forward-facing, at the vehicle's nose: it looks at
+            // the wreck it circles, without the vehicle in view
+            if (rovPipeline && vsg_scene->model("bluerov2"))
             {
-                // the ROV circles the wreck at (12, 0, -48), facing it. The vehicle
-                // frame is x-front, y-port, z-up: the heading rotation points the
-                // model's +X at the wreck, and the pitch tilts the nose down towards
-                // it, so the forward camera takes in more of the wreck
-                const auto angle = -2.0 * vsg::PI * t / 60.0;
-                const vsg::dvec3 position(12.0 + 8.0 * std::cos(angle), 8.0 * std::sin(angle), -37.0);
-                const auto attitude = vsg::rotate(angle + vsg::PI, 0.0, 0.0, 1.0) * vsg::rotate(vsg::radians(25.0), 0.0, 1.0, 0.0);
-                vsg_scene->setPose("bluerov2", vsg::translate(position) * attitude);
-
-                // the ROV camera is forward-facing, at the vehicle's nose: it looks at
-                // the wreck it circles, without the vehicle in view
-                if (rovPipeline)
+                if (auto pose = demoPoses.getPose("bluerov2", *wavefield, t))
                 {
+                    auto attitude = *pose;
+                    attitude[3] = vsg::dvec4(0.0, 0.0, 0.0, 1.0); // strip the translation: the rotation only
                     const auto lookAt = rovPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
-                    lookAt->eye = position + attitude * vsg::dvec3(0.55, 0.0, 0.15);
+                    lookAt->eye = (*pose) * vsg::dvec3(0.0, 0.0, 0.0) + attitude * vsg::dvec3(0.55, 0.0, 0.15);
                     lookAt->center = lookAt->eye + (attitude * vsg::dvec3(1.0, 0.0, 0.0)) * 8.0;
                 }
             }
 
-            if (vsg_scene->model("floatgen"))
+            // the internal frames' joint poses
+            for (const auto& [model, joint] : vsgOceanExample::DemoPoses::animatedJoints())
             {
-                // the floating wind turbine rides the waves at its moored position
-                // (40, -40): the platform's inertia damps the heave, so the wave
-                // height is low-passed with a ~3 s response time - it follows the
-                // swell but skips the chop (a real spar platform is slower still)
-                const double targetZ = wavefield->height(40.0, -40.0, t);
-                if (floatgenPrevT < 0.0)
-                {
-                    floatgenZ = targetZ;
-                }
-                else
-                {
-                    const double dt = std::max(0.0, t - floatgenPrevT);
-                    const double tau = 3.0;
-                    floatgenZ += (targetZ - floatgenZ) * std::min(1.0, dt / tau);
-                }
-                floatgenPrevT = t;
-                vsg_scene->setPose("floatgen", vsg::translate(vsg::dvec3(40.0, -40.0, floatgenZ)));
-            }
-
-            // steering pods of the surface vehicle: rotation about the local Z axis of the pod
-            const auto steer = 0.5 * std::sin(2.0 * vsg::PI * t / 10.0);
-            for (const auto& linkName : steeredLinks)
-            {
-                if (initialLinkPoses.count(linkName))
-                {
-                    vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(steer, 0.0, 0.0, 1.0));
-                }
-            }
-
-            // spinning propellers and thrusters: rotation about the local X axis of the link
-            const auto spin = 2.0 * vsg::PI * 5.0 * t;
-            for (const auto& linkName : spinningLinks)
-            {
-                if (initialLinkPoses.count(linkName))
-                {
-                    vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(spin, 1.0, 0.0, 0.0));
-                }
-            }
-
-            // the floating wind turbine's rotor: a realistic ~30 rpm (the propellers'
-            // 5 rev/s spin would blur), about its local X axis - the joint's axis
-            if (initialLinkPoses.count("floatgen/blades"))
-            {
-                const auto rotor = 2.0 * vsg::PI * 0.5 * t;
-                vsg_scene->setPose("floatgen/blades", initialLinkPoses["floatgen/blades"] * vsg::rotate(rotor, 1.0, 0.0, 0.0));
+                if (auto pose = demoPoses.getJoint(model, joint, t)) vsg_scene->setPose(model + "/" + joint, *pose);
             }
         };
 
