@@ -57,8 +57,11 @@ void main()
     const vec3 drifted = base.xyz * box + snow.current.xyz * snow.params.x;
     const vec3 world = mod(drifted - eye + 0.5 * box, box) - 0.5 * box + eye;
 
-    // the particle radius: 6..30 mm flakes, seeded per particle
-    const float radius = mix(0.006, 0.03, fract(base.w * 3.71));
+    // the flake radius: seeded per particle
+    // the flake radius: 1..30 mm, skewed small (the square of the seed) - most
+    // flakes are millimetre flecks, the biggest (the previous uniform size's
+    // maximum) is the rare large floc
+    const float radius = mix(0.001, 0.03, pow(fract(base.w * 3.71), 2.0));
 
     // the quad corner for this vertex, in view space (a camera-facing billboard)
     const vec2 corners[6] = {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}};

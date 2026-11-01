@@ -126,7 +126,7 @@ namespace vsgOcean
         // has no haze light source)
         const auto day = std::clamp((sun.z - -0.05) / (0.25 - -0.05), 0.0, 1.0);
         const double dayFactor = day * day * (3.0 - 2.0 * day); // smoothstep
-        const vsg::vec3 fogColor = vsg::mix(vsg::vec3(0.002f, 0.003f, 0.006f), environment.fogColor(), static_cast<float>(dayFactor));
+        const vsg::vec3 fogColor = vsg::mix(vsg::vec3(0.0005f, 0.0008f, 0.0015f), environment.fogColor(), static_cast<float>(dayFactor));
 
         (*uniform_)[4] = vsg::vec4(0.0f, 0.0f, 0.0f, static_cast<float>(submersion));
         (*uniform_)[5] = vsg::vec4(environment.underwaterColor(), meanAttenuation);

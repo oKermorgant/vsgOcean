@@ -48,8 +48,8 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
 
     const vec3 zenithDay = vec3(0.20, 0.42, 0.80);
     const vec3 horizonDay = vec3(0.75, 0.85, 0.95);
-    const vec3 zenithNight = vec3(0.001, 0.0015, 0.003);
-    const vec3 horizonNight = vec3(0.002, 0.003, 0.006);
+    const vec3 zenithNight = vec3(0.0003, 0.0004, 0.0008);
+    const vec3 horizonNight = vec3(0.0005, 0.0008, 0.0015);
 
     // the reflection sees the horizon band REMOVED relative to the sky itself (the
     // intentional difference from sky.frag): grazing reflections would otherwise be
