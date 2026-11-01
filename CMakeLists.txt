@@ -163,6 +163,12 @@ install(TARGETS vsgOcean
 
 install(DIRECTORY include/vsgOcean DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+# the source checkout, recorded into the package config for consumers
+# (coral): they reach the example models through vsgOcean_MODELS_DIR instead
+# of a second configuration variable that could drift from this build
+set(VSGOCEAN_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(VSGOCEAN_MODELS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/example/models")
+
 install(EXPORT vsgOceanTargets
     FILE vsgOceanTargets.cmake
     NAMESPACE vsgOcean::

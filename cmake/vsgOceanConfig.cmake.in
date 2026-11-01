@@ -10,4 +10,12 @@ if(@VSGOCEAN_WITH_SDF@)
     find_dependency(sdformat 16.1)
 endif()
 
+# The source checkout this vsgOcean was built from, recorded at configure
+# time (empty when the install has no source at hand, e.g. a system package).
+# Consumers use it to reach the example models (islands, aquabot, bluerov2,
+# wreck, floatgen) without a second configuration variable; treat an empty
+# or missing value as "no source tree".
+set(vsgOcean_SOURCE_DIR "@VSGOCEAN_SOURCE_DIR@")
+set(vsgOcean_MODELS_DIR "@VSGOCEAN_MODELS_DIR@")
+
 include("${CMAKE_CURRENT_LIST_DIR}/vsgOceanTargets.cmake")
