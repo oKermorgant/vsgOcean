@@ -92,6 +92,33 @@ namespace vsgOcean
         case vsg::KEY_p:
             scene_->setSurfaceEnabled(!scene_->surfaceEnabled());
             break;
+        case vsg::KEY_n:
+            environment->setMarineSnowDensity(environment->marineSnowDensity() - 0.1);
+            break;
+        case vsg::KEY_m:
+            environment->setMarineSnowDensity(environment->marineSnowDensity() + 0.1);
+            break;
+        case vsg::KEY_Leftbracket:
+        {
+            // slow the water current along its direction (0: no drift)
+            auto current = environment->waterCurrent();
+            const auto speed = std::max(vsg::length(vsg::vec2(current.x, current.y)) - 0.1f, 0.0f);
+            const auto direction = vsg::length(vsg::vec2(current.x, current.y)) > 1.0e-3f
+                                      ? vsg::normalize(vsg::vec2(current.x, current.y))
+                                      : vsg::vec2(1.0f, 0.0f);
+            environment->setWaterCurrent(vsg::vec3(direction.x * speed, direction.y * speed, current.z));
+            break;
+        }
+        case vsg::KEY_Rightbracket:
+        {
+            auto current = environment->waterCurrent();
+            const auto speed = vsg::length(vsg::vec2(current.x, current.y)) + 0.1f;
+            const auto direction = vsg::length(vsg::vec2(current.x, current.y)) > 1.0e-3f
+                                      ? vsg::normalize(vsg::vec2(current.x, current.y))
+                                      : vsg::vec2(1.0f, 0.0f);
+            environment->setWaterCurrent(vsg::vec3(direction.x * speed, direction.y * speed, current.z));
+            break;
+        }
         case vsg::KEY_Space:
             sunCycleEnabled = !sunCycleEnabled;
             break;

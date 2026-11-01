@@ -50,6 +50,12 @@ namespace vsgOceanExample
         bool overrideCenter = false;
         vsg::dvec3 center{0.0, 0.0, 0.0};
 
+        // marine snow / water current overrides
+        bool overrideSnow = false;
+        double snowDensity = 0.0;
+        bool overrideCurrent = false;
+        vsg::vec3 waterCurrent{0.0f, 0.0f, 0.0f};
+
         // headless offscreen rendering (no window / swapchain): renders the frames
         // and writes the screenshot; prefers a hardware GPU (the render group)
         bool headless = false;
@@ -260,6 +266,8 @@ namespace vsgOceanExample
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;
         if (arguments.read("--jerlov", settings.jerlov)) settings.overrideJerlov = true;
         if (arguments.read("--fog", settings.fogDensity)) settings.overrideFog = true;
+        if (arguments.read("--snow", settings.snowDensity)) settings.overrideSnow = true;
+        if (arguments.read("--current", settings.waterCurrent.x, settings.waterCurrent.y)) settings.overrideCurrent = true;
 
         settings.waveAmplitude = arguments.value(0.1, "--wave-amplitude");
         settings.wavePeriod = arguments.value(5.0, "--wave-period");

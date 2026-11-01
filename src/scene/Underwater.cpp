@@ -14,81 +14,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsg/commands/BindVertexBuffers.h>
 #include <vsg/commands/Draw.h>
-#include <vsg/lighting/PointLight.h>
-#include <vsg/lighting/SpotLight.h>
 
-#include <cmath>
+#include <vsgOcean/scene/LampLights.h>
 
 #include "underwater_vert.h"
 #include "underwater_frag.h"
 
 namespace vsgOcean
 {
-    namespace
-    {
-        // collects the point and spot lights under a scene graph with their WORLD
-        // transforms (the composite marches volumetric cones through them). Light
-        // positions/directions are frame-relative (set by the SDF loader); the
-        // accumulated ancestor matrix of the transform stack carries them to world
-        struct CollectedLamp
-        {
-            vsg::vec3 position;  // world
-            vsg::vec3 direction; // world, unit (spot)
-            vsg::vec3 color;
-            float intensity = 0.0f;
-            float cosInner = -1.0f; // point lights carry no cone
-            float cosOuter = -1.0f;
-            float range = 0.0f; // 0: no cutoff
-        };
-
-        class LampCollector : public vsg::Visitor
-        {
-        public:
-            std::vector<CollectedLamp> lamps;
-            vsg::dmat4 matrix;
-
-            void apply(vsg::Transform& transform) override
-            {
-                const auto previous = matrix;
-                matrix = transform.transform(matrix);
-                transform.traverse(*this);
-                matrix = previous;
-            }
-
-            void apply(vsg::SpotLight& light) override
-            {
-                if (lamps.size() < Underwater::MaxLampLights)
-                {
-                    const vsg::dvec3 position = matrix * light.position;
-                    const vsg::dvec4 directionH = matrix * vsg::dvec4(light.direction.x, light.direction.y, light.direction.z, 0.0);
-                    CollectedLamp lamp;
-                    lamp.position = vsg::vec3(position.x, position.y, position.z);
-                    lamp.direction = vsg::normalize(vsg::vec3(static_cast<float>(directionH.x), static_cast<float>(directionH.y), static_cast<float>(directionH.z)));
-                    lamp.color = light.color;
-                    lamp.intensity = light.intensity;
-                    lamp.cosInner = static_cast<float>(std::cos(light.innerAngle));
-                    lamp.cosOuter = static_cast<float>(std::cos(light.outerAngle));
-                    lamp.range = static_cast<float>(light.radius);
-                    lamps.push_back(lamp);
-                }
-            }
-
-            void apply(vsg::PointLight& light) override
-            {
-                if (lamps.size() < Underwater::MaxLampLights)
-                {
-                    const vsg::dvec3 position = matrix * light.position;
-                    CollectedLamp lamp;
-                    lamp.position = vsg::vec3(position.x, position.y, position.z);
-                    lamp.color = light.color;
-                    lamp.intensity = light.intensity;
-                    lamp.range = static_cast<float>(light.radius);
-                    lamps.push_back(lamp);
-                }
-            }
-        };
-    }
-
     Underwater::Underwater(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth)
     {
         // fullscreen triangle covering the clip space
@@ -249,21 +182,7 @@ namespace vsgOcean
         // carries both)
         if (lightsRoot)
         {
-            LampCollector collector;
-            lightsRoot->accept(collector);
-
-            const auto scattering = environment.underwaterScattering();
-            (*lamps_)[0] = vsg::vec4(static_cast<float>(collector.lamps.size()),
-                                    scattering.x, scattering.y, scattering.z);
-            for (size_t i = 0; i < collector.lamps.size(); ++i)
-            {
-                const auto& lamp = collector.lamps[i];
-                const size_t base = 1 + i * 4;
-                (*lamps_)[base + 0] = vsg::vec4(lamp.position, lamp.intensity);
-                (*lamps_)[base + 1] = vsg::vec4(lamp.direction, lamp.cosInner);
-                (*lamps_)[base + 2] = vsg::vec4(lamp.cosOuter, lamp.range, 0.0f, 0.0f);
-                (*lamps_)[base + 3] = vsg::vec4(lamp.color, 0.0f);
-            }
+            packLampLights(collectLampLights(lightsRoot), environment.underwaterScattering(), *lamps_);
             lamps_->dirty();
         }
     }

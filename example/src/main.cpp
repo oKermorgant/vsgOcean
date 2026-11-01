@@ -84,6 +84,14 @@ int main(int argc, char** argv)
         {
             environment->setFogDensity(settings.fogDensity);
         }
+        if (settings.overrideSnow)
+        {
+            environment->setMarineSnowDensity(settings.snowDensity);
+        }
+        if (settings.overrideCurrent)
+        {
+            environment->setWaterCurrent(settings.waterCurrent);
+        }
         const auto wavefield = vsg_scene->surface()->wavefield();
         wavefield->setAmplitude(settings.waveAmplitude);
         wavefield->setPeriod(settings.wavePeriod);

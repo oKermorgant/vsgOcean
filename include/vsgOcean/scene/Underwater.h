@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsgOcean/core/Environment.h>
+#include <vsgOcean/scene/LampLights.h>
 
 namespace vsgOcean
 {
@@ -36,9 +37,6 @@ namespace vsgOcean
     class VSG_OCEAN_EXPORT Underwater : public vsg::Inherit<vsg::Group, Underwater>
     {
     public:
-        /// the maximum number of lights ray-marched as volumetric cones
-        static constexpr size_t MaxLampLights = 8;
-
         /// color and depth: the offscreen scene attachments the pass composites
         Underwater(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth);
 

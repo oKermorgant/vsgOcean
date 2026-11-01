@@ -16,6 +16,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/core/Environment.h>
 #include <vsgOcean/core/Model.h>
 #include <vsgOcean/scene/OceanSurface.h>
+#include <vsgOcean/scene/MarineSnow.h>
 #include <vsgOcean/scene/Sky.h>
 #include <vsgOcean/scene/Underwater.h>
 
@@ -76,6 +77,10 @@ namespace vsgOcean
         /// The ocean surface and its wave field (the Gazebo wave model).
         vsg::ref_ptr<OceanSurface> surface() const { return surface_; }
 
+        /// The marine snow field of the water column (density and current live in
+        /// the Environment).
+        vsg::ref_ptr<MarineSnow> marineSnow() const { return marineSnow_; }
+
         /// Enable / disable the ocean surface rendering; disabling it also disables the
         /// underwater rendering (the camera is never considered submerged).
         void setSurfaceEnabled(bool enabled);
@@ -110,6 +115,7 @@ namespace vsgOcean
         vsg::ref_ptr<Environment> environment_;
         vsg::ref_ptr<Sky> sky_;
         vsg::ref_ptr<OceanSurface> surface_;
+        vsg::ref_ptr<MarineSnow> marineSnow_;
         vsg::ref_ptr<vsg::Switch> surfaceSwitch_;
         vsg::ref_ptr<Underwater> underwater_;
         vsg::ref_ptr<vsg::AmbientLight> ambientLight_;

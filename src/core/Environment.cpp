@@ -95,6 +95,16 @@ namespace vsgOcean
         seaLevel_ = metres;
     }
 
+    void Environment::setMarineSnowDensity(double density)
+    {
+        marineSnowDensity_ = std::clamp(density, 0.0, 1.0);
+    }
+
+    void Environment::setWaterCurrent(const vsg::vec3& current)
+    {
+        waterCurrent_ = current;
+    }
+
     std::string Environment::jerlovName() const
     {
         return jerlovTable[static_cast<uint8_t>(jerlovType_)].name;

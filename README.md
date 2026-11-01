@@ -12,6 +12,8 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 - **Sky**: analytic shader sky (day/night cycle from the sun elevation, constellations at night), with scene lighting that follows the sun.
 - **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the component count, scale and angle are tunable (GUI sliders or `--wave-*`). Wind-driven ripple detail is layered on top as a drifting noise field. The surface shades around the shared analytic sky in both directions: above, Fresnel-weighted sky reflection (fading in toward the horizon), sun glitter and glare, and the transmitted Jerlov body colour; from below, the Snell window with total internal reflection beyond the critical angle. The composite applies FXAA anti-aliasing.
 - **Underwater rendering**: when the camera dives below the waves, the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the true submerged view segment (red is absorbed first), Henyey-Greenstein forward in-scatter (g = 0.924) with a Petzold-family scattering table under the Jerlov taxonomy, Jerlov-filtered lighting and an underwater sky — all driven by the water type.
+- **Volumetric lamp cones**: the scene's point and spot lights are ray-marched as visible single-scattering cones through the water column — the night wreck scene is lit only by the ROV's dive beams, with the cones readable against open water.
+- **Marine snow**: drifting particles in a box wrapped around the camera, advected by the water current (`setWaterCurrent()` — the seam for a dynamics-driven current topic) and reflecting the light that reaches them (the sun surviving to their depth, and the lamps — snow sparkles in the beams at night). Density is tunable (`--snow 0..1`, the `N`/`M` keys, the GUI slider).
 - **SDF lights**: `<light>` elements (point, spot with cone aperture and range, directional) become scene lights attached to their frame, so vehicle lamps follow the vehicle.
 - **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic, and the composited image can be written to a PNG (`--screenshot`).
 - **Headless rendering**: `--headless` renders offscreen without a window or swapchain and writes the screenshot — for servers and CI, and for GPUs that can render but not present (e.g. over a forwarded X connection).
@@ -48,6 +50,8 @@ cmake --build build -j
 ./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
 ./vsgOcean_example --jerlov 8                      # turbid coastal water
 ./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
+./vsgOcean_example --snow 0.8 --current 0.5 0      # heavy marine snow, drifting East
+./vsgOcean_example --snow 0.8 --current 0.5 0      # heavy marine snow drifting East
 ./vsgOcean_example --debug --eye 12 5 -40          # validation layers, camera near the wreck
 ./vsgOcean_example --eye 12 5 -40 --center 12 0 -48   # fully deterministic view
 
@@ -72,6 +76,8 @@ feature also usable headless through the keyboard):
 | Page Up, Page Down | sea level |
 | A / D, Q / E, W / S | wave amplitude, wave period, wind speed |
 | Z / C | Jerlov water type |
+| N / M | marine snow density |
+| [ / ] | water current speed |
 | P | ocean surface on / off |
 | Space | day cycle animation on / off |
 | Tab | cycle the tracked model (camera follows) |
@@ -87,8 +93,7 @@ variable).
 ## Roadmap
 
 - Underwater rendering refinements
-    - ray-marched volumetric light cones (visible lamp beams in dark water)
-    - marine snow, god rays
+    - god rays
     - wave-field caustics on geometry
 - Surface refinements: planar reflection / refraction passes of the actual scene
 - Spectral (FFT) wave synthesis on top of the same wave-field interface

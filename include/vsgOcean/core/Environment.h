@@ -100,6 +100,18 @@ namespace vsgOcean
         void setSeaLevel(double metres);
         double seaLevel() const { return seaLevel_; }
 
+        /// Marine snow density, normalized 0..1: 0 disables the particles, 1.0 a
+        /// heavy snow (a storm-stirred water column). Scales the number of visible
+        /// particles drifting around the camera underwater. Default 0.3.
+        void setMarineSnowDensity(double density);
+        double marineSnowDensity() const { return marineSnowDensity_; }
+
+        /// The water current the underwater environment drifts with, in m/s in the
+        /// world frame (+X East, +Y North, +Z Up): the marine snow advects along it.
+        /// Driven at runtime from the outside (a dynamics simulator / a topic).
+        void setWaterCurrent(const vsg::vec3& current);
+        const vsg::vec3& waterCurrent() const { return waterCurrent_; }
+
         // --- geolocation ---
         // The horizontal frame convention of vsgOcean: +X East, +Y North, +Z Up.
 
@@ -133,6 +145,8 @@ namespace vsgOcean
         double windDirection_{0.0};
         JerlovType jerlovType_ = JerlovType::OceanicI;
         double seaLevel_{0.0};
+        double marineSnowDensity_{0.3};
+        vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame
         double latitude_{0.0};
         double longitude_{0.0};
     };
