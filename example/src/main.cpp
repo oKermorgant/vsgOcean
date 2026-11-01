@@ -149,6 +149,11 @@ int main(int argc, char** argv)
         // references their cameras, so they are declared here and stay null in headless
         vsg::ref_ptr<vsgOcean::RenderPipeline> rovPipeline, boatPipeline;
 
+        // the floating turbine's heave state: the platform tracks the wave surface at
+        // its moored position, low-passed by its inertia (a first-order lag)
+        double floatgenZ = 0.0;
+        double floatgenPrevT = -1.0;
+
         // the demo animation: the model poses wrt the world model and the link poses
         // wrt their parent frame (the parent is guessed by vsgOcean from the model
         // tree). Shared by the windowed and the headless render loops.
@@ -198,6 +203,27 @@ int main(int argc, char** argv)
                     lookAt->eye = position + attitude * vsg::dvec3(0.55, 0.0, 0.15);
                     lookAt->center = lookAt->eye + (attitude * vsg::dvec3(1.0, 0.0, 0.0)) * 8.0;
                 }
+            }
+
+            if (vsg_scene->model("floatgen"))
+            {
+                // the floating wind turbine rides the waves at its moored position
+                // (40, -40): the platform's inertia damps the heave, so the wave
+                // height is low-passed with a ~3 s response time - it follows the
+                // swell but skips the chop (a real spar platform is slower still)
+                const double targetZ = wavefield->height(40.0, -40.0, t);
+                if (floatgenPrevT < 0.0)
+                {
+                    floatgenZ = targetZ;
+                }
+                else
+                {
+                    const double dt = std::max(0.0, t - floatgenPrevT);
+                    const double tau = 3.0;
+                    floatgenZ += (targetZ - floatgenZ) * std::min(1.0, dt / tau);
+                }
+                floatgenPrevT = t;
+                vsg_scene->setPose("floatgen", vsg::translate(vsg::dvec3(40.0, -40.0, floatgenZ)));
             }
 
             // steering pods of the surface vehicle: rotation about the local Z axis of the pod
