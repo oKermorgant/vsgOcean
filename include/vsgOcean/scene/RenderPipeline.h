@@ -73,6 +73,14 @@ namespace vsgOcean
         /// Call every frame, before record.
         void update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera);
 
+        /// Follow a new output extent (the window size): the offscreen target, the
+        /// composited image and their framebuffers are recreated at the new size, the
+        /// camera's aspect and viewport follow, and the descriptors that sample them
+        /// are rebound. The render passes, and so every compiled pipeline, are kept.
+        /// Waits for the device to be idle; call from a viewer update operation.
+        /// Returns false when the extent is empty or unchanged.
+        bool resize(VkExtent2D extent, vsg::Viewer& viewer);
+
         /// Skip or resume this pipeline's draws (e.g. a sensor pipeline whose preview
         /// is off screen): the scene and composite views are masked out of the record
         /// traversal, so the render passes reduce to a near-free target clear. Plain

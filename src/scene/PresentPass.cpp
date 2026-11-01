@@ -90,9 +90,18 @@ namespace vsgOcean
 
     void PresentPass::setWindowExtent(VkExtent2D extent)
     {
-        // the composite extent (xy) stays: the offscreen target is fixed size
         (*uniform_)[0].z = static_cast<float>(extent.width);
         (*uniform_)[0].w = static_cast<float>(extent.height);
         uniform_->dirty();
+    }
+
+    void PresentPass::setComposite(vsg::ref_ptr<vsg::ImageView> composite)
+    {
+        (*uniform_)[0].x = static_cast<float>(composite->image->extent.width);
+        (*uniform_)[0].y = static_cast<float>(composite->image->extent.height);
+        uniform_->dirty();
+
+        imageDescriptor_->imageInfoList[0]->imageView = std::move(composite);
+        descriptorSet_->release();
     }
 }

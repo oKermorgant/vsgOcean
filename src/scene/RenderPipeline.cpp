@@ -210,6 +210,52 @@ namespace vsgOcean
         buildCompositePass();
     }
 
+    bool RenderPipeline::resize(VkExtent2D extent, vsg::Viewer& viewer)
+    {
+        if (extent.width == 0 || extent.height == 0) return false;
+        if (extent.width == extent_.width && extent.height == extent_.height) return false;
+
+        // nothing in flight may still use the attachments released below
+        viewer.deviceWaitIdle();
+
+        const auto previous = extent_;
+        extent_ = extent;
+
+        target_->resize(extent);
+        sceneRenderGraph_->framebuffer = target_->framebuffer();
+        sceneRenderGraph_->renderArea = VkRect2D{{0, 0}, extent};
+        sceneRenderGraph_->viewportState->set(0, 0, extent.width, extent.height);
+
+        createOutputImage(extent);
+        compositeRenderGraph_->framebuffer = vsg::Framebuffer::create(compositeRenderGraph_->renderPass, vsg::ImageViews{outputView_}, extent.width, extent.height, 1);
+        compositeRenderGraph_->renderArea = VkRect2D{{0, 0}, extent};
+        compositeRenderGraph_->viewportState->set(0, 0, extent.width, extent.height);
+
+        // the camera keeps its field of view over the height: the width follows the aspect
+        camera_->projectionMatrix->changeExtent(previous, extent);
+        if (camera_->viewportState) camera_->viewportState->set(0, 0, extent.width, extent.height);
+
+        composite_->setSceneTextures(target_->colorView(), target_->depthView());
+        if (presentPass_)
+        {
+            presentPass_->setComposite(outputView_);
+            presentPass_->setWindowExtent(extent);
+        }
+
+        // rebind the released descriptor sets (the pipelines are untouched)
+        if (viewer.compileManager)
+        {
+            const vsg::ref_ptr<vsg::Node> nodes[] = {composite_, presentPass_};
+            for (const auto& node : nodes)
+            {
+                if (!node) continue;
+                const auto result = viewer.compileManager->compile(node);
+                if (result.requiresViewerUpdate()) vsg::updateViewer(viewer, result);
+            }
+        }
+        return true;
+    }
+
     void RenderPipeline::setEnabled(bool enabled)
     {
         const auto mask = enabled ? vsg::MASK_ALL : vsg::MASK_OFF;

@@ -17,6 +17,7 @@ namespace vsgOcean
     namespace
     {
         // shared construction of the attachments, render pass and framebuffer
+        // (an existing render pass is kept: it depends on the formats, not on the size)
         void build(const vsg::ref_ptr<vsg::Device>& device, VkExtent2D extent, VkFormat colorFormat, VkFormat depthFormat,
                    vsg::ref_ptr<vsg::ImageView>& colorView, vsg::ref_ptr<vsg::ImageView>& depthView,
                    vsg::ref_ptr<vsg::RenderPass>& renderPass, vsg::ref_ptr<vsg::Framebuffer>& framebuffer)
@@ -54,17 +55,20 @@ namespace vsgOcean
             depthView = vsg::ImageView::create(depth, VK_IMAGE_ASPECT_DEPTH_BIT);
             depthView->compile(device.get());
 
-            auto colorAttachment = vsg::defaultColorAttachment(colorFormat);
-            colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            auto depthAttachment = vsg::defaultDepthAttachment(depthFormat);
-            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // sampled by the composite
-            depthAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            if (!renderPass)
+            {
+                auto colorAttachment = vsg::defaultColorAttachment(colorFormat);
+                colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                auto depthAttachment = vsg::defaultDepthAttachment(depthFormat);
+                depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; // sampled by the composite
+                depthAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-            vsg::RenderPass::Attachments attachments{colorAttachment, depthAttachment};
-            vsg::SubpassDescription subpass{};
-            subpass.colorAttachments = {{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
-            subpass.depthStencilAttachments = {{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL}};
-            renderPass = vsg::RenderPass::create(device.get(), attachments, vsg::RenderPass::Subpasses{subpass}, vsg::RenderPass::Dependencies{});
+                vsg::RenderPass::Attachments attachments{colorAttachment, depthAttachment};
+                vsg::SubpassDescription subpass{};
+                subpass.colorAttachments = {{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
+                subpass.depthStencilAttachments = {{1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL}};
+                renderPass = vsg::RenderPass::create(device.get(), attachments, vsg::RenderPass::Subpasses{subpass}, vsg::RenderPass::Dependencies{});
+            }
 
             framebuffer = vsg::Framebuffer::create(renderPass, vsg::ImageViews{colorView, depthView}, extent.width, extent.height, 1);
         }
@@ -79,13 +83,28 @@ namespace vsgOcean
         }
 
         extent_ = window_->extent2D();
-        build(window_->getOrCreateDevice(), extent_, window_->surfaceFormat().format, window_->depthFormat(),
+        colorFormat_ = window_->surfaceFormat().format;
+        depthFormat_ = window_->depthFormat();
+        build(window_->getOrCreateDevice(), extent_, colorFormat_, depthFormat_,
               colorView_, depthView_, renderPass_, framebuffer_);
     }
 
     RenderTarget::RenderTarget(vsg::ref_ptr<vsg::Device> device, VkExtent2D extent, VkFormat colorFormat, VkFormat depthFormat) :
-        extent_(extent)
+        extent_(extent),
+        colorFormat_(colorFormat),
+        depthFormat_(depthFormat)
     {
         build(std::move(device), extent, colorFormat, depthFormat, colorView_, depthView_, renderPass_, framebuffer_);
+    }
+
+    void RenderTarget::resize(VkExtent2D extent)
+    {
+        if (extent.width == extent_.width && extent.height == extent_.height) return;
+        if (extent.width == 0 || extent.height == 0) return;
+
+        // the caller has made sure the device no longer uses the old attachments
+        extent_ = extent;
+        const vsg::ref_ptr<vsg::Device> device(framebuffer_->getDevice());
+        build(device, extent_, colorFormat_, depthFormat_, colorView_, depthView_, renderPass_, framebuffer_);
     }
 }
