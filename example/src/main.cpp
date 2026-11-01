@@ -165,14 +165,16 @@ int main(int argc, char** argv)
                 const double surfaceZ = wavefield->height(x, y, t);
                 vsg_scene->setPose("aquabot", vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.03)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0));
 
-                // the boat camera rides at the bow, above the hulls, looking along the
-                // direction of travel (a forward-facing camera sees little of its boat)
+                // the boat camera rides at the bow, above the roofline of the
+                // central pod (the pod's front edge reaches ~2.2 m - a lower
+                // camera sees the roof in the lower half of the frame), looking
+                // along the direction of travel
                 if (boatPipeline)
                 {
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     const vsg::dvec3 travel(-std::sin(angle), std::cos(angle), 0.0);
-                    lookAt->eye = vsg::dvec3(x, y, surfaceZ) + travel * 1.5 + vsg::dvec3(0.0, 0.0, 1.6);
-                    lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.6);
+                    lookAt->eye = vsg::dvec3(x, y, surfaceZ) + travel * 2.1 + vsg::dvec3(0.0, 0.0, 2.4);
+                    lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.5);
                 }
             }
 
@@ -365,7 +367,9 @@ int main(int argc, char** argv)
         const auto colorFormat = window->surfaceFormat().format;
         const auto depthFormat = window->depthFormat();
         auto makeSensorCamera = [sensorExtent]() {
-            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.1, 200.0),
+            // near 0.3: a vehicle camera has nothing relevant closer than that,
+            // and it clips any own-structure slivers that graze the mount
+            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.3, 200.0),
                                        vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 0.0), vsg::dvec3(0.0, 1.0, 0.0), vsg::dvec3(0.0, 0.0, 1.0)),
                                        vsg::ViewportState::create(sensorExtent));
         };
