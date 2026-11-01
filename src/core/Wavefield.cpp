@@ -22,7 +22,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    Wavefield::Wavefield()
+    Wavefield::Wavefield(uint32_t fftCells) :
+        fft_(FftWaves::create(fftCells))
     {
         recalculate();
     }
@@ -180,6 +181,30 @@ namespace vsgOcean
         }
     }
 
+    void Wavefield::setWindSpeed(double windSpeed)
+    {
+        auto parameters = fft_->parameters();
+        parameters.windSpeed = windSpeed;
+        fft_->setParameters(parameters);
+    }
+
+    void Wavefield::setFftParameters(const FftWaves::Parameters& parameters)
+    {
+        auto p = parameters;
+        p.windSpeed = fft_->parameters().windSpeed;
+        p.windDirection = direction_;
+        fft_->setParameters(p);
+    }
+
+    void Wavefield::updateFft(double t)
+    {
+        if (model_ != Model::FFT) return;
+        auto parameters = fft_->parameters();
+        parameters.windDirection = direction_;
+        fft_->setParameters(parameters);
+        fft_->update(t);
+    }
+
     double Wavefield::growFactor(double t) const
     {
         return 1.0 - std::exp(-t / tau_);
@@ -187,6 +212,8 @@ namespace vsgOcean
 
     double Wavefield::height(double x, double y, double t) const
     {
+        if (model_ == Model::FFT) return fft_->height(x, y) * growFactor(t);
+
         // sum of the component waves, as in Wavefield::ComputeDepthSimply of boating_gz
         auto h = 0.0;
         for (size_t i = 0; i < amplitudes_.size(); ++i)

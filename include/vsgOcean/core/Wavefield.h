@@ -18,6 +18,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsgOcean/core/Export.h>
+#include <vsgOcean/core/FftWaves.h>
 
 #include <vsg/all.h>
 
@@ -43,13 +44,15 @@ namespace vsgOcean
         enum class Model : uint8_t
         {
             PMS, ///< Pierson-Moskowitz spectrum sampling
-            CWR  ///< component wave ratio
+            CWR, ///< component wave ratio
+            FFT  ///< ECKV wave spectrum synthesised by inverse FFT (asv_wave_sim linear random FFT model)
         };
 
         /// Maximum number of component waves supported by the ocean surface shader
         static constexpr size_t maxWaves = 8;
 
-        Wavefield();
+        /// fftCells: the texels per side of the FFT tile (see FftWaves), fixed for the lifetime.
+        explicit Wavefield(uint32_t fftCells = 128);
 
         // --- parameters (Gazebo semantics, SI units, angles in radians) ---
 
@@ -95,6 +98,21 @@ namespace vsgOcean
         void setGain(double gain);
         double gain() const { return gain_; }
 
+        /// Wind speed at 10 m in m/s, which drives the FFT model spectrum. Default 5.
+        void setWindSpeed(double windSpeed);
+        double windSpeed() const { return fft_->parameters().windSpeed; }
+
+        /// The FFT sea of the Model::FFT: tune its tile size, resolution, wave age and
+        /// choppiness through setFftParameters. The wind speed and direction of the
+        /// parameters are overridden by this Wavefield's.
+        void setFftParameters(const FftWaves::Parameters& parameters);
+        const FftWaves::Parameters& fftParameters() const { return fft_->parameters(); }
+        vsg::ref_ptr<FftWaves> fft() const { return fft_; }
+
+        /// Synthesise the FFT sea at time t (a no-op for the other models). The textures of
+        /// the FFT and height() then refer to this time.
+        void updateFft(double t);
+
         /// Time constant of the exponential wave grow-in at startup, in seconds. Default 2.
         void setTau(double tau);
         double tau() const { return tau_; }
@@ -111,7 +129,8 @@ namespace vsgOcean
         const std::vector<vsg::dvec2>& directions() const { return directions_; }
 
         /// Mean water level at (x, y) at time t in seconds: the sum of the component waves,
-        /// including the exponential grow-in from t = 0.
+        /// including the exponential grow-in from t = 0. The FFT model returns the field of
+        /// the last updateFft(), without horizontal displacement.
         double height(double x, double y, double t) const;
 
         /// Exponential grow-in factor of the wave field at time t.
@@ -138,6 +157,7 @@ namespace vsgOcean
         Model model_ = Model::CWR;
         double gain_{1.0};
         double tau_{2.0};
+        vsg::ref_ptr<FftWaves> fft_;
 
         std::vector<double> amplitudes_;
         std::vector<double> wavenumbers_;

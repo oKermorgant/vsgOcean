@@ -96,6 +96,11 @@ namespace vsgOceanExample
         int waveNumber = 8;
         double waveScale = 2.0;
         double waveAngle = 36.0;
+        // the FFT sea (--fft): asv_wave_sim linear random FFT waves driven by the wind
+        bool fft = false;
+        double fftTile = 256.0;
+        double fftChoppiness = 0.6;
+        double fftWaveAge = 0.84;
 
         // capture: write the main view to a PNG file when the render loop ends
         // (combine with numFrames to capture a deterministic frame)
@@ -291,6 +296,10 @@ namespace vsgOceanExample
         settings.waveNumber = arguments.value(8, "--wave-number");
         settings.waveScale = arguments.value(2.0, "--wave-scale");
         settings.waveAngle = arguments.value(36.0, "--wave-angle");
+        settings.fft = arguments.read("--fft");
+        settings.fftTile = arguments.value(256.0, "--fft-tile");
+        settings.fftChoppiness = arguments.value(0.6, "--fft-choppiness");
+        settings.fftWaveAge = arguments.value(0.84, "--fft-wave-age");
 
         if (arguments.errors())
         {

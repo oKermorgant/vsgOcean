@@ -26,7 +26,11 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 omega[8];
     vec4 steepness[8];
     vec4 direction[8];    // xy: horizontal direction of the component
+    vec4 fft;             // x: 1 when the surface is the FFT sea, y: its tile size [m]
 } ocean;
+
+layout(set = 0, binding = 1) uniform sampler2D fftDisplacement; // (dx, dy, height) of the tile
+layout(set = 0, binding = 2) uniform sampler2D fftSlopes;       // (dh/dx, dh/dy, jacobian)
 
 layout(location = 0) in vec3 position; // grid point on the mean water level (z = 0)
 
@@ -82,6 +86,19 @@ void main()
         T += vec3(-qkac * d.x * d.x, -qkac * dxy, -kas * d.x);
         B += vec3(-qkac * dxy, -qkac * d.y * d.y, -kas * d.y);
         N += vec3(d.x * kas, d.y * kas, -qkac);
+    }
+
+    if (ocean.fft.x > 0.5)
+    {
+        // the FFT sea replaces the component waves: the periodic tile is looked up at the
+        // world position, fading out beyond a few tiles where its texels turn sub-pixel
+        const vec2 uv = p.xy / ocean.fft.y;
+        const float dist = length(p.xy - cameraEye.xy);
+        const float fade = grow * (1.0 - smoothstep(2.0 * ocean.fft.y, 6.0 * ocean.fft.y, dist));
+        const vec3 d = textureLod(fftDisplacement, uv, 0.0).xyz;
+        const vec2 slope = textureLod(fftSlopes, uv, 0.0).xy;
+        p += fade * vec3(d.xy, d.z);
+        N = normalize(vec3(-fade * slope, 1.0));
     }
 
     // the mean water level offset (sea level)

@@ -92,6 +92,7 @@ set(VSGOCEAN_LIBRARY_SOURCES
     src/core/Environment.cpp
     src/core/Model.cpp
     src/core/UriResolver.cpp
+    src/core/FftWaves.cpp
     src/core/Wavefield.cpp
     # scene: environment rendering, per-camera render pipelines
     src/scene/OceanSurface.cpp

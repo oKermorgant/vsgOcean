@@ -48,6 +48,7 @@ cmake --build build -j
 ./vsgOcean_example --sun 20 200                    # static sun at 20 deg elevation, azimuth 200
 ./vsgOcean_example --wind 8 45 --wave-amplitude 0.2 --wave-period 6
 ./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
+./vsgOcean_example --fft --wind 8 45                # FFT sea (ECKV spectrum, as asv_wave_sim); --fft-tile 256 --fft-choppiness 0.6 --fft-wave-age 0.84
 ./vsgOcean_example --jerlov 8                      # turbid coastal water
 ./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
 ./vsgOcean_example --snow 8 --current 0.5 0 --blur 1  # heavy snow, drifting East, with DOF blur

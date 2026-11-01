@@ -21,8 +21,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    OceanSurface::OceanSurface(uint32_t rings, uint32_t segments) :
-        wavefield_(Wavefield::create())
+    OceanSurface::OceanSurface(uint32_t rings, uint32_t segments, uint32_t fftCells) :
+        wavefield_(Wavefield::create(fftCells))
     {
         // a camera-following disc of concentric rings with an exponentially growing
         // radius: sub-metre cells around the camera resolve the shortest component
@@ -75,12 +75,14 @@ namespace vsgOcean
 
         // uniform block: [0] sun direction, [1] fog color + density, [2] water color,
         // [3] params (t, tau, number, water depth), [4] per-channel attenuation + sea
-        // level, [5..44] component wave arrays
-        uniform_ = vsg::vec4Array::create(5 + 5 * Wavefield::maxWaves);
+        // level, [5..44] component wave arrays, [45] FFT sea (enabled, tile size)
+        uniform_ = vsg::vec4Array::create(6 + 5 * Wavefield::maxWaves);
         uniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
 
         vsg::DescriptorSetLayoutBindings oceanBindings{
-            {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}};
+            {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+            {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},  // FFT displacement
+            {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}}; // FFT slopes
         auto oceanLayout = vsg::DescriptorSetLayout::create(oceanBindings);
 
         // the projection and modelview matrices are pushed by the vsg record traversal
@@ -122,7 +124,16 @@ namespace vsgOcean
         auto pipeline = vsg::GraphicsPipeline::create(pipelineLayout, shaders, pipelineStates);
 
         auto oceanDescriptor = vsg::DescriptorBuffer::create(vsg::DataList{uniform_}, 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        auto oceanSet = vsg::DescriptorSet::create(oceanLayout, vsg::Descriptors{oceanDescriptor});
+
+        // the FFT sea maps tile over the world (periodic, bilinear)
+        auto sampler = vsg::Sampler::create();
+        sampler->addressModeU = sampler->addressModeV = sampler->addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler->magFilter = sampler->minFilter = VK_FILTER_LINEAR;
+        sampler->maxLod = 0.0f;
+        sampler->anisotropyEnable = VK_FALSE;
+        auto displacementDescriptor = vsg::DescriptorImage::create(sampler, wavefield_->fft()->displacement(), 1, 0);
+        auto slopesDescriptor = vsg::DescriptorImage::create(sampler, wavefield_->fft()->slopes(), 2, 0);
+        auto oceanSet = vsg::DescriptorSet::create(oceanLayout, vsg::Descriptors{oceanDescriptor, displacementDescriptor, slopesDescriptor});
 
         auto stateGroup = vsg::StateGroup::create();
         stateGroup->add(vsg::BindGraphicsPipeline::create(pipeline));
@@ -141,7 +152,9 @@ namespace vsgOcean
     {
         // the wave field follows the wind direction
         wavefield_->setDirection(vsg::radians(environment.windDirection()));
+        wavefield_->setWindSpeed(environment.windSpeed());
         wavefield_->recalculate();
+        wavefield_->updateFft(t);
 
         const auto sun = environment.sunDirection();
         const auto attenuation = environment.underwaterAttenuation();
@@ -178,6 +191,9 @@ namespace vsgOcean
                 slot == 0 ? static_cast<float>(environment.windSpeed()) : 0.0f, 0.0f);
             ++slot;
         }
+
+        (*uniform_)[5 + 5 * Wavefield::maxWaves] = vsg::vec4(wavefield_->model() == Wavefield::Model::FFT ? 1.0f : 0.0f,
+                                                            static_cast<float>(wavefield_->fftParameters().tileSize), 0.0f, 0.0f);
 
         uniform_->dirty();
     }

@@ -108,6 +108,15 @@ int main(int argc, char** argv)
         wavefield->setNumber(static_cast<size_t>(settings.waveNumber));
         wavefield->setScale(settings.waveScale);
         wavefield->setAngle(vsg::radians(settings.waveAngle));
+        if (settings.fft)
+        {
+            auto fft = wavefield->fftParameters();
+            fft.tileSize = settings.fftTile;
+            fft.choppiness = settings.fftChoppiness;
+            fft.capOmegaC = settings.fftWaveAge;
+            wavefield->setFftParameters(fft);
+            wavefield->setModel(vsgOcean::Wavefield::Model::FFT);
+        }
 
         // geolocation of the scene: taken from the SDF world when available,
         // Pornichet (France) hard-coded otherwise; --latitude/--longitude override

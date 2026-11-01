@@ -260,18 +260,43 @@ namespace vsgOcean
 
             if (wavefield)
             {
-                auto amplitude = static_cast<float>(wavefield->amplitude());
-                if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 3.0f)) wavefield->setAmplitude(amplitude);
-                auto period = static_cast<float>(wavefield->period());
-                if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
-                auto steepness = static_cast<float>(wavefield->steepness());
-                if (ImGui::SliderFloat("wave steepness", &steepness, 0.0f, 1.0f)) wavefield->setSteepness(steepness);
-                auto number = static_cast<int>(wavefield->number());
-                if (ImGui::SliderInt("wave components", &number, 1, static_cast<int>(Wavefield::maxWaves))) wavefield->setNumber(static_cast<size_t>(number));
-                auto scale = static_cast<float>(wavefield->scale());
-                if (ImGui::SliderFloat("wave scale", &scale, 1.0f, 4.0f)) wavefield->setScale(scale);
-                auto angle = static_cast<float>(vsg::degrees(wavefield->angle()));
-                if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
+                auto fftSea = wavefield->model() == Wavefield::Model::FFT;
+                if (ImGui::Checkbox("FFT sea (ECKV spectrum)", &fftSea)) wavefield->setModel(fftSea ? Wavefield::Model::FFT : Wavefield::Model::CWR);
+                if (fftSea)
+                {
+                    auto fft = wavefield->fftParameters();
+                    auto tile = static_cast<float>(fft.tileSize);
+                    auto choppiness = static_cast<float>(fft.choppiness);
+                    auto waveAge = static_cast<float>(fft.capOmegaC);
+                    auto spread = static_cast<float>(fft.spread);
+                    bool changed = ImGui::SliderFloat("tile size (m)", &tile, 50.0f, 1024.0f);
+                    changed |= ImGui::SliderFloat("choppiness", &choppiness, 0.0f, 1.5f);
+                    changed |= ImGui::SliderFloat("wave age (inverse)", &waveAge, 0.84f, 5.0f);
+                    changed |= ImGui::SliderFloat("directional spread", &spread, 1.0f, 30.0f);
+                    if (changed)
+                    {
+                        fft.tileSize = tile;
+                        fft.choppiness = choppiness;
+                        fft.capOmegaC = waveAge;
+                        fft.spread = spread;
+                        wavefield->setFftParameters(fft);
+                    }
+                }
+                else
+                {
+                    auto amplitude = static_cast<float>(wavefield->amplitude());
+                    if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 3.0f)) wavefield->setAmplitude(amplitude);
+                    auto period = static_cast<float>(wavefield->period());
+                    if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
+                    auto steepness = static_cast<float>(wavefield->steepness());
+                    if (ImGui::SliderFloat("wave steepness", &steepness, 0.0f, 1.0f)) wavefield->setSteepness(steepness);
+                    auto number = static_cast<int>(wavefield->number());
+                    if (ImGui::SliderInt("wave components", &number, 1, static_cast<int>(Wavefield::maxWaves))) wavefield->setNumber(static_cast<size_t>(number));
+                    auto scale = static_cast<float>(wavefield->scale());
+                    if (ImGui::SliderFloat("wave scale", &scale, 1.0f, 4.0f)) wavefield->setScale(scale);
+                    auto angle = static_cast<float>(vsg::degrees(wavefield->angle()));
+                    if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
+                }
             }
 
             ImGui::PopItemWidth();

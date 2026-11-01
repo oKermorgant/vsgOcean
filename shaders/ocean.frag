@@ -25,6 +25,7 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 omega[8];
     vec4 steepness[8];
     vec4 direction[8];    // xy: horizontal direction of the component
+    vec4 fft;             // x: 1 when the surface is the FFT sea (see ocean.vert)
 } ocean;
 // the sun's visibility to the camera (0 occluded .. 1 clear sky - a ray from
 // the camera towards the sun against the world geometry, smoothed) rides in

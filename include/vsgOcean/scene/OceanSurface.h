@@ -34,7 +34,10 @@ namespace vsgOcean
         /// horizon-scale cells far away (sub-pixel there) - the ocean is endless, and the
         /// wave field is sampled at world positions, so the waves stay fixed in the world
         /// as the mesh follows the camera.
-        explicit OceanSurface(uint32_t rings = 96, uint32_t segments = 128);
+        ///
+        /// fftCells: the resolution of the FFT tile of the Wavefield (see FftWaves), fixed
+        /// for the lifetime of the surface.
+        explicit OceanSurface(uint32_t rings = 96, uint32_t segments = 128, uint32_t fftCells = 128);
 
         /// The wave field of the surface (the Gazebo wave model), tunable at any time.
         vsg::ref_ptr<Wavefield> wavefield() const { return wavefield_; }
@@ -59,7 +62,7 @@ namespace vsgOcean
 
         // uniform block layout: [0] sun direction, [1] fog color + density, [2] water color,
         // [3] params (t, tau, number, water depth), [4] attenuation + sea level,
-        // [5..44] component wave arrays
+        // [5..44] component wave arrays, [45] FFT sea (enabled, tile size)
         vsg::ref_ptr<vsg::vec4Array> uniform_;
     };
 }
