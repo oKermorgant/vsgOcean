@@ -150,8 +150,8 @@ float rippleNoise(vec2 p)
 vec2 rippleSlope(vec2 p, float t, vec2 foot)
 {
     // the capillary ripples follow the WIND (less wind = fewer ripples): 1.0 at the
-    // default 5 m/s breeze, near calm below ~2 m/s, saturated above ~10 m/s
-    const float sea = pow(clamp(ocean.direction[0].z / 5.0, 0.0, 1.0), 1.5) + clamp((ocean.direction[0].z - 10.0) / 10.0, 0.0, 0.5);
+    // default 5 m/s breeze, a faint 0.2 floor in dead calm (water is never glass), saturated above ~10 m/s
+    const float sea = 0.2 + 0.8 * pow(clamp(ocean.direction[0].z / 5.0, 0.0, 1.0), 1.5) + clamp((ocean.direction[0].z - 10.0) / 10.0, 0.0, 0.5);
     const vec2 wind = normalize(ocean.direction[7].xy + vec2(1e-5, 0.0));
     const mat2 windFrame = mat2(wind.x, -wind.y, wind.y, wind.x);
 
