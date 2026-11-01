@@ -72,3 +72,6 @@ Thumbs.db
 *.tex.backup
 
 !.gitignore
+
+# ImGui window state written to the working directory
+imgui.ini
