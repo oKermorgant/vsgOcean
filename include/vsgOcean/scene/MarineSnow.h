@@ -40,10 +40,11 @@ namespace vsgOcean
         explicit MarineSnow(uint32_t particles = 10 * 4096, float box = 25.0f);
 
         /// Refresh the snow from the environment (density, current, sun, water
-        /// optics), the simulation time t in seconds, and the scene's world model
-        /// (the lamp collection root, as for the composite's volumetric cones).
-        /// Call every frame, before record.
-        void update(const Environment& environment, double t, vsg::Node* lightsRoot);
+        /// optics), the simulation time t in seconds, and the scene's point and spot
+        /// lights ALREADY COLLECTED for this frame (see Scene::update, which collects
+        /// them once per frame and shares them with the composites). Call every
+        /// frame, before record.
+        void update(const Environment& environment, double t, const std::vector<LampLight>& lamps);
 
     protected:
         const float box_;

@@ -148,8 +148,14 @@ namespace vsgOcean
 
         surface_->update(*environment_, t);
 
+        // the scene's point and spot lights, collected ONCE per frame (a full
+        // scene-graph walk): the marine snow and every pipeline's composite share
+        // this collection, so the walk runs exactly once per frame however many
+        // pipelines there are
+        lampLights_ = collectLampLights(world_.get());
+
         // the marine snow follows the water current and the lamp-lit water column
-        marineSnow_->update(*environment_, t, world_.get());
+        marineSnow_->update(*environment_, t, lampLights_);
 
         // the main pipeline's composite follows the main camera; every other pipeline
         // computes its own (see RenderPipeline::update)
@@ -166,7 +172,7 @@ namespace vsgOcean
                     submersion = environment_->seaLevel() - lookAt->eye.z; // positive below the surface
                 }
             }
-            underwater_->update(*environment_, camera, submersion, world_.get());
+            underwater_->update(*environment_, camera, submersion, &lampLights_);
         }
 
         // camera tracking: the camera follows the tracked frame with a constant

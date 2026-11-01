@@ -112,7 +112,7 @@ namespace vsgOcean
     }
 
     void Underwater::update(const Environment& environment, const vsg::Camera* camera, double submersion,
-                            vsg::Node* lightsRoot)
+                            const std::vector<LampLight>* lamps)
     {
         const auto attenuation = environment.underwaterAttenuation();
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
@@ -177,12 +177,13 @@ namespace vsgOcean
         uniform_->dirty();
 
         // the volumetric lamp cones: the scene's point and spot lights, in world
-        // space, with the water's per-channel scattering coefficient the march
-        // scatters with (the composite uniform block is full - this second block
-        // carries both)
-        if (lightsRoot)
+        // space (collected once per frame by the Scene and shared with the marine
+        // snow and every pipeline), with the water's per-channel scattering
+        // coefficient the march scatters with (the composite uniform block is full -
+        // this second block carries both)
+        if (lamps)
         {
-            packLampLights(collectLampLights(lightsRoot), environment.underwaterScattering(), *lamps_);
+            packLampLights(*lamps, environment.underwaterScattering(), *lamps_);
             lamps_->dirty();
         }
     }

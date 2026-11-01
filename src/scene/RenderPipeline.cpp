@@ -232,7 +232,8 @@ namespace vsgOcean
             }
         }
 
-        composite_->update(*scene->environment(), camera, submersion, scene->world().get());
+        // the lamps are collected once per frame by the Scene and shared
+        composite_->update(*scene->environment(), camera, submersion, &scene->lampLights());
     }
 
     bool RenderPipeline::writeScreenshot(const vsg::Path& filename) const

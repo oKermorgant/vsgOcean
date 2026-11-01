@@ -47,11 +47,13 @@ namespace vsgOcean
 
         /// Refresh the pass from the environment (Jerlov water type, fog), the camera
         /// (eye, inverse view projection, render extent) and this camera's submersion
-        /// depth below the surface (each pipeline computes its own). lightsRoot (the
-        /// scene's world model) provides the point and spot lights for the volumetric
-        /// cones; null skips the march. Call every frame, before record.
+        /// depth below the surface (each pipeline computes its own). lamps are the
+        /// scene's point and spot lights ALREADY COLLECTED for this frame (see
+        /// Scene::update, which collects them once per frame and shares them with the
+        /// marine snow and every pipeline); null skips the march. Call every frame,
+        /// before record.
         void update(const Environment& environment, const vsg::Camera* camera, double submersion,
-                    vsg::Node* lightsRoot = nullptr);
+                    const std::vector<LampLight>* lamps = nullptr);
 
     protected:
         // uniform block: [0..3] inverse view projection, [4] eye + submersion depth,

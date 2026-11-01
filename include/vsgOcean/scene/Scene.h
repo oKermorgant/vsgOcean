@@ -91,6 +91,12 @@ namespace vsgOcean
         [[nodiscard]] vsg::ref_ptr<Underwater> underwater() const { return underwater_; }
         void setUnderwater(const vsg::ref_ptr<Underwater>& underwater) { underwater_ = underwater; }
 
+        /// The scene's point and spot lights in world space, collected ONCE by
+        /// update() each frame (a full scene-graph walk) and shared by the marine
+        /// snow and every pipeline's composite - nobody else should walk the graph
+        /// for the lights.
+        [[nodiscard]] const std::vector<LampLight>& lampLights() const { return lampLights_; }
+
         /// The ambient light, dimmed at night by update().
         vsg::ref_ptr<vsg::AmbientLight> ambientLight() const { return ambientLight_; }
 
@@ -118,6 +124,7 @@ namespace vsgOcean
         vsg::ref_ptr<MarineSnow> marineSnow_;
         vsg::ref_ptr<vsg::Switch> surfaceSwitch_;
         vsg::ref_ptr<Underwater> underwater_;
+        std::vector<LampLight> lampLights_;
         vsg::ref_ptr<vsg::AmbientLight> ambientLight_;
         vsg::ref_ptr<vsg::DirectionalLight> sunLight_;
         std::string trackedFrame_;

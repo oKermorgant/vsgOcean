@@ -106,7 +106,7 @@ namespace vsgOcean
         addChild(stateGroup);
     }
 
-    void MarineSnow::update(const Environment& environment, double t, vsg::Node* lightsRoot)
+    void MarineSnow::update(const Environment& environment, double t, const std::vector<LampLight>& lamps)
     {
         const auto attenuation = environment.underwaterAttenuation();
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
@@ -122,7 +122,7 @@ namespace vsgOcean
         (*uniform_)[4] = vsg::vec4(attenuation, 0.0f);
         (*uniform_)[5] = vsg::vec4(attenuation.x / 3.0f, attenuation.y / 3.0f, attenuation.z / 3.0f, 0.0f); // the horizontal beam
 
-        packLampLights(collectLampLights(lightsRoot), environment.underwaterScattering(), *uniform_, 6);
+        packLampLights(lamps, environment.underwaterScattering(), *uniform_, 6);
 
         uniform_->dirty();
     }
