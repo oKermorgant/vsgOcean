@@ -45,6 +45,12 @@ layout(std140, set = 0, binding = 3) uniform Lamps
                    // cos(outer) + range, colour
 } lamps;
 
+// interleaved gradient noise (Jimenez): a per-pixel jitter in [0, 1)
+float ign(vec2 p)
+{
+    return fract(52.9829189 * fract(0.06711056 * p.x + 0.00583715 * p.y));
+}
+
 // FXAA (the compact 3.11 console variant): the offscreen render target has no
 // multisampling (the software rasterizer makes MSAA prohibitively expensive), so
 // the composite blends the scene colour across aliased geometric edges before the
@@ -116,12 +122,22 @@ vec3 lampMarch(vec3 viewDir, float tStart, float tEnd)
         const float farT = min(projection + hit, tEnd);
         if (farT <= nearT) continue;
 
-        // ~0.5 m steps, clamped: short water paths stay cheap
-        const int steps = int(clamp((farT - nearT) * 2.0, 4.0, 24.0));
-        const float dt = (farT - nearT) / float(steps);
+        // equi-angular sampling (Kulla and Fajardo): the light falls off as 1/(d^2 + 1), so
+        // the samples are spread evenly in the angle seen from the lamp instead of evenly
+        // in distance. Fixed ~0.5 m steps left a handful of bright blobs along the ray, one
+        // per sample near the lamp (the beam read as several stacked ellipsoids); a
+        // per-pixel jitter decorrelates the remaining error into fine noise
+        const float lampDistance = sqrt(max(dot(oc, oc) - projection * projection, 0.0) + 1.0);
+        const float angleNear = atan((nearT - projection) / lampDistance);
+        const float angleFar = atan((farT - projection) / lampDistance);
+        const int steps = 16;
+        const float jitter = ign(gl_FragCoord.xy + float(i) * 17.0);
         for (int s = 0; s < steps; ++s)
         {
-            const float t = nearT + dt * (float(s) + 0.5);
+            const float angle = mix(angleNear, angleFar, (float(s) + jitter) / float(steps));
+            const float along = lampDistance * tan(angle);
+            const float t = projection + along;
+            const float dt = (angleFar - angleNear) * (lampDistance * lampDistance + along * along) / (lampDistance * float(steps));
             const vec3 p = env.eye.xyz + viewDir * t;
             const vec3 toLamp = lampPos - p;
             const float d = length(toLamp);
