@@ -73,6 +73,12 @@ namespace vsgOcean
         /// and the environment. Call every frame, before record.
         void update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t);
 
+        /// Skip or resume this pipeline's draws (e.g. a sensor pipeline whose preview
+        /// is off screen): the scene and composite views are masked out of the record
+        /// traversal, so the render passes reduce to a near-free target clear. Plain
+        /// mask fields - no Vulkan object is touched, safe to change every frame.
+        void setEnabled(bool enabled);
+
     protected:
         void buildScenePass(const vsg::vec4& clearColor);
         void createOutputImage(VkExtent2D extent);
@@ -88,6 +94,8 @@ namespace vsgOcean
         vsg::ref_ptr<RenderTarget> target_;
         vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph_;
         vsg::ref_ptr<vsg::RenderGraph> compositeRenderGraph_;
+        vsg::ref_ptr<vsg::View> sceneView_;
+        vsg::ref_ptr<vsg::View> compositeView_;
         vsg::ref_ptr<vsg::Image> outputImage_;
         vsg::ref_ptr<vsg::ImageView> outputView_;
         vsg::ref_ptr<Underwater> composite_;

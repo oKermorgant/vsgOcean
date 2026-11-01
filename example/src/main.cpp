@@ -359,23 +359,29 @@ int main(int argc, char** argv)
 
         auto overlay = vsg::Group::create();
         if (auto hud = vsgOcean::createEnvironmentHud(controls, options, window->extent2D())) overlay->addChild(hud);
-        if (auto gui = vsgOcean::createEnvironmentGui(window, viewer, controls, cameraViews)) overlay->addChild(gui);
+        bool guiBuilt = false;
+        if (auto gui = vsgOcean::createEnvironmentGui(window, viewer, controls, cameraViews))
+        {
+            overlay->addChild(gui);
+            guiBuilt = true;
+        }
         auto mainPipeline = vsgOcean::RenderPipeline::create(vsg_scene, window, camera);
         vsg_scene->setUnderwater(mainPipeline->composite());
         auto commandGraph = vsgOcean::createCommandGraph(window, viewer, mainPipeline, overlay);
 
         // the sensor pipelines render into the same command graph, before the window
-        // pass (their composited images are sampled by the GUI previews)
+        // pass (their composited images are sampled by the GUI previews). Their render
+        // graphs are MASKED OUT whenever the previews are not on screen: the record
+        // traversal skips masked children, so the two full scene renders are skipped -
+        // a plain mask field, no Vulkan object is touched (safe mid-run)
+        std::vector<vsg::ref_ptr<vsg::RenderGraph>> sensorGraphs;
+        for (const auto& pipeline : {rovPipeline, boatPipeline})
         {
-            std::vector<vsg::ref_ptr<vsg::RenderGraph>> sensorGraphs;
-            for (const auto& pipeline : {rovPipeline, boatPipeline})
-            {
-                if (!pipeline) continue;
-                sensorGraphs.push_back(pipeline->sceneRenderGraph());
-                sensorGraphs.push_back(pipeline->compositeRenderGraph());
-            }
-            commandGraph->children.insert(commandGraph->children.end() - 1, sensorGraphs.begin(), sensorGraphs.end());
+            if (!pipeline) continue;
+            sensorGraphs.push_back(pipeline->sceneRenderGraph());
+            sensorGraphs.push_back(pipeline->compositeRenderGraph());
         }
+        commandGraph->children.insert(commandGraph->children.end() - 1, sensorGraphs.begin(), sensorGraphs.end());
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 
         if (settings.overrideEye) lookAt->eye = settings.eye;
@@ -467,7 +473,14 @@ int main(int argc, char** argv)
             vsg_scene->update(camera, t);
 
             // refresh the sensor pipelines with their own cameras (each computes its
-            // own submersion, so the ROV camera renders underwater)
+            // own submersion, so the ROV camera renders underwater). The refresh is
+            // cheap and keeps their state current, so a re-shown preview is right in
+            // the first frame; only the expensive scene renders are skipped while
+            // the previews are off screen (the panel and the camera widget both gate
+            // them)
+            const bool previewsVisible = guiBuilt && controls->panelVisible && controls->camerasVisible;
+            if (rovPipeline) rovPipeline->setEnabled(previewsVisible);
+            if (boatPipeline) boatPipeline->setEnabled(previewsVisible);
             if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->camera().get(), t);
             if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->camera().get(), t);
 

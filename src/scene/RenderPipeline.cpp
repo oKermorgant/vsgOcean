@@ -110,8 +110,8 @@ namespace vsgOcean
     void RenderPipeline::buildScenePass(const vsg::vec4& clearColor)
     {
         // the scene pass: sky, lighting, models and ocean surface into the offscreen target
-        auto view = vsg::View::create(camera_);
-        view->addChild(scene_);
+        sceneView_ = vsg::View::create(camera_);
+        sceneView_->addChild(scene_);
         scene_ = {}; // the view holds the reference from here on
 
         sceneRenderGraph_ = vsg::RenderGraph::create();
@@ -123,7 +123,7 @@ namespace vsgOcean
         sceneRenderGraph_->clearValues[0].color = clearColor;
         sceneRenderGraph_->clearValues[1].depthStencil = {0.0f, 0}; // reversed depth: 0 is far
         sceneRenderGraph_->windowResizeHandler = {};                 // the pipeline handles its own resize
-        sceneRenderGraph_->addChild(view);
+        sceneRenderGraph_->addChild(sceneView_);
     }
 
     void RenderPipeline::createOutputImage(VkExtent2D extent)
@@ -163,8 +163,8 @@ namespace vsgOcean
         subpass.colorAttachments = {{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
         auto renderPass = vsg::RenderPass::create(device_.get(), attachments, vsg::RenderPass::Subpasses{subpass}, vsg::RenderPass::Dependencies{});
 
-        auto compositeView = vsg::View::create(camera_);
-        compositeView->addChild(composite_);
+        compositeView_ = vsg::View::create(camera_);
+        compositeView_->addChild(composite_);
 
         compositeRenderGraph_ = vsg::RenderGraph::create();
         compositeRenderGraph_->renderPass = renderPass;
@@ -174,7 +174,7 @@ namespace vsgOcean
         compositeRenderGraph_->clearValues.resize(1);
         compositeRenderGraph_->clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
         compositeRenderGraph_->windowResizeHandler = {};
-        compositeRenderGraph_->addChild(compositeView);
+        compositeRenderGraph_->addChild(compositeView_);
     }
 
     RenderPipeline::RenderPipeline(const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Camera> camera) :
@@ -208,6 +208,13 @@ namespace vsgOcean
         buildScenePass(vsg::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         createOutputImage(extent_);
         buildCompositePass();
+    }
+
+    void RenderPipeline::setEnabled(bool enabled)
+    {
+        const auto mask = enabled ? vsg::MASK_ALL : vsg::MASK_OFF;
+        if (sceneView_) sceneView_->mask = mask;
+        if (compositeView_) compositeView_->mask = mask;
     }
 
     void RenderPipeline::update(const vsg::ref_ptr<Scene>& scene, const vsg::Camera* camera, double t)
