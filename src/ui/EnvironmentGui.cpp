@@ -91,7 +91,7 @@ namespace vsgOcean
 
         bool drawHelp(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene)
         {
-            if (!controls->panelVisible) return true;
+            if (!controls->helpVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Once);
             ImGui::Begin("vsgOcean help");
@@ -124,7 +124,7 @@ namespace vsgOcean
         // above the water - the fog distance haze and the cloud cover
         bool drawSkyWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Environment>& environment)
         {
-            if (!controls->panelVisible) return true;
+            if (!controls->skyVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(10.0f, 420.0f), ImGuiCond_Once);
             ImGui::Begin("sky");
@@ -159,10 +159,10 @@ namespace vsgOcean
         bool drawSurfaceWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene,
                                const vsg::ref_ptr<Environment>& environment, const vsg::ref_ptr<Wavefield>& wavefield)
         {
-            if (!controls->panelVisible) return true;
+            if (!controls->surfaceVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(360.0f, 10.0f), ImGuiCond_Once);
-            ImGui::Begin("surface");
+            ImGui::Begin("ocean surface");
 
             auto wind = static_cast<float>(environment->windSpeed());
             if (ImGui::SliderFloat("wind speed (m/s)", &wind, 0.0f, 30.0f)) environment->setWindSpeed(wind);
@@ -194,7 +194,7 @@ namespace vsgOcean
         // level, the drift of the water column and its particles
         bool drawUnderwaterWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Environment>& environment)
         {
-            if (!controls->panelVisible) return true;
+            if (!controls->underwaterVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(360.0f, 250.0f), ImGuiCond_Once);
             ImGui::Begin("underwater");
@@ -222,6 +222,9 @@ namespace vsgOcean
 
             auto snow = static_cast<float>(environment->marineSnowDensity());
             if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 10.0f)) environment->setMarineSnowDensity(snow);
+
+            auto blur = environment->underwaterBlur();
+            if (ImGui::Checkbox("underwater DOF blur", &blur)) environment->setUnderwaterBlur(blur);
 
             ImGui::End();
             return true;

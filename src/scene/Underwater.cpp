@@ -184,6 +184,12 @@ namespace vsgOcean
         if (lamps)
         {
             packLampLights(*lamps, environment.underwaterScattering(), *lamps_);
+
+            // the composite's settings ride in the spare components of the first
+            // light's cone slot (GLSL lamp[2].zw - the shader never reads them):
+            // .z carries the underwater DOF blur toggle. The composite's own block
+            // is full (see lessons.md - its layout must not change size)
+            if (lamps_->size() > 4) (*lamps_)[3].z = environment.underwaterBlur() ? 1.0f : 0.0f;
             lamps_->dirty();
         }
     }

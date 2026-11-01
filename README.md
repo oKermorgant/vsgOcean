@@ -50,7 +50,7 @@ cmake --build build -j
 ./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
 ./vsgOcean_example --jerlov 8                      # turbid coastal water
 ./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
-./vsgOcean_example --snow 8 --current 0.5 0        # heavy marine snow (up to 10), drifting East
+./vsgOcean_example --snow 8 --current 0.5 0 --blur 0  # heavy snow, drifting East, no DOF blur
 ./vsgOcean_example --latitude -35 --longitude 18   # the southern hemisphere: Crux replaces the Dipper
 ./vsgOcean_example --clouds 0.8                       # overcast: no sun disc, no stars
 ./vsgOcean_example --debug --eye 12 5 -40          # validation layers, camera near the wreck
@@ -67,34 +67,32 @@ cmake --build build -j
 ### Runtime controls
 
 The environment can be tuned at runtime (`vsgOcean::EnvironmentControls`, a library
-feature also usable headless through the keyboard):
+feature also usable headless through the keyboard). The keys are deliberately few — the
+tuning lives in the widgets:
 
 | input | action |
 | --- | --- |
 | left drag / right drag / wheel | translate / orbit (stable horizon) / dolly |
-| Up, Down | sun elevation |
-| Left, Right | sun azimuth |
-| Page Up, Page Down | sea level |
-| A / D, Q / E, W / S | wave amplitude, wave period, wind speed |
-| Z / C | Jerlov water type |
-| N / M | marine snow density |
-| , / . | cloud cover |
-| [ / ] | water current speed |
-| P | ocean surface on / off |
-| Space | day cycle animation on / off |
+| H | help window on / off (the bindings and the model tracking) |
+| C | camera previews on / off (shown by default) |
+| S | sky widget on / off (sun, day cycle, fog, cloud cover) |
+| O | ocean surface widget on / off (wind, waves) |
+| U | underwater widget on / off (water optics, current, snow, DOF blur) |
 | Tab | cycle the tracked model (camera follows) |
-| V | camera preview widget on / off (shown by default) |
-| H | sliders panel on / off (hidden by default) |
+| Esc | quit |
 
-The key bindings are always visible in a small HUD in a corner of the window. When
-vsgOcean is built with vsgImGui, the **H** key also toggles the widgets: a help window
-(the basic keys and the model tracking dropdown) and three tuning widgets grouped by
-layer — **sky** (sun, day cycle, fog, cloud cover), **surface** (wind, waves, the ocean
-surface toggle) and **underwater** (Jerlov water type, sea level, current, marine snow).
-The widgets read the environment every frame and write only on change: an update from
-outside (a topic, the code, a key binding) is reflected immediately, and changing a
+The bindings are always visible in a small HUD in a corner of the window. When
+vsgOcean is built with vsgImGui, each of the four widgets is its own window (toggled by
+the key above); the widgets read the environment every frame and write only on change:
+an update from outside (a topic, the code) is reflected immediately, and changing a
 widget takes over from any preset. The font for the HUD is loaded from the system
 (override with the `VSGOCEAN_FONT` environment variable).
+
+The underwater widget also carries the **underwater depth-of-field blur** (as
+osgOcean's underwater DOF, on by default, `--blur 0/1` on the example): the water's
+turbidity blurs the view with the water path length — near objects stay sharp, distant
+ones dissolve into the water — following the Jerlov beam attenuation, so a coastal
+water blurs much sooner than a clear oceanic one.
 
 ## Roadmap
 

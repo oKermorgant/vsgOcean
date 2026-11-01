@@ -23,110 +23,31 @@ namespace vsgOcean
 
     void EnvironmentControls::apply(vsg::KeyPressEvent& keyPress)
     {
-        // while the GUI captures the input the keys are its - except H and V, which
-        // must always be able to hide the panel and the camera widget
-        if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_v) return;
-        if (!scene_) return;
-        const auto environment = scene_->environment();
-        const auto surface = scene_->surface();
-        const auto wavefield = surface ? surface->wavefield() : nullptr;
-
-        // any sun adjustment takes over from the day cycle animation
-        auto adjustSun = [&]()
+        // the environment tuning lives in the GUI widgets; the keys only toggle the
+        // widgets themselves (and must always be able to hide a capturing GUI)
+        if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_c
+            && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u)
         {
-            sunCycleEnabled = false;
-            return true;
-        };
+            return;
+        }
+        if (!scene_) return;
 
         switch (keyPress.keyBase)
         {
-        case vsg::KEY_Up:
-            if (adjustSun()) environment->setSunElevation(environment->sunElevation() + 2.0);
+        case vsg::KEY_h:
+            helpVisible = !helpVisible;
             break;
-        case vsg::KEY_Down:
-            if (adjustSun()) environment->setSunElevation(environment->sunElevation() - 2.0);
-            break;
-        case vsg::KEY_Right:
-            if (adjustSun()) environment->setSunAzimuth(environment->sunAzimuth() + 5.0);
-            break;
-        case vsg::KEY_Left:
-            if (adjustSun()) environment->setSunAzimuth(environment->sunAzimuth() - 5.0);
-            break;
-        case vsg::KEY_Page_Up:
-            environment->setSeaLevel(environment->seaLevel() + 0.5);
-            break;
-        case vsg::KEY_Page_Down:
-            environment->setSeaLevel(environment->seaLevel() - 0.5);
-            break;
-        case vsg::KEY_a:
-            if (wavefield) wavefield->setAmplitude(std::max(wavefield->amplitude() - 0.1, 0.0));
-            break;
-        case vsg::KEY_d:
-            if (wavefield) wavefield->setAmplitude(wavefield->amplitude() + 0.1);
-            break;
-        case vsg::KEY_q:
-            if (wavefield) wavefield->setPeriod(std::max(wavefield->period() - 0.5, 1.0));
-            break;
-        case vsg::KEY_e:
-            if (wavefield) wavefield->setPeriod(wavefield->period() + 0.5);
-            break;
-        case vsg::KEY_w:
-            environment->setWindSpeed(environment->windSpeed() + 1.0);
+        case vsg::KEY_c:
+            camerasVisible = !camerasVisible;
             break;
         case vsg::KEY_s:
-            environment->setWindSpeed(std::max(environment->windSpeed() - 1.0, 0.0));
+            skyVisible = !skyVisible;
             break;
-        case vsg::KEY_z:
-        {
-            const auto type = std::max(static_cast<int>(environment->jerlovType()) - 1, 0);
-            environment->setJerlovType(static_cast<Environment::JerlovType>(type));
+        case vsg::KEY_o:
+            surfaceVisible = !surfaceVisible;
             break;
-        }
-        case vsg::KEY_c:
-        {
-            const auto type = std::min(static_cast<int>(environment->jerlovType()) + 1,
-                                       static_cast<int>(Environment::JerlovType::Coastal9));
-            environment->setJerlovType(static_cast<Environment::JerlovType>(type));
-            break;
-        }
-        case vsg::KEY_p:
-            scene_->setSurfaceEnabled(!scene_->surfaceEnabled());
-            break;
-        case vsg::KEY_n:
-            environment->setMarineSnowDensity(environment->marineSnowDensity() - 0.25);
-            break;
-        case vsg::KEY_m:
-            environment->setMarineSnowDensity(environment->marineSnowDensity() + 0.25);
-            break;
-        case vsg::KEY_Comma:
-            environment->setCloudiness(environment->cloudiness() - 0.1);
-            break;
-        case vsg::KEY_Period:
-            environment->setCloudiness(environment->cloudiness() + 0.1);
-            break;
-        case vsg::KEY_Leftbracket:
-        {
-            // slow the water current along its direction (0: no drift)
-            auto current = environment->waterCurrent();
-            const auto speed = std::max(vsg::length(vsg::vec2(current.x, current.y)) - 0.1f, 0.0f);
-            const auto direction = vsg::length(vsg::vec2(current.x, current.y)) > 1.0e-3f
-                                      ? vsg::normalize(vsg::vec2(current.x, current.y))
-                                      : vsg::vec2(1.0f, 0.0f);
-            environment->setWaterCurrent(vsg::vec3(direction.x * speed, direction.y * speed, current.z));
-            break;
-        }
-        case vsg::KEY_Rightbracket:
-        {
-            auto current = environment->waterCurrent();
-            const auto speed = vsg::length(vsg::vec2(current.x, current.y)) + 0.1f;
-            const auto direction = vsg::length(vsg::vec2(current.x, current.y)) > 1.0e-3f
-                                      ? vsg::normalize(vsg::vec2(current.x, current.y))
-                                      : vsg::vec2(1.0f, 0.0f);
-            environment->setWaterCurrent(vsg::vec3(direction.x * speed, direction.y * speed, current.z));
-            break;
-        }
-        case vsg::KEY_Space:
-            sunCycleEnabled = !sunCycleEnabled;
+        case vsg::KEY_u:
+            underwaterVisible = !underwaterVisible;
             break;
         case vsg::KEY_Tab:
         {
@@ -142,12 +63,6 @@ namespace vsgOcean
             scene_->setTrackedFrame(next < names.size() ? names[next] : std::string{});
             break;
         }
-        case vsg::KEY_h:
-            panelVisible = !panelVisible;
-            break;
-        case vsg::KEY_v:
-            camerasVisible = !camerasVisible;
-            break;
         default:
             break;
         }

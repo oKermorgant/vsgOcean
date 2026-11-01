@@ -92,6 +92,10 @@ int main(int argc, char** argv)
         {
             environment->setCloudiness(settings.cloudiness);
         }
+        if (settings.overrideBlur)
+        {
+            environment->setUnderwaterBlur(settings.underwaterBlur);
+        }
         if (settings.overrideCurrent)
         {
             environment->setWaterCurrent(settings.waterCurrent);

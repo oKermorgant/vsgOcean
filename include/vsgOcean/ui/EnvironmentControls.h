@@ -31,25 +31,16 @@ namespace vsgOcean
     public:
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
-        inline static constexpr std::array<Binding, 19> bindings{{
+        inline static constexpr std::array<Binding, 10> bindings{{
             {"mouse left drag", "orbit the view (stable horizon)"},
             {"mouse right drag", "translate the camera"},
             {"mouse wheel", "dolly in / out"},
-            {"Up / Down", "sun elevation"},
-            {"Left / Right", "sun azimuth"},
-            {"Page Up / Down", "sea level"},
-            {"A / D", "wave amplitude"},
-            {"Q / E", "wave period"},
-            {"W / S", "wind speed"},
-            {"Z / C", "Jerlov water type"},
-            {"N / M", "marine snow density"},
-            {", / .", "cloud cover (hides the sun / stars)"},
-            {"[ / ]", "water current speed"},
-            {"P", "ocean surface on / off"},
-            {"Space", "day cycle animation on / off"},
+            {"H", "help + common controls"},
+            {"C", "camera previews on / off"},
+            {"S", "sky widget on / off"},
+            {"O", "ocean surface widget on / off"},
+            {"U", "underwater widget on / off"},
             {"Tab", "cycle the tracked model"},
-            {"V", "camera previews on / off"},
-            {"H", "sliders panel on / off"},
             {"Esc", "quit"},
         }};
 
@@ -58,14 +49,23 @@ namespace vsgOcean
         /// The controlled scene.
         const vsg::ref_ptr<Scene>& scene() const { return scene_; }
 
-        /// Whether the help / tuning panel is visible (toggled with the H key).
-        /// Hidden by default: the bindings stay visible in the HUD, the sliders come
-        /// with the panel.
-        bool panelVisible = false;
+        /// Whether the help window is visible (the H key: the basic bindings and the
+        /// common controls - model tracking). Hidden by default: the bindings stay
+        /// visible in the HUD.
+        bool helpVisible = false;
 
-        /// Whether the camera preview widget is visible (toggled with the V key).
-        /// Independent of the tuning panel; shown by default.
+        /// Whether the camera preview widget is visible (the C key). Shown by default.
         bool camerasVisible = true;
+
+        /// Whether the sky widget is visible (the S key): sun, day cycle, fog, clouds.
+        bool skyVisible = false;
+
+        /// Whether the ocean surface widget is visible (the O key): wind, waves.
+        bool surfaceVisible = false;
+
+        /// Whether the underwater widget is visible (the U key): water optics,
+        /// current, marine snow. Hidden by default.
+        bool underwaterVisible = false;
 
         /// Whether a GUI currently captures the input (set by the environment GUI each
         /// frame from the ImGui state). The keyboard controls ignore keys while it is
@@ -73,7 +73,7 @@ namespace vsgOcean
         bool guiCapturesInput = false;
 
         /// Whether the host application should keep animating the sun through the day.
-        /// Set to false whenever the sun pose is adjusted through the keys or the GUI.
+        /// Set to false whenever the sun pose is adjusted through the GUI widgets.
         bool sunCycleEnabled = true;
 
         void apply(vsg::KeyPressEvent& keyPress) override;

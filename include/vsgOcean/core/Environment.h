@@ -115,6 +115,13 @@ namespace vsgOcean
         void setCloudiness(double cloudiness);
         double cloudiness() const { return cloudiness_; }
 
+        /// The underwater depth-of-field blur (as osgOcean's underwater DOF): the
+        /// water's turbidity blurs the view with the water path length - objects
+        /// near the camera stay sharp, distant ones dissolve into the water colour.
+        /// Follows the Jerlov beam attenuation. Default on.
+        void setUnderwaterBlur(bool enabled);
+        bool underwaterBlur() const { return underwaterBlur_; }
+
         /// The water current the underwater environment drifts with, in m/s in the
         /// world frame (+X East, +Y North, +Z Up): the marine snow advects along it.
         /// Driven at runtime from the outside (a dynamics simulator / a topic).
@@ -156,6 +163,7 @@ namespace vsgOcean
         double seaLevel_{0.0};
         double marineSnowDensity_{0.6};
         double cloudiness_{0.0};
+        bool underwaterBlur_{true};
         vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame
         double latitude_{0.0};
         double longitude_{0.0};

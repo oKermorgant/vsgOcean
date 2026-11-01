@@ -110,6 +110,11 @@ namespace vsgOcean
         cloudiness_ = std::clamp(cloudiness, 0.0, 1.0);
     }
 
+    void Environment::setUnderwaterBlur(bool enabled)
+    {
+        underwaterBlur_ = enabled;
+    }
+
     std::string Environment::jerlovName() const
     {
         return jerlovTable[static_cast<uint8_t>(jerlovType_)].name;
