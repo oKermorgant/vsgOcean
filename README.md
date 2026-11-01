@@ -87,10 +87,14 @@ feature also usable headless through the keyboard):
 | H | sliders panel on / off (hidden by default) |
 
 The key bindings are always visible in a small HUD in a corner of the window. When
-vsgOcean is built with vsgImGui, the **H** key also toggles a panel with the same
-parameters as sliders plus a dropdown selecting the tracked model; the font for the
-HUD is loaded from the system (override with the `VSGOCEAN_FONT` environment
-variable).
+vsgOcean is built with vsgImGui, the **H** key also toggles the widgets: a help window
+(the basic keys and the model tracking dropdown) and three tuning widgets grouped by
+layer — **sky** (sun, day cycle, fog, cloud cover), **surface** (wind, waves, the ocean
+surface toggle) and **underwater** (Jerlov water type, sea level, current, marine snow).
+The widgets read the environment every frame and write only on change: an update from
+outside (a topic, the code, a key binding) is reflected immediately, and changing a
+widget takes over from any preset. The font for the HUD is loaded from the system
+(override with the `VSGOCEAN_FONT` environment variable).
 
 ## Roadmap
 

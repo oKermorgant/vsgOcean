@@ -81,15 +81,20 @@ namespace vsgOcean
             return true;
         }
 
-        // the environment panel: bindings, model tracking, sliders
-        bool drawEnvironmentPanel(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene,
-                                  const vsg::ref_ptr<Environment>& environment, const vsg::ref_ptr<OceanSurface>& surface,
-                                  const vsg::ref_ptr<Wavefield>& wavefield)
+        // The tuning widgets read the environment / wave field EVERY frame and write
+        // only on change: an external update (a topic, the code, a key binding) is
+        // reflected immediately, and a widget change takes over from any preset
+        // (e.g. moving the sun stops the day-cycle animation).
+        //
+        // drawHelp: the basic key bindings and the model tracking. The tuning widgets
+        // follow, grouped by layer of the environment.
+
+        bool drawHelp(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene)
         {
             if (!controls->panelVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Once);
-            ImGui::Begin("vsgOcean");
+            ImGui::Begin("vsgOcean help");
 
             for (const auto& [key, action] : EnvironmentControls::bindings)
             {
@@ -111,12 +116,23 @@ namespace vsgOcean
                 scene->setTrackedFrame(current == 0 ? std::string{} : models[static_cast<size_t>(current) - 1]);
             }
 
-            ImGui::Separator();
+            ImGui::End();
+            return true;
+        }
+
+        // the sky layer: the sun (with the day-cycle animation) and the weather
+        // above the water - the fog distance haze and the cloud cover
+        bool drawSkyWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Environment>& environment)
+        {
+            if (!controls->panelVisible) return true;
+
+            ImGui::SetNextWindowPos(ImVec2(10.0f, 420.0f), ImGuiCond_Once);
+            ImGui::Begin("sky");
 
             auto sun = static_cast<float>(environment->sunElevation());
             if (ImGui::SliderFloat("sun elevation (deg)", &sun, -90.0f, 90.0f))
             {
-                controls->sunCycleEnabled = false;
+                controls->sunCycleEnabled = false; // the widget takes over the animation
                 environment->setSunElevation(sun);
             }
             sun = static_cast<float>(environment->sunAzimuth());
@@ -126,7 +142,62 @@ namespace vsgOcean
                 environment->setSunAzimuth(sun);
             }
             ImGui::Checkbox("day cycle animation", &controls->sunCycleEnabled);
-            ImGui::Separator();
+
+            auto fog = static_cast<float>(environment->fogDensity());
+            if (ImGui::SliderFloat("fog density", &fog, 0.0f, 1.0f, "%.3f")) environment->setFogDensity(fog);
+
+            auto clouds = static_cast<float>(environment->cloudiness());
+            if (ImGui::SliderFloat("cloud cover", &clouds, 0.0f, 1.0f)) environment->setCloudiness(clouds);
+
+            ImGui::End();
+            return true;
+        }
+
+        // the surface layer: the wind driving the waves (the wind DIRECTION is not
+        // exposed here yet - a maritime compass widget comes later) and the wave
+        // field of the ocean surface
+        bool drawSurfaceWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene,
+                               const vsg::ref_ptr<Environment>& environment, const vsg::ref_ptr<Wavefield>& wavefield)
+        {
+            if (!controls->panelVisible) return true;
+
+            ImGui::SetNextWindowPos(ImVec2(360.0f, 10.0f), ImGuiCond_Once);
+            ImGui::Begin("surface");
+
+            auto wind = static_cast<float>(environment->windSpeed());
+            if (ImGui::SliderFloat("wind speed (m/s)", &wind, 0.0f, 30.0f)) environment->setWindSpeed(wind);
+
+            auto water = scene->surfaceEnabled();
+            if (ImGui::Checkbox("ocean surface", &water)) scene->setSurfaceEnabled(water);
+
+            if (wavefield)
+            {
+                auto amplitude = static_cast<float>(wavefield->amplitude());
+                if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 3.0f)) wavefield->setAmplitude(amplitude);
+                auto period = static_cast<float>(wavefield->period());
+                if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
+                auto steepness = static_cast<float>(wavefield->steepness());
+                if (ImGui::SliderFloat("wave steepness", &steepness, 0.0f, 1.0f)) wavefield->setSteepness(steepness);
+                auto number = static_cast<int>(wavefield->number());
+                if (ImGui::SliderInt("wave components", &number, 1, static_cast<int>(Wavefield::maxWaves))) wavefield->setNumber(static_cast<size_t>(number));
+                auto scale = static_cast<float>(wavefield->scale());
+                if (ImGui::SliderFloat("wave scale", &scale, 1.0f, 4.0f)) wavefield->setScale(scale);
+                auto angle = static_cast<float>(vsg::degrees(wavefield->angle()));
+                if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
+            }
+
+            ImGui::End();
+            return true;
+        }
+
+        // the underwater layer: the water optics (the Jerlov taxonomy), the sea
+        // level, the drift of the water column and its particles
+        bool drawUnderwaterWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Environment>& environment)
+        {
+            if (!controls->panelVisible) return true;
+
+            ImGui::SetNextWindowPos(ImVec2(360.0f, 250.0f), ImGuiCond_Once);
+            ImGui::Begin("underwater");
 
             auto jerlov = static_cast<int>(environment->jerlovType());
             if (ImGui::SliderInt("Jerlov water type", &jerlov, 0, 8))
@@ -139,10 +210,6 @@ namespace vsgOcean
             auto sea = static_cast<float>(environment->seaLevel());
             if (ImGui::SliderFloat("sea level (m)", &sea, -50.0f, 10.0f)) environment->setSeaLevel(sea);
 
-            auto snow = static_cast<float>(environment->marineSnowDensity());
-            if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 10.0f)) environment->setMarineSnowDensity(snow);
-            auto clouds = static_cast<float>(environment->cloudiness());
-            if (ImGui::SliderFloat("cloud cover", &clouds, 0.0f, 1.0f)) environment->setCloudiness(clouds);
             auto drift = environment->waterCurrent();
             auto driftSpeed = vsg::length(vsg::vec2(drift.x, drift.y));
             if (ImGui::SliderFloat("water current (m/s)", &driftSpeed, 0.0f, 2.0f))
@@ -153,36 +220,8 @@ namespace vsgOcean
                 environment->setWaterCurrent(vsg::vec3(dir.x * driftSpeed, dir.y * driftSpeed, drift.z));
             }
 
-            auto water = scene->surfaceEnabled();
-            if (ImGui::Checkbox("ocean surface", &water))
-            {
-                scene->setSurfaceEnabled(water);
-            }
-            ImGui::Separator();
-
-            auto wind = static_cast<float>(environment->windSpeed());
-            if (ImGui::SliderFloat("wind speed (m/s)", &wind, 0.0f, 30.0f)) environment->setWindSpeed(wind);
-            wind = static_cast<float>(environment->windDirection());
-            if (ImGui::SliderFloat("wind direction (deg)", &wind, 0.0f, 360.0f)) environment->setWindDirection(wind);
-
-            if (wavefield)
-            {
-                auto amplitude = static_cast<float>(wavefield->amplitude());
-                if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 3.0f)) wavefield->setAmplitude(amplitude);
-                auto period = static_cast<float>(wavefield->period());
-                if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
-                auto steepness = static_cast<float>(wavefield->steepness());
-                if (ImGui::SliderFloat("wave steepness", &steepness, 0.0f, 1.0f)) wavefield->setSteepness(steepness);
-                auto number = static_cast<int>(wavefield->number());
-                if (ImGui::SliderInt("wave components", &number, 1, static_cast<int>(vsgOcean::Wavefield::maxWaves))) wavefield->setNumber(static_cast<size_t>(number));
-                auto scale = static_cast<float>(wavefield->scale());
-                if (ImGui::SliderFloat("wave scale", &scale, 1.0f, 4.0f)) wavefield->setScale(scale);
-                auto angle = static_cast<float>(vsg::degrees(wavefield->angle()));
-                if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
-            }
-
-            auto fog = static_cast<float>(environment->fogDensity());
-            if (ImGui::SliderFloat("fog density", &fog, 0.0f, 1.0f, "%.3f")) environment->setFogDensity(fog);
+            auto snow = static_cast<float>(environment->marineSnowDensity());
+            if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 10.0f)) environment->setMarineSnowDensity(snow);
 
             ImGui::End();
             return true;
@@ -211,14 +250,17 @@ namespace vsgOcean
 
         // the texture adapters are children of the GUI node, so they compile with it
         auto gui = vsgImGui::RenderImGui::create(window,
-                                                 [controls, scene, environment, surface, wavefield, cameras]()
+                                                 [controls, scene, environment, wavefield, cameras]()
                                                  {
                                                      // let the camera controller and the keyboard controls ignore
                                                      // input while the GUI captures it
                                                      controls->guiCapturesInput = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
 
                                                      drawCameraWidget(controls, cameras);
-                                                     return drawEnvironmentPanel(controls, scene, environment, surface, wavefield);
+                                                     drawHelp(controls, scene);
+                                                     drawSkyWidget(controls, environment);
+                                                     drawSurfaceWidget(controls, scene, environment, wavefield);
+                                                     return drawUnderwaterWidget(controls, environment);
                                                  });
         if (auto group = gui.cast<vsg::Group>())
         {
