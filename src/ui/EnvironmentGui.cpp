@@ -76,7 +76,7 @@ namespace vsgOcean
             // top right corner, clear of the HUD text in the top left
             const auto& io = ImGui::GetIO();
             ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 336.0f, 10.0f), ImGuiCond_Once);
-            ImGui::Begin("vsgOcean cameras");
+            ImGui::Begin("vsgOcean cameras", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
             for (const auto& [name, texture] : cameras)
             {
@@ -159,7 +159,10 @@ namespace vsgOcean
             if (!controls->helpVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(10.0f, 10.0f), ImGuiCond_Once);
-            ImGui::Begin("vsgOcean help");
+            ImGui::Begin("vsgOcean help", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            // the widgets size to their content: a uniform slider width, and the
+            // window auto-resizes to the longest label
+            ImGui::PushItemWidth(280.0f);
 
             for (const auto& [key, action] : EnvironmentControls::bindings)
             {
@@ -192,6 +195,8 @@ namespace vsgOcean
             ImGui::Text("memory %.0f MB resident", stats.rssMB);
             if (!deviceName.empty()) ImGui::TextUnformatted(deviceName.c_str());
 
+            ImGui::PopItemWidth();
+
             ImGui::End();
             return true;
         }
@@ -203,7 +208,8 @@ namespace vsgOcean
             if (!controls->skyVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(10.0f, 420.0f), ImGuiCond_Once);
-            ImGui::Begin("sky");
+            ImGui::Begin("sky", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::PushItemWidth(280.0f);
 
             auto sun = static_cast<float>(environment->sunElevation());
             if (ImGui::SliderFloat("sun elevation (deg)", &sun, -90.0f, 90.0f))
@@ -225,6 +231,7 @@ namespace vsgOcean
             auto clouds = static_cast<int>(environment->cloudiness());
             if (ImGui::SliderInt("cloud cover (oktas)", &clouds, 0, 8)) environment->setCloudiness(static_cast<double>(clouds));
 
+            ImGui::PopItemWidth();
             ImGui::End();
             return true;
         }
@@ -238,7 +245,8 @@ namespace vsgOcean
             if (!controls->surfaceVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(360.0f, 10.0f), ImGuiCond_Once);
-            ImGui::Begin("ocean surface");
+            ImGui::Begin("ocean surface", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::PushItemWidth(280.0f);
 
             auto wind = static_cast<float>(environment->windSpeed());
             if (ImGui::SliderFloat("wind speed (m/s)", &wind, 0.0f, 30.0f)) environment->setWindSpeed(wind);
@@ -262,6 +270,7 @@ namespace vsgOcean
                 if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
             }
 
+            ImGui::PopItemWidth();
             ImGui::End();
             return true;
         }
@@ -273,7 +282,8 @@ namespace vsgOcean
             if (!controls->underwaterVisible) return true;
 
             ImGui::SetNextWindowPos(ImVec2(360.0f, 250.0f), ImGuiCond_Once);
-            ImGui::Begin("underwater");
+            ImGui::Begin("underwater", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::PushItemWidth(280.0f);
 
             auto jerlov = static_cast<int>(environment->jerlovType());
             if (ImGui::SliderInt("Jerlov water type", &jerlov, 0, 8))
@@ -302,6 +312,7 @@ namespace vsgOcean
             auto blur = environment->underwaterBlur();
             if (ImGui::Checkbox("underwater DOF blur", &blur)) environment->setUnderwaterBlur(blur);
 
+            ImGui::PopItemWidth();
             ImGui::End();
             return true;
         }
