@@ -15,7 +15,7 @@
 
 layout(std140, set = 0, binding = 0) uniform Ocean
 {
-    vec4 sunDirection;    // xyz: unit vector towards the sun
+    vec4 sunDirection;    // xyz: unit vector towards the sun, w: cloudiness 0..1
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 waterColor;      // rgb: water body colour from the Jerlov water type, a: mean vertical attenuation (1/m)
     vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: assumed water depth [m]
@@ -62,10 +62,16 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float gradient = smoothstep(0.0, 0.15, up);
     vec3 sky = mix(mix(horizonNight, horizonDay, day), mix(zenithNight, zenithDay, day), gradient);
 
+    // the cloud cover (in [0].w, independent of the fog): the reflected sky greys
+    // towards overcast like the sky itself (keep in sync with sky.frag)
+    const float clouds = ocean.sunDirection.w;
+    const vec3 overcast = vec3(0.42, 0.45, 0.50) * day;
+    sky = mix(sky, overcast, clouds * 0.9);
+
     // dusk glow around the sun azimuth near the horizon
     const vec2 sunHorizontal = normalize(sunDirection.xy + vec2(1e-5, 0.0));
     const float towardsSun = max(dot(normalize(direction.xy + vec2(1e-5, 0.0)), sunHorizontal), 0.0);
-    sky += dusk * pow(1.0 - up, 4.0) * pow(towardsSun, 4.0) * vec3(0.9, 0.45, 0.15) * 0.8;
+    sky += dusk * pow(1.0 - up, 4.0) * pow(towardsSun, 4.0) * vec3(0.9, 0.45, 0.15) * 0.8 * (1.0 - clouds);
 
     // sun disc with an edge smoothed over the pixel footprint and a smooth glow,
     // worked in 1 - cos(angle) space (acos has catastrophic precision near 1 in fp32)
@@ -78,7 +84,7 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
-    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade;
+    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 2.0);
 
     // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m
     // path); the band follows the same clamped elevation as the gradient
@@ -214,10 +220,10 @@ void main()
         // reason the sea reads bright blue from a boat while the deep is dark); the
         // scene behind still shows through the alpha
         const vec3 intoWater = refract(-toEye, n, 1.0 / 1.33);
-        const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0);
+        const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0) * (1.0 - ocean.sunDirection.w);
         const vec3 throughWater = ocean.waterColor.rgb * scatter + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
 
-        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade;
+        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0);
 
         // transparency towards the scene behind the surface: more mirror-like at
         // grazing angles, more transparent looking straight down

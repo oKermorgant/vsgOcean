@@ -31,7 +31,7 @@ namespace vsgOcean
     public:
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
-        inline static constexpr std::array<Binding, 18> bindings{{
+        inline static constexpr std::array<Binding, 19> bindings{{
             {"mouse left drag", "orbit the view (stable horizon)"},
             {"mouse right drag", "translate the camera"},
             {"mouse wheel", "dolly in / out"},
@@ -43,6 +43,7 @@ namespace vsgOcean
             {"W / S", "wind speed"},
             {"Z / C", "Jerlov water type"},
             {"N / M", "marine snow density"},
+            {", / .", "cloud cover (hides the sun / stars)"},
             {"[ / ]", "water current speed"},
             {"P", "ocean surface on / off"},
             {"Space", "day cycle animation on / off"},

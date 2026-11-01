@@ -9,7 +9,7 @@ layout(location = 0) out vec4 fragColor;
 
 layout(std140, set = 0, binding = 0) uniform Environment
 {
-    vec4 sunDirection;    // xyz: unit vector towards the sun
+    vec4 sunDirection;    // xyz: unit vector towards the sun, w: cloudiness 0..1
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 stars[32];       // xyz: local direction, w: brightness; w = 0 when the slot is unused
     vec4 water;           // rgb: Jerlov water color, a: mean attenuation (1/m)
@@ -56,10 +56,17 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float gradient = pow(up, 0.4);
     vec3 sky = mix(mix(horizonNight, horizonDay, day), mix(zenithNight, zenithDay, day), gradient);
 
+    // the cloud cover (independent of the fog's distance haze): the sky greys and
+    // flattens towards overcast - dark at night (clouds are invisible against the
+    // black sky), a flat daylight grey by day
+    const float clouds = env.sunDirection.w;
+    const vec3 overcast = vec3(0.42, 0.45, 0.50) * day;
+    sky = mix(sky, overcast, clouds * 0.9);
+
     // dusk glow around the sun azimuth near the horizon
     const vec2 sunHorizontal = normalize(sunDirection.xy + vec2(1e-5, 0.0));
     const float towardsSun = max(dot(normalize(direction.xy + vec2(1e-5, 0.0)), sunHorizontal), 0.0);
-    sky += dusk * pow(1.0 - up, 4.0) * pow(towardsSun, 4.0) * vec3(0.9, 0.45, 0.15) * 0.8;
+    sky += dusk * pow(1.0 - up, 4.0) * pow(towardsSun, 4.0) * vec3(0.9, 0.45, 0.15) * 0.8 * (1.0 - clouds);
 
     // sun disc with an edge smoothed over the pixel footprint, and a smooth glow,
     // fading as the sun sinks below the horizon. Worked in 1 - cos(angle) space:
@@ -74,10 +81,12 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
-    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade;
+    // the clouds hide the sun: the disc and its glow fade out with the cover
+    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 2.0);
 
     // the constellations of the night sky, visible when the sun is below the horizon
-    const float night = 1.0 - day;
+    // and the sky is clear (the clouds hide the stars)
+    const float night = (1.0 - day) * (1.0 - clouds);
     if (night > 0.01)
     {
         for (int i = 0; i < 32; ++i)

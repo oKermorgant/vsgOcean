@@ -147,7 +147,7 @@ namespace vsgOcean
         const auto attenuation = environment.underwaterAttenuation();
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
 
-        (*uniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), 0.0f);
+        (*uniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), static_cast<float>(environment.cloudiness()));
         (*uniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogExtinction()));
         (*uniform_)[2] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
         (*uniform_)[3] = vsg::vec4(static_cast<float>(t), static_cast<float>(wavefield_->tau()),

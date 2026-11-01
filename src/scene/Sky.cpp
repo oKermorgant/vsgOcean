@@ -158,7 +158,7 @@ namespace vsgOcean
     void Sky::update(const Environment& environment, double t, const Wavefield* wavefield)
     {
         const auto sun = environment.sunDirection();
-        (*environmentUniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), 0.0f);
+        (*environmentUniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), static_cast<float>(environment.cloudiness()));
         (*environmentUniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogExtinction()));
 
         // the water (Jerlov type); the underwater mode is evaluated per camera, in-shader

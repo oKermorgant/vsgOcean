@@ -98,6 +98,12 @@ namespace vsgOcean
         case vsg::KEY_m:
             environment->setMarineSnowDensity(environment->marineSnowDensity() + 0.25);
             break;
+        case vsg::KEY_Comma:
+            environment->setCloudiness(environment->cloudiness() - 0.1);
+            break;
+        case vsg::KEY_Period:
+            environment->setCloudiness(environment->cloudiness() + 0.1);
+            break;
         case vsg::KEY_Leftbracket:
         {
             // slow the water current along its direction (0: no drift)

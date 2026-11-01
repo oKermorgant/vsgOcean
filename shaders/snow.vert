@@ -15,7 +15,7 @@ layout(push_constant) uniform PushConstants
 
 layout(std140, set = 0, binding = 0) uniform Snow
 {
-    vec4 params;       // x: time t [s], y: density 0..1, z: box size [m], w: unused
+    vec4 params;       // x: time t [s], y: density fraction 0..1, z: box size [m], w: cloudiness 0..1
     vec4 current;      // xyz: water current [m/s], w: mean sea level [m]
     vec4 sunDirection; // xyz: unit vector towards the sun
     vec4 waterColor;   // rgb: Jerlov water colour, a: mean vertical attenuation (1/m)
@@ -79,11 +79,13 @@ void main()
     }
 
     // the light AT the particle: the sun surviving to its depth (per-channel
-    // Beer-Lambert over the vertical path) plus the multiply-scattered ambient
+    // Beer-Lambert over the vertical path, dimmed by the cloud cover) plus the
+    // multiply-scattered ambient
     const float sunHeight = max(snow.sunDirection.z, 0.0);
     const float day = smoothstep(-0.05, 0.25, snow.sunDirection.z);
-    vec3 light = vec3(1.0, 0.97, 0.90) * (day * sunHeight) * exp(-snow.attenuation.rgb * depth)
-               + snow.waterColor.rgb * (0.5 * day * sunHeight) * exp(-snow.waterColor.a * depth);
+    const float sunThrough = (day * sunHeight) * (1.0 - snow.params.w);
+    vec3 light = vec3(1.0, 0.97, 0.90) * sunThrough * exp(-snow.attenuation.rgb * depth)
+               + snow.waterColor.rgb * (0.5 * sunThrough) * exp(-snow.waterColor.a * depth);
 
     // the scene's lamps, with the same model as the composite's volumetric march
     for (int i = 0; i < int(snow.lampHeader.x); ++i)

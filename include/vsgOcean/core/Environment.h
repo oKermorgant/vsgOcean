@@ -107,6 +107,14 @@ namespace vsgOcean
         void setMarineSnowDensity(double density);
         double marineSnowDensity() const { return marineSnowDensity_; }
 
+        /// Cloud cover above the water, normalized 0..1: 0 a clear sky, 1.0
+        /// overcast. INDEPENDENT of the fog (the distance haze): the clouds dim
+        /// the sun disc and its glow, hide the stars, grey the sky gradient and
+        /// dim the scene's sun lighting - a cloudy night has no constellations.
+        /// Default 0 (clear).
+        void setCloudiness(double cloudiness);
+        double cloudiness() const { return cloudiness_; }
+
         /// The water current the underwater environment drifts with, in m/s in the
         /// world frame (+X East, +Y North, +Z Up): the marine snow advects along it.
         /// Driven at runtime from the outside (a dynamics simulator / a topic).
@@ -147,6 +155,7 @@ namespace vsgOcean
         JerlovType jerlovType_ = JerlovType::OceanicI;
         double seaLevel_{0.0};
         double marineSnowDensity_{0.6};
+        double cloudiness_{0.0};
         vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame
         double latitude_{0.0};
         double longitude_{0.0};

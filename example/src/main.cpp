@@ -88,6 +88,10 @@ int main(int argc, char** argv)
         {
             environment->setMarineSnowDensity(settings.snowDensity);
         }
+        if (settings.overrideClouds)
+        {
+            environment->setCloudiness(settings.cloudiness);
+        }
         if (settings.overrideCurrent)
         {
             environment->setWaterCurrent(settings.waterCurrent);

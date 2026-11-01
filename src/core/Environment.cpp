@@ -105,6 +105,11 @@ namespace vsgOcean
         waterCurrent_ = current;
     }
 
+    void Environment::setCloudiness(double cloudiness)
+    {
+        cloudiness_ = std::clamp(cloudiness, 0.0, 1.0);
+    }
+
     std::string Environment::jerlovName() const
     {
         return jerlovTable[static_cast<uint8_t>(jerlovType_)].name;
