@@ -76,6 +76,13 @@ namespace vsgOceanExample
         bool overrideFog = false;
         double fogDensity = 0.0;
 
+        // geolocation (negative latitude = the southern hemisphere: the southern
+        // constellations replace the northern ones)
+        bool overrideLatitude = false;
+        double latitude = 0.0;
+        bool overrideLongitude = false;
+        double longitude = 0.0;
+
         // waves: the mean component wave of the Gazebo wave model (asv_wave_sim);
         // the component count, scale and angle follow asv_wave_sim's defaults, so
         // the sea is irregular and short-crested rather than a single wave train
@@ -266,6 +273,8 @@ namespace vsgOceanExample
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;
         if (arguments.read("--jerlov", settings.jerlov)) settings.overrideJerlov = true;
         if (arguments.read("--fog", settings.fogDensity)) settings.overrideFog = true;
+        if (arguments.read("--latitude", settings.latitude)) settings.overrideLatitude = true;
+        if (arguments.read("--longitude", settings.longitude)) settings.overrideLongitude = true;
         if (arguments.read("--snow", settings.snowDensity)) settings.overrideSnow = true;
         if (arguments.read("--current", settings.waterCurrent.x, settings.waterCurrent.y)) settings.overrideCurrent = true;
 

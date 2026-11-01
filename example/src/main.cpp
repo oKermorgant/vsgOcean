@@ -101,12 +101,16 @@ int main(int argc, char** argv)
         wavefield->setAngle(vsg::radians(settings.waveAngle));
 
         // geolocation of the scene: taken from the SDF world when available,
-        // Pornichet (France) hard-coded otherwise
+        // Pornichet (France) hard-coded otherwise; --latitude/--longitude override
+        // (a negative latitude is the southern hemisphere - the southern
+        // constellations replace the northern ones in the night sky)
         if (environment->latitude() == 0.0 && environment->longitude() == 0.0)
         {
             environment->setLatitude(47.1075);
             environment->setLongitude(-2.3533);
         }
+        if (settings.overrideLatitude) environment->setLatitude(settings.latitude);
+        if (settings.overrideLongitude) environment->setLongitude(settings.longitude);
 
         vsg::info("Environment: sun elevation ", environment->sunElevation(), " deg, azimuth ", environment->sunAzimuth(),
                   " deg; wind ", environment->windSpeed(), " m/s from ", environment->windDirection(), " deg; water type ",

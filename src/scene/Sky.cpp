@@ -23,8 +23,12 @@ namespace vsgOcean
 {
     namespace
     {
-        // the well-known constellations of the winter sky at northern latitudes:
-        // right ascension (hours), declination (degrees) and magnitude of their main stars
+        // the classical constellations: right ascension (hours), declination
+        // (degrees) and magnitude of their main stars. The catalog follows the
+        // hemisphere: the northern sky carries Orion, Ursa Major (the Big Dipper),
+        // Ursa Minor (the Little Dipper), Cassiopeia and Taurus; the southern sky
+        // carries the southern classics - Crux (the Southern Cross), Centaurus,
+        // Carina, Scorpius - plus Sirius, the brightest star of either sky.
         struct CelestialStar
         {
             double ra;
@@ -32,8 +36,8 @@ namespace vsgOcean
             double magnitude;
         };
 
-        // Orion, Ursa Major (the Big Dipper), Cassiopeia and Taurus
-        constexpr std::array<CelestialStar, 23> starCatalog{{
+        // Orion, Ursa Major, Cassiopeia and Taurus
+        constexpr std::array<CelestialStar, 23> northernCatalog{{
             {5.919, 7.407, 0.45}, {5.242, -8.202, 0.18}, {5.418, 6.350, 1.64},     // Betelgeuse, Rigel, Bellatrix
             {5.679, -9.670, 2.07}, {5.679, -1.943, 1.74}, {5.604, -1.202, 1.69},  // Saiph, Alnitak, Alnilam
             {5.533, -0.299, 2.25},                                               // Mintaka
@@ -45,14 +49,39 @@ namespace vsgOcean
             {4.599, 16.509, 0.87}, {5.438, 28.608, 1.65}, {4.330, 15.627, 3.65},  // Aldebaran, Elnath, Gamma Tau
             {5.628, 21.143, 3.00}}};                                               // Zeta Tau
 
+        // Ursa Minor (the Little Dipper): Polaris at the tip of the handle
+        constexpr std::array<CelestialStar, 7> minorCatalog{{
+            {2.530, 89.264, 1.98},   // Polaris
+            {14.845, 74.155, 2.08},  // Kochab
+            {15.345, 71.834, 3.05},  // Pherkad
+            {17.537, 86.586, 4.36},  // Yildun
+            {16.766, 82.037, 4.23},  // Epsilon UMi
+            {15.734, 77.794, 4.32},  // Zeta UMi
+            {16.291, 75.755, 4.95}}}; // Eta UMi
+
+        // Crux, Centaurus, Carina, Scorpius and Sirius: the classical southern sky
+        constexpr std::array<CelestialStar, 18> southernCatalog{{
+            {12.443, -63.099, 0.77}, {12.795, -59.689, 1.25},                       // Acrux, Mimosa (Crux)
+            {12.519, -57.113, 1.63}, {12.253, -58.749, 2.79},                        // Gacrux, Imai (Crux)
+            {14.660, -60.834, -0.27}, {14.064, -60.373, 0.61}, {14.111, -36.370, 2.06}, // Rigil Kentaurus, Hadar, Menkent (Centaurus)
+            {6.399, -52.696, -0.74}, {9.220, -69.717, 1.67}, {8.375, -59.510, 1.86}, // Canopus, Miaplacidus, Avior (Carina)
+            {9.285, -59.275, 2.21},                                                   // Aspidiske (Carina)
+            {16.490, -26.432, 1.09}, {16.006, -22.622, 2.32}, {17.560, -37.104, 1.63}, // Antares, Dschubba, Shaula (Scorpius)
+            {17.622, -42.998, 1.87}, {16.091, -19.805, 2.62}, {17.512, -37.296, 2.69}, // Sargas, Graffias, Lesath (Scorpius)
+            {6.752, -16.716, -1.46}}};                                               // Sirius (Canis Major)
+
         constexpr size_t maxStars = 32;      // must match the stars array of the shader
-        constexpr double localSiderealTime = 5.7; // hours, chosen so the constellations are well placed
+        // hours, chosen so each hemisphere's constellations are well placed: the
+        // winter stars for the north (Orion and the Dipper high), Crux and Scorpius
+        // near the meridian for the south
+        constexpr double northernSiderealTime = 5.7;
+        constexpr double southernSiderealTime = 12.6;
 
         // direction of a star in the local horizontal frame (+X East, +Y North, +Z Up),
         // from its equatorial coordinates, the scene latitude and the local sidereal time
-        vsg::dvec3 starDirection(double ra, double dec, double latitude)
+        vsg::dvec3 starDirection(double ra, double dec, double latitude, double siderealTime)
         {
-            const auto hourAngle = vsg::radians((localSiderealTime - ra) * 15.0);
+            const auto hourAngle = vsg::radians((siderealTime - ra) * 15.0);
             const auto decRad = vsg::radians(dec);
             const auto latRad = vsg::radians(latitude);
 
@@ -156,16 +185,32 @@ namespace vsgOcean
             (*environmentUniform_)[2 + maxStars + 2 + 3 * Wavefield::maxWaves + i] = vsg::vec4(static_cast<float>(waveDirection.x), static_cast<float>(waveDirection.y), 0.0f, 0.0f);
         }
 
-        // the constellations, placed in the local sky at the scene geolocation
+        // the constellations, placed in the local sky at the scene geolocation: the
+        // catalog follows the hemisphere (the northern Dipper never rises from the
+        // southern ocean; Crux never rises from the north)
+        const bool northern = environment.latitude() >= 0.0;
+        const double siderealTime = northern ? northernSiderealTime : southernSiderealTime;
         size_t starIndex = 0;
-        for (const auto& star : starCatalog)
+        const auto place = [&](const auto& catalog)
         {
-            if (starIndex >= maxStars) break;
+            for (const auto& star : catalog)
+            {
+                if (starIndex >= maxStars) break;
 
-            const auto direction = starDirection(star.ra, star.dec, environment.latitude());
-            (*environmentUniform_)[2 + starIndex] = vsg::vec4(static_cast<float>(direction.x), static_cast<float>(direction.y), static_cast<float>(direction.z),
-                                                              static_cast<float>(std::pow(10.0, -0.4 * star.magnitude) * 1.2));
-            ++starIndex;
+                const auto direction = starDirection(star.ra, star.dec, environment.latitude(), siderealTime);
+                (*environmentUniform_)[2 + starIndex] = vsg::vec4(static_cast<float>(direction.x), static_cast<float>(direction.y), static_cast<float>(direction.z),
+                                                                  static_cast<float>(std::pow(10.0, -0.4 * star.magnitude) * 1.2));
+                ++starIndex;
+            }
+        };
+        if (northern)
+        {
+            place(northernCatalog);
+            place(minorCatalog); // Ursa Minor circles the north celestial pole
+        }
+        else
+        {
+            place(southernCatalog);
         }
         for (; starIndex < maxStars; ++starIndex)
         {
