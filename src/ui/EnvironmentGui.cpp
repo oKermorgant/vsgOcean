@@ -12,6 +12,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <vsgOcean/ui/EnvironmentGui.h>
 
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#include <unistd.h>
+
 #ifdef VSGOCEAN_WITH_GUI
 #    include <vsgImGui/RenderImGui.h>
 #    include <vsgImGui/SendEventsToImGui.h>
@@ -86,10 +94,67 @@ namespace vsgOcean
         // reflected immediately, and a widget change takes over from any preset
         // (e.g. moving the sun stops the day-cycle animation).
         //
-        // drawHelp: the basic key bindings and the model tracking. The tuning widgets
-        // follow, grouped by layer of the environment.
+        // drawHelp: the basic key bindings, the model tracking, and the live
+        // application stats (fps, cpu, memory). The tuning widgets follow, grouped
+        // by layer of the environment.
 
-        bool drawHelp(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene)
+        // The live application stats, sampled from /proc a few times a second so
+        // the reads and the display stay cheap (the fps is ImGui's own smoothed
+        // rate). The CPU percent is of ONE core (a value of 140% means ~1.4 cores
+        // busy including the driver / rasterizer threads).
+        struct AppStats
+        {
+            double lastSample = 0.0;
+            double cpuJiffies = 0.0;
+            float cpuPercent = 0.0f;
+            float rssMB = 0.0f;
+
+            void sample()
+            {
+                using clock = std::chrono::steady_clock;
+                const double seconds = std::chrono::duration<double>(clock::now().time_since_epoch()).count();
+                if (seconds - lastSample < 0.25) return;
+                const double dt = std::max(seconds - lastSample, 1.0e-3);
+                lastSample = seconds;
+
+                if (FILE* f = fopen("/proc/self/stat", "r"))
+                {
+                    char line[1024];
+                    if (fgets(line, sizeof(line), f))
+                    {
+                        if (const char* close = strrchr(line, ')'))
+                        {
+                            long utime = 0, stime = 0;
+                            // after the comm field: 11 process fields, then utime, stime
+                            if (sscanf(close + 2, "%*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %*s %ld %ld", &utime, &stime) == 2)
+                            {
+                                const double jiffies = static_cast<double>(utime + stime);
+                                if (cpuJiffies > 0.0)
+                                {
+                                    const double hz = static_cast<double>(sysconf(_SC_CLK_TCK));
+                                    cpuPercent = static_cast<float>((jiffies - cpuJiffies) / hz / dt * 100.0);
+                                }
+                                cpuJiffies = jiffies;
+                            }
+                        }
+                    }
+                    fclose(f);
+                }
+
+                if (FILE* f = fopen("/proc/self/statm", "r"))
+                {
+                    long total = 0, resident = 0;
+                    if (fscanf(f, "%ld %ld", &total, &resident) == 2)
+                    {
+                        rssMB = static_cast<float>(static_cast<double>(resident) * sysconf(_SC_PAGE_SIZE) / (1024.0 * 1024.0));
+                    }
+                    fclose(f);
+                }
+            }
+        };
+
+        bool drawHelp(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene,
+                      const std::string& deviceName)
         {
             if (!controls->helpVisible) return true;
 
@@ -115,6 +180,17 @@ namespace vsgOcean
             {
                 scene->setTrackedFrame(current == 0 ? std::string{} : models[static_cast<size_t>(current) - 1]);
             }
+
+            // the live stats block (like the osgOcean stats overlay)
+            static AppStats stats;
+            stats.sample();
+            ImGui::Separator();
+            const auto& io = ImGui::GetIO();
+            const float frameMs = io.Framerate > 1.0e-3f ? 1000.0f / io.Framerate : 0.0f;
+            ImGui::Text("fps %.1f (%.1f ms/frame)", io.Framerate, frameMs);
+            ImGui::Text("cpu %.0f%% (of one core)", stats.cpuPercent);
+            ImGui::Text("memory %.0f MB resident", stats.rssMB);
+            if (!deviceName.empty()) ImGui::TextUnformatted(deviceName.c_str());
 
             ImGui::End();
             return true;
@@ -251,16 +327,24 @@ namespace vsgOcean
             cameras.emplace_back(name, LiveGuiTexture::create(view));
         }
 
+        // the render device name, for the stats block (helps debugging e.g. swapchain
+        // issues: which device the window pipeline ended up on)
+        std::string deviceName;
+        if (const auto& device = window->getOrCreateDevice())
+        {
+            deviceName = device->getPhysicalDevice()->getProperties().deviceName;
+        }
+
         // the texture adapters are children of the GUI node, so they compile with it
         auto gui = vsgImGui::RenderImGui::create(window,
-                                                 [controls, scene, environment, wavefield, cameras]()
+                                                 [controls, scene, environment, wavefield, cameras, deviceName]()
                                                  {
                                                      // let the camera controller and the keyboard controls ignore
                                                      // input while the GUI captures it
                                                      controls->guiCapturesInput = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
 
                                                      drawCameraWidget(controls, cameras);
-                                                     drawHelp(controls, scene);
+                                                     drawHelp(controls, scene, deviceName);
                                                      drawSkyWidget(controls, environment);
                                                      drawSurfaceWidget(controls, scene, environment, wavefield);
                                                      return drawUnderwaterWidget(controls, environment);

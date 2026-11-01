@@ -85,8 +85,12 @@ The bindings are always visible in a small HUD in a corner of the window. When
 vsgOcean is built with vsgImGui, each of the four widgets is its own window (toggled by
 the key above); the widgets read the environment every frame and write only on change:
 an update from outside (a topic, the code) is reflected immediately, and changing a
-widget takes over from any preset. The font for the HUD is loaded from the system
-(override with the `VSGOCEAN_FONT` environment variable).
+widget takes over from any preset. The help window also carries the live application
+stats — fps and frame time, process CPU (percent of one core), resident memory and the
+render device name. For deeper profiling vsg's own instrumentation is built in:
+`--fps` reports the average rate at exit, `--profiler` logs per-stage CPU/GPU timings.
+The font for the HUD is loaded from the system (override with the `VSGOCEAN_FONT`
+environment variable).
 
 The underwater widget also carries the **underwater depth-of-field blur** (as
 osgOcean's underwater DOF, on by default, `--blur 0/1` on the example): the water's
