@@ -110,6 +110,11 @@ namespace vsgOcean
         /// cannot hold a large absolute time (a wall clock epoch freezes the waves).
         void update(const vsg::Camera* camera, double t);
 
+        /// The t of the first update(): the shaders animate the waves at (t - origin)
+        /// to stay within float precision, so a CPU caller sampling Wavefield::height
+        /// (buoyancy) must pass the same shifted time. 0 before the first update().
+        [[nodiscard]] double timeOrigin() const { return timeOrigin_.value_or(0.0); }
+
         // --- scene loading ---
 
         /// Build a scene from files: SDF worlds and models (when vsgOcean is built with SDF
