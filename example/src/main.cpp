@@ -403,8 +403,9 @@ int main(int argc, char** argv)
         const auto depthFormat = window->depthFormat();
         auto makeSensorCamera = [sensorExtent]() {
             // near 0.3: a vehicle camera has nothing relevant closer than that,
-            // and it clips any own-structure slivers that graze the mount
-            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.3, 200.0),
+            // and it clips any own-structure slivers that graze the mount;
+            // far 2 km: the islands must be in frame, not just the near field
+            return vsg::Camera::create(vsg::Perspective::create(60.0, 4.0 / 3.0, 0.3, 2000.0),
                                        vsg::LookAt::create(vsg::dvec3(0.0, 0.0, 0.0), vsg::dvec3(0.0, 1.0, 0.0), vsg::dvec3(0.0, 0.0, 1.0)),
                                        vsg::ViewportState::create(sensorExtent));
         };
