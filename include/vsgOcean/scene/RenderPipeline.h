@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
+#include <vector>
 #include <vsgOcean/scene/PresentPass.h>
 #include <vsgOcean/scene/RenderTarget.h>
 #include <vsgOcean/scene/Scene.h>
@@ -63,6 +64,19 @@ namespace vsgOcean
 
         /// The offscreen target the scene pass renders into.
         [[nodiscard]] const vsg::ref_ptr<RenderTarget>& target() const { return target_; }
+
+        /// A readback of the composited image: tightly packed 8-bit RGBA, top row first.
+        struct Capture
+        {
+            uint32_t width = 0;
+            uint32_t height = 0;
+            std::vector<uint8_t> rgba;
+        };
+
+        /// Read the composited image back to the CPU (a one-off transfer on the graphics
+        /// queue that waits for completion: call it between frames, not while one is
+        /// being recorded). False when the capture failed.
+        [[nodiscard]] bool capture(Capture& image) const;
 
         /// Write the composited image to a PNG file. Runs a one-off transfer on the
         /// graphics queue, so call it outside of frame rendering (e.g. after the last

@@ -43,7 +43,7 @@ namespace vsgOcean
             out.put(static_cast<char>(crc));
         }
 
-        bool writePng(const vsg::Path& filename, uint32_t width, uint32_t height, const uint8_t* rgba, bool swapRedBlue)
+        bool writePng(const vsg::Path& filename, uint32_t width, uint32_t height, const uint8_t* rgba)
         {
             std::ofstream fout(filename.c_str(), std::ios::binary);
             if (!fout) return false;
@@ -78,9 +78,9 @@ namespace vsgOcean
                 for (uint32_t x = 0; x < width; ++x)
                 {
                     auto pixel = row + 1 + size_t(x) * 3;
-                    pixel[0] = src[swapRedBlue ? 2 : 0];
+                    pixel[0] = src[0];
                     pixel[1] = src[1];
-                    pixel[2] = src[swapRedBlue ? 0 : 2];
+                    pixel[2] = src[2];
                     src += 4;
                 }
             }
@@ -282,7 +282,7 @@ namespace vsgOcean
         composite_->update(*scene->environment(), camera, submersion, &scene->lampLights());
     }
 
-    bool RenderPipeline::writeScreenshot(const vsg::Path& filename) const
+    bool RenderPipeline::capture(Capture& image) const
     {
         if (!outputImage_ || extent_.width == 0 || extent_.height == 0) return false;
 
@@ -298,7 +298,7 @@ namespace vsgOcean
             swapRedBlue = true;
             break;
         default:
-            vsg::warn("vsgOcean::RenderPipeline::writeScreenshot - unsupported output format ", colorFormat_);
+            vsg::warn("vsgOcean::RenderPipeline::capture - unsupported output format ", colorFormat_);
             return false;
         }
 
@@ -427,17 +427,33 @@ namespace vsgOcean
             return false;
         }
 
-        // map, write, release
+        // map and copy out as tightly packed RGBA
         void* mapped = nullptr;
-        const auto ok = vkMapMemory(vkDevice, stagingMemory, 0, bufferSize, 0, &mapped) == VK_SUCCESS &&
-                        writePng(filename, width, height, static_cast<const uint8_t*>(mapped), swapRedBlue);
-        if (mapped) vkUnmapMemory(vkDevice, stagingMemory);
+        const auto ok = vkMapMemory(vkDevice, stagingMemory, 0, bufferSize, 0, &mapped) == VK_SUCCESS;
+        if (ok)
+        {
+            image.width = width;
+            image.height = height;
+            image.rgba.assign(static_cast<const uint8_t*>(mapped), static_cast<const uint8_t*>(mapped) + bufferSize);
+            if (swapRedBlue)
+            {
+                for (size_t i = 0; i < image.rgba.size(); i += 4) std::swap(image.rgba[i], image.rgba[i + 2]);
+            }
+            vkUnmapMemory(vkDevice, stagingMemory);
+        }
 
         vkDestroyFence(vkDevice, fence, nullptr);
         vkDestroyCommandPool(vkDevice, pool, nullptr);
         vkFreeMemory(vkDevice, stagingMemory, nullptr);
         vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
+        return ok;
+    }
 
+    bool RenderPipeline::writeScreenshot(const vsg::Path& filename) const
+    {
+        Capture image;
+        if (!capture(image)) return false;
+        const auto ok = writePng(filename, image.width, image.height, image.rgba.data());
         if (ok) vsg::info("vsgOcean - wrote screenshot ", filename);
         return ok;
     }
