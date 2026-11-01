@@ -138,6 +138,7 @@ namespace vsgOceanExample
         // validation layers for --debug
         settings.windowTraits = vsg::WindowTraits::create(arguments);
         settings.windowTraits->debugLayer = arguments.read("--debug");
+        if (settings.windowTraits->windowTitle == vsg::WindowTraits::create()->windowTitle) settings.windowTraits->windowTitle = "vsgOcean";
 
         if (arguments.read({"--redirect-std", "-r"})) vsg::Logger::instance()->redirect_std();
 
