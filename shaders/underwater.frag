@@ -223,6 +223,34 @@ void main()
     const float haze = 1.0 - exp(-env.fog.a * (dist - waterPath));
     color = mix(color, env.fog.rgb, haze);
 
+    // the underwater depth of field (as osgOcean's underwater DOF): the water's
+    // turbidity blurs the view with the water path - near objects stay sharp,
+    // distant ones dissolve into the water. The blur strength follows the mean
+    // Jerlov beam attenuation, so a coastal water blurs much sooner than a clear
+    // oceanic one. The toggle rides in the Lamps block (lamp[2].z - the spare
+    // component of the first light's cone slot; the Composite block is full)
+    if (env.eye.w > 0.0 && waterPath > 0.0 && lamps.lamp[2].z > 0.5)
+    {
+        const float beamMean = (env.attenuation.r + env.attenuation.g + env.attenuation.b) / 3.0;
+        const float blurAmount = 1.0 - exp(-beamMean * waterPath * 0.8);
+        const float radius = blurAmount * 10.0; // pixels
+        if (radius > 0.5)
+        {
+            // an 8-tap disc gather around the pixel (the golden angle spreads
+            // the taps evenly), weighted towards the centre
+            vec3 blurred = color;
+            const vec2 texel = 1.0 / env.extent.xy;
+            const float golden = 2.39996323;
+            for (int i = 1; i < 8; ++i)
+            {
+                const float angle = float(i) * golden;
+                const vec2 offset = vec2(cos(angle), sin(angle)) * texel * radius;
+                blurred += texture(sceneColor, uv + offset).rgb;
+            }
+            color = mix(color, blurred / 8.0, blurAmount);
+        }
+    }
+
     // underwater transport over the water segment: per-channel Beer-Lambert with
     // the in-scattered water light filling in. No ambient floor: the water light
     // is sun-driven only, so a deep night scene attenuates to black

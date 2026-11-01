@@ -51,7 +51,7 @@ int main(int argc, char** argv)
         else
         {
             vsg_scene = vsgOcean::Scene::load({modelFile("islands/islands.sdf"), modelFile("aquabot/aquabot.sdf"),
-                                               modelFile("bluerov2/bluerov2.sdf"), modelFile("herkules_ship_wreck/model.sdf")}, options);
+                                               modelFile("bluerov2/bluerov2.sdf"), modelFile("herkules_ship_wreck/model.sdf"), modelFile("floatgen/model.sdf")}, options);
         }
 #else
         else
@@ -132,7 +132,8 @@ int main(int argc, char** argv)
         const std::vector<std::string> spinningLinks = {
             "aquabot/left_propeller_link", "aquabot/right_propeller_link",
             "bluerov2/thruster1", "bluerov2/thruster2", "bluerov2/thruster3",
-            "bluerov2/thruster4", "bluerov2/thruster5", "bluerov2/thruster6"};
+            "bluerov2/thruster4", "bluerov2/thruster5", "bluerov2/thruster6",
+            "floatgen/blades"};
 
         std::map<std::string, vsg::dmat4> initialLinkPoses;
         for (const auto& linkName : steeredLinks)
@@ -217,6 +218,14 @@ int main(int argc, char** argv)
                 {
                     vsg_scene->setPose(linkName, initialLinkPoses[linkName] * vsg::rotate(spin, 1.0, 0.0, 0.0));
                 }
+            }
+
+            // the floating wind turbine's rotor: a realistic ~30 rpm (the propellers'
+            // 5 rev/s spin would blur), about its local X axis - the joint's axis
+            if (initialLinkPoses.count("floatgen/blades"))
+            {
+                const auto rotor = 2.0 * vsg::PI * 0.5 * t;
+                vsg_scene->setPose("floatgen/blades", initialLinkPoses["floatgen/blades"] * vsg::rotate(rotor, 1.0, 0.0, 0.0));
             }
         };
 
