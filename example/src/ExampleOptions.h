@@ -116,10 +116,14 @@ namespace vsgOceanExample
         // frame index) - e.g. `--video frames/f%05d.png` then encode with ffmpeg
         vsg::Path videoPattern;
 
-        // the scripted maritime tour (headless): the camera and the environment
-        // follow a fixed showcase script - the ocean surface, an underwater dive
-        // at day, the night wreck lit by the ROV's lamps (see main.cpp)
+        // the scripted maritime showcases (headless): the camera and the environment
+        // follow a fixed script (see main.cpp) - "surface": high over the sea, the
+        // wind building to a foam-capped FFT sea, cycling the Jerlov water types;
+        // "underwater": tracking the ROV from behind at the wreck, the water type
+        // stepping clearer while the marine snow varies; "rov": the ROV's own nose
+        // camera over the same script (overlay it in the tracking video)
         bool showcase = false;
+        std::string showcaseKind;
 
         // the scene files, from the remaining positional arguments
         std::vector<vsg::Path> sceneFilenames;
@@ -294,7 +298,8 @@ namespace vsgOceanExample
         // capture: write the main view to a PNG file when the render loop ends
         settings.screenshotPath = arguments.value<vsg::Path>("", "--screenshot");
         settings.videoPattern = arguments.value<vsg::Path>("", "--video");
-        if (arguments.read("--showcase")) settings.showcase = true;
+        settings.showcaseKind = arguments.value<std::string>("", "--showcase");
+        settings.showcase = !settings.showcaseKind.empty();
 
         if (arguments.read("--sun", settings.sunElevation, settings.sunAzimuth)) settings.overrideSun = true;
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;
