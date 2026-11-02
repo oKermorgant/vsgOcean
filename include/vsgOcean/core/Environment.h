@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsgOcean/core/Export.h>
+#include <vsgOcean/core/WaterOptics.h>
 
 #include <vsg/all.h>
 
@@ -29,8 +30,9 @@ namespace vsgOcean
     class VSG_OCEAN_EXPORT Environment : public vsg::Inherit<vsg::Object, Environment>
     {
     public:
-        /// Jerlov optical water types, from the clearest open ocean to the most turbid coastal water
-        /// (after N. G. Jerlov's classification of marine waters).
+        /// The 14 Jerlov optical water types, from the clearest open ocean to the most turbid coastal
+        /// water (after N. G. Jerlov's classification of marine waters). Each one is a preset of the
+        /// continuous WaterComposition.
         enum class JerlovType : uint8_t
         {
             OceanicI,
@@ -39,12 +41,19 @@ namespace vsgOcean
             OceanicII,
             OceanicIII,
             Coastal1,
+            Coastal2,
             Coastal3,
+            Coastal4,
             Coastal5,
+            Coastal6,
+            Coastal7,
+            Coastal8,
             Coastal9
         };
 
-        Environment() = default;
+        static constexpr size_t jerlovTypeCount = 14;
+
+        Environment();
 
         // --- sky ---
 
@@ -92,11 +101,19 @@ namespace vsgOcean
 
         // --- underwater ---
 
-        /// Jerlov water type controlling underwater light attenuation and water colour. Default OceanicI.
+        /// Jerlov water type controlling underwater light attenuation and water colour: sets the
+        /// water composition to the preset of the type. Default Coastal3, the water of the
+        /// western English Channel off Brittany.
         void setJerlovType(JerlovType type);
         JerlovType jerlovType() const { return jerlovType_; }
 
-        /// Name of the current Jerlov water type (e.g. "Coastal5"), for logging and UIs.
+        /// The water as chlorophyll, CDOM and sediment concentrations. Setting it directly gives
+        /// any water between (or beyond) the Jerlov types and makes jerlovName() "Custom".
+        void setWaterComposition(const WaterComposition& composition);
+        const WaterComposition& waterComposition() const { return composition_; }
+
+        /// Name of the current Jerlov water type (e.g. "Coastal5"), or "Custom" for a composition
+        /// that was set directly, for logging and UIs.
         [[nodiscard]] std::string jerlovName() const;
 
         /// Mean water level (sea level) in metres above the origin z = 0. Default 0.
@@ -143,17 +160,17 @@ namespace vsgOcean
         void setLongitude(double degrees);
         double longitude() const { return longitude_; }
 
-        /// Approximate per-channel diffuse attenuation coefficients (1/m) of the current Jerlov
-        /// water type, after Jerlov's optical classification tables; used by underwater rendering.
+        /// Per-channel diffuse attenuation coefficients (1/m) of the current water, from its
+        /// composition; used by underwater rendering.
         [[nodiscard]] vsg::vec3 underwaterAttenuation() const;
 
         /// The approximate total per-channel scattering coefficients (1/m, R/G/B)
-        /// of the selected Jerlov water type - the singly-scattered light follows
+        /// of the current water - the singly-scattered light follows
         /// the Henyey-Greenstein phase (g ~ 0.92); used by the volumetric light
         /// transport (lamp cones, sun shafts).
         [[nodiscard]] vsg::vec3 underwaterScattering() const;
 
-        /// Approximate water colour of the current Jerlov water type.
+        /// Water colour of the current water seen from above.
         [[nodiscard]] vsg::vec3 underwaterColor() const;
 
     protected:
@@ -163,7 +180,10 @@ namespace vsgOcean
         std::optional<vsg::vec3> fogColorOverride_;
         double windSpeed_{5.0};
         double windDirection_{0.0};
-        JerlovType jerlovType_ = JerlovType::OceanicI;
+        JerlovType jerlovType_ = JerlovType::Coastal3;
+        WaterComposition composition_;
+        WaterOptics optics_;
+        bool customWater_ = false;
         double seaLevel_{0.0};
         double marineSnowDensity_{0.6};
         double cloudiness_{0.0}; // oktas, 0..8

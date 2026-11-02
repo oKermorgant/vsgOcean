@@ -79,7 +79,16 @@ int main(int argc, char** argv)
         }
         if (settings.overrideJerlov)
         {
-            environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(settings.jerlov));
+            environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(std::clamp(settings.jerlov, 0, static_cast<int>(vsgOcean::Environment::jerlovTypeCount) - 1)));
+        }
+        if (settings.overrideWater)
+        {
+            // the options given override the fields of the selected type
+            auto water = environment->waterComposition();
+            if (settings.water.chlorophyll != vsgOcean::WaterComposition{}.chlorophyll) water.chlorophyll = settings.water.chlorophyll;
+            if (settings.water.cdom != vsgOcean::WaterComposition{}.cdom) water.cdom = settings.water.cdom;
+            if (settings.water.sediment != vsgOcean::WaterComposition{}.sediment) water.sediment = settings.water.sediment;
+            environment->setWaterComposition(water);
         }
         if (settings.overrideFog)
         {

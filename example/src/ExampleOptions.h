@@ -9,6 +9,8 @@
 #    include <vsgXchange/all.h>
 #endif
 
+#include <vsgOcean/core/WaterOptics.h>
+
 #include <iostream>
 #include <limits>
 #include <string>
@@ -77,6 +79,8 @@ namespace vsgOceanExample
         double windSpeed = 0.0, windDirection = 0.0;
         bool overrideJerlov = false;
         int jerlov = 0;
+        bool overrideWater = false; // --chlorophyll / --cdom / --sediment: a custom water composition
+        ::vsgOcean::WaterComposition water;
         bool overrideFog = false;
         double fogDensity = 0.0;
 
@@ -284,6 +288,9 @@ namespace vsgOceanExample
         if (arguments.read("--sun", settings.sunElevation, settings.sunAzimuth)) settings.overrideSun = true;
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;
         if (arguments.read("--jerlov", settings.jerlov)) settings.overrideJerlov = true;
+        settings.overrideWater |= arguments.read("--chlorophyll", settings.water.chlorophyll);
+        settings.overrideWater |= arguments.read("--cdom", settings.water.cdom);
+        settings.overrideWater |= arguments.read("--sediment", settings.water.sediment);
         if (arguments.read("--fog", settings.fogDensity)) settings.overrideFog = true;
         if (arguments.read("--latitude", settings.latitude)) settings.overrideLatitude = true;
         if (arguments.read("--longitude", settings.longitude)) settings.overrideLongitude = true;

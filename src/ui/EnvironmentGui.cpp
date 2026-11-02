@@ -319,12 +319,21 @@ namespace vsgOcean
             ImGui::PushItemWidth(280.0f);
 
             auto jerlov = static_cast<int>(environment->jerlovType());
-            if (ImGui::SliderInt("Jerlov water type", &jerlov, 0, 8))
+            if (ImGui::SliderInt("Jerlov water type", &jerlov, 0, static_cast<int>(Environment::jerlovTypeCount) - 1))
             {
                 environment->setJerlovType(static_cast<Environment::JerlovType>(jerlov));
             }
             ImGui::SameLine();
             ImGui::TextUnformatted(environment->jerlovName().c_str());
+
+            auto water = environment->waterComposition();
+            auto chlorophyll = static_cast<float>(water.chlorophyll);
+            auto cdom = static_cast<float>(water.cdom);
+            auto sediment = static_cast<float>(water.sediment);
+            bool composed = ImGui::SliderFloat("chlorophyll (mg/m3)", &chlorophyll, 0.01f, 30.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
+            composed |= ImGui::SliderFloat("CDOM a440 (1/m)", &cdom, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
+            composed |= ImGui::SliderFloat("sediment (g/m3)", &sediment, 0.0f, 10.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
+            if (composed) environment->setWaterComposition({chlorophyll, cdom, sediment});
 
             auto sea = static_cast<float>(environment->seaLevel());
             if (ImGui::SliderFloat("sea level (m)", &sea, -50.0f, 10.0f)) environment->setSeaLevel(sea);

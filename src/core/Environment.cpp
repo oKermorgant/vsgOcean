@@ -22,26 +22,28 @@ namespace vsgOcean
         struct JerlovData
         {
             const char* name;
-            vsg::vec3 attenuation; // per-channel diffuse attenuation coefficients (1/m), R/G/B
-            vsg::vec3 color;       // approximate water colour, R/G/B
-            vsg::vec3 scattering;  // approximate total scattering coefficients (1/m), R/G/B
+            WaterComposition composition;
         };
 
-        // Approximate per-channel (R 650nm, G 530nm, B 470nm) values after Jerlov's optical
-        // classification of marine waters (N. G. Jerlov, Marine Optics, 1976); the
-        // scattering totals follow the Petzold measurement family (clear ocean water
-        // scatters little, coastal particle-loaded water up to tens of times more),
-        // the modern (Morel & Maritorena-style) companion of the Jerlov attenuation.
-        constexpr std::array<JerlovData, 9> jerlovTable{{
-            /* OceanicI    */ {"OceanicI", {0.29f, 0.051f, 0.033f}, {0.00f, 0.18f, 0.42f}, {0.040f, 0.030f, 0.025f}},
-            /* OceanicIA   */ {"OceanicIA", {0.29f, 0.056f, 0.040f}, {0.00f, 0.19f, 0.40f}, {0.050f, 0.040f, 0.030f}},
-            /* OceanicIB   */ {"OceanicIB", {0.30f, 0.065f, 0.050f}, {0.01f, 0.21f, 0.38f}, {0.070f, 0.050f, 0.040f}},
-            /* OceanicII   */ {"OceanicII", {0.32f, 0.083f, 0.071f}, {0.02f, 0.24f, 0.34f}, {0.100f, 0.080f, 0.060f}},
-            /* OceanicIII  */ {"OceanicIII", {0.43f, 0.115f, 0.117f}, {0.03f, 0.27f, 0.30f}, {0.150f, 0.120f, 0.090f}},
-            /* Coastal1    */ {"Coastal1", {0.49f, 0.147f, 0.159f}, {0.05f, 0.30f, 0.27f}, {0.250f, 0.200f, 0.150f}},
-            /* Coastal3    */ {"Coastal3", {0.58f, 0.203f, 0.246f}, {0.08f, 0.32f, 0.23f}, {0.500f, 0.400f, 0.300f}},
-            /* Coastal5    */ {"Coastal5", {0.70f, 0.290f, 0.349f}, {0.12f, 0.34f, 0.20f}, {1.000f, 0.800f, 0.600f}},
-            /* Coastal9    */ {"Coastal9", {1.35f, 0.642f, 0.730f}, {0.20f, 0.36f, 0.18f}, {2.500f, 2.000f, 1.500f}},
+        // the Jerlov types as compositions, fitted so that the bio-optical model reproduces the
+        // Jerlov attenuation (N. G. Jerlov, Marine Optics, 1976; the five coastal types missing from
+        // the usual three-band tables are interpolated) to about 5 % in green and blue and 20-30 %
+        // low in the red of the most turbid types; the chlorophyll follows the clarity axis
+        constexpr std::array<JerlovData, Environment::jerlovTypeCount> jerlovTable{{
+            /* OceanicI    */ {"OceanicI", {0.0246, 0.0142, 0.0}},
+            /* OceanicIA   */ {"OceanicIA", {0.0375, 0.0234, 0.0}},
+            /* OceanicIB   */ {"OceanicIB", {0.064, 0.0372, 0.0}},
+            /* OceanicII   */ {"OceanicII", {0.134, 0.0662, 0.0113}},
+            /* OceanicIII  */ {"OceanicIII", {0.239, 0.121, 0.129}},
+            /* Coastal1    */ {"Coastal1", {0.45, 0.12, 0.51}},
+            /* Coastal2    */ {"Coastal2", {0.809, 0.105, 0.889}},
+            /* Coastal3    */ {"Coastal3", {1.49, 0.0829, 1.33}},
+            /* Coastal4    */ {"Coastal4", {2.62, 0.0204, 2.01}},
+            /* Coastal5    */ {"Coastal5", {3.9, 0.0, 2.55}},
+            /* Coastal6    */ {"Coastal6", {5.57, 0.0, 3.16}},
+            /* Coastal7    */ {"Coastal7", {8.24, 0.0, 3.88}},
+            /* Coastal8    */ {"Coastal8", {14.2, 0.0, 4.57}},
+            /* Coastal9    */ {"Coastal9", {30.0, 0.0, 4.97}},
         }};
     }
 
@@ -114,11 +116,25 @@ namespace vsgOcean
         if (windDirection_ < 0.0) windDirection_ += 360.0;
     }
 
+    Environment::Environment()
+    {
+        setJerlovType(jerlovType_);
+    }
+
     void Environment::setJerlovType(JerlovType type)
     {
         jerlovType_ = type;
+        customWater_ = false;
+        composition_ = jerlovTable[static_cast<uint8_t>(type)].composition;
+        optics_ = computeWaterOptics(composition_);
     }
 
+    void Environment::setWaterComposition(const WaterComposition& composition)
+    {
+        composition_ = composition;
+        customWater_ = true;
+        optics_ = computeWaterOptics(composition_);
+    }
 
     void Environment::setSeaLevel(double metres)
     {
@@ -147,22 +163,22 @@ namespace vsgOcean
 
     std::string Environment::jerlovName() const
     {
-        return jerlovTable[static_cast<uint8_t>(jerlovType_)].name;
+        return customWater_ ? "Custom" : jerlovTable[static_cast<uint8_t>(jerlovType_)].name;
     }
 
     vsg::vec3 Environment::underwaterScattering() const
     {
-        return jerlovTable[static_cast<uint8_t>(jerlovType_)].scattering;
+        return optics_.scattering;
     }
 
     vsg::vec3 Environment::underwaterAttenuation() const
     {
-        return jerlovTable[static_cast<uint8_t>(jerlovType_)].attenuation;
+        return optics_.attenuation;
     }
 
     vsg::vec3 Environment::underwaterColor() const
     {
-        return jerlovTable[static_cast<uint8_t>(jerlovType_)].color;
+        return optics_.color;
     }
 
     void Environment::setLatitude(double degrees)
