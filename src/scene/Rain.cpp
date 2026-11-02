@@ -162,9 +162,11 @@ namespace vsgOcean
         const auto brightness = dayFactor * (1.0 - 0.6 * environment.cloudiness() / 8.0);
 
         // the visible counts follow the rate (the shuffled pools make the
-        // first count particles a stable subset, like the marine snow)
-        const auto visibleStreaks = static_cast<uint32_t>(std::lround(std::clamp(rate * 8192.0, 0.0, static_cast<double>(streaks_))));
-        const auto visibleRings = static_cast<uint32_t>(std::lround(std::clamp(rate * 1024.0, 0.0, static_cast<double>(rings_))));
+        // first count particles a stable subset, like the marine snow); the
+        // units are HALF the pools - even a downpour reads as a veil, and the
+        // splash rings stay sparse hints on the water
+        const auto visibleStreaks = static_cast<uint32_t>(std::lround(std::clamp(rate * 4096.0, 0.0, static_cast<double>(streaks_))));
+        const auto visibleRings = static_cast<uint32_t>(std::lround(std::clamp(rate * 256.0, 0.0, static_cast<double>(rings_))));
         streakDraw_->vertexCount = rate > 0.0 ? 6 * visibleStreaks : 0;
         ringDraw_->vertexCount = rate > 0.0 ? 6 * visibleRings : 0;
 

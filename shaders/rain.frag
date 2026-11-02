@@ -23,10 +23,10 @@ void main()
     }
     else
     {
-        // a splash ring: an expanding annulus of constant relative thickness
+        // a splash ring: a thin expanding annulus, faint against the water
         const float d = length(corner);
         const float ring = 0.7 - 0.35 * ringPhase; // the ring radius shrinks relative as the splash grows
-        mask = (1.0 - smoothstep(0.08, 0.18, abs(d - ring))) * smoothstep(1.0, 0.9, d);
+        mask = (1.0 - smoothstep(0.04, 0.1, abs(d - ring))) * smoothstep(1.0, 0.9, d);
     }
     if (mask <= 0.0) discard;
 

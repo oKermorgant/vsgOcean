@@ -50,14 +50,15 @@ void main()
     world.z = rain.weather.z + mod(drifted.z - rain.weather.z, column);
 
     // the streak: a quad along the fall direction, billboarded around the
-    // view axis; ~80 cm long (the shutter exposure), ~6 cm wide - a rain
-    // streak is the motion blur of a fast drop, not the drop itself
+    // view axis; ~50 cm long (the shutter exposure), ~3 cm wide - a rain
+    // streak is the motion blur of a fast drop, not the drop itself, and it
+    // should read as a veil, not as geometry
     const vec2 corners[6] = {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}};
     corner = corners[gl_VertexIndex % 6];
 
     const vec3 dir = normalize(velocity);
     const vec3 side = normalize(cross(dir, normalize(eye - world)));
-    const vec3 pos = world + dir * (corner.y * 0.8) + side * (corner.x * 0.06);
+    const vec3 pos = world + dir * (corner.y * 0.5) + side * (corner.x * 0.03);
 
     const vec4 viewPos = pc.modelview * vec4(pos, 1.0);
     gl_Position = pc.projection * viewPos;
@@ -68,7 +69,7 @@ void main()
     const float submersion = rain.weather.z - eye.z;
     const float aboveWater = 1.0 - smoothstep(0.0, 1.0, submersion);
     const float near = smoothstep(0.4, 2.0, distance(eye, world));
-    const float alpha = mix(0.12, 0.4, fract(base.w * 5.7)) * aboveWater * near;
+    const float alpha = mix(0.05, 0.2, fract(base.w * 5.7)) * aboveWater * near;
 
     // the veiling tone: the sky brightness (dimmed by the cloud cover, black
     // at night), slightly brighter than the fog so the rain reads against it

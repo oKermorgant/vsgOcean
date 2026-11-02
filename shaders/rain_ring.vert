@@ -43,7 +43,7 @@ void main()
     // the ring's life: spawn, expand over ~1 s, on a seed-scaled period
     const float period = 0.7 + 0.6 * fract(base.w * 3.7);
     ringPhase = fract(rain.params.x / period + base.w * 7.13);
-    const float radius = 0.06 + 0.5 * ringPhase;
+    const float radius = 0.04 + 0.3 * ringPhase;
 
     const vec2 corners[6] = {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}};
     corner = corners[gl_VertexIndex % 6];
@@ -59,7 +59,7 @@ void main()
     const float submersion = rain.weather.z - eye.z;
     const float aboveWater = 1.0 - smoothstep(0.0, 1.0, submersion);
     const float life = smoothstep(0.0, 0.15, ringPhase) * (1.0 - smoothstep(0.5, 1.0, ringPhase));
-    const float alpha = 0.35 * life * aboveWater;
+    const float alpha = 0.12 * life * aboveWater;
 
     // the rings read as a brief brightening of the water where the drop hits
     particleColor = vec4(vec3(rain.weather.w * 1.3), alpha);
