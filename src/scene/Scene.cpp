@@ -478,49 +478,26 @@ namespace vsgOcean
         // Watches the window size and resizes the main pipeline to it. While the size
         // is still changing (an interactive drag) the last composite is just stretched
         // over the window; once it has been stable for a moment the offscreen target
-        // is rebuilt at the window size (RenderPipeline::resize), so the view is
-        // rendered at the true aspect and resolution.
-        class RenderTargetResize : public vsg::Inherit<vsg::Operation, RenderTargetResize>
+        // The offscreen target keeps its CREATION extent for the whole run: the
+        // present pass stretches the composited image over the window, and the
+        // pipeline camera follows the window ASPECT only, so the view stays
+        // undistorted at the window's field of view. Rebuilding the target on
+        // resize instead (d0209c5) raced the in-flight record / present against
+        // the swapchain rebuilds of a drag-resize storm and hung the GPU
+        // (vkQueuePresentKHR / an ANV empty-batch hang, reproducible with the
+        // resize harness; the fixed target rides through the storm).
+        class ProjectionFollow : public vsg::Inherit<vsg::WindowResizeHandler, ProjectionFollow>
         {
         public:
-            RenderTargetResize(vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Viewer> viewer,
-                               vsg::ref_ptr<RenderPipeline> pipeline) :
-                window_(std::move(window)),
-                viewer_(std::move(viewer)),
-                pipeline_(std::move(pipeline)),
-                seen_(window_->extent2D())
+            vsg::ref_ptr<RenderPipeline> pipeline;
+
+            void apply(vsg::Object& object) override
             {
+                // the plain projection update needs no device idle; the default
+                // handler continues to rescale the present view and the overlays
+                if (pipeline && visit(this, 0)) pipeline->camera()->projectionMatrix->changeExtent(previous_extent, new_extent);
+                Inherit::apply(object);
             }
-
-            void run() override
-            {
-                const auto windowExtent = window_->extent2D();
-                if (windowExtent.width == 0 || windowExtent.height == 0) return; // minimized
-
-                if (windowExtent.width != seen_.width || windowExtent.height != seen_.height)
-                {
-                    seen_ = windowExtent;
-                    stableSince_ = vsg::clock::now();
-                    pipeline_->presentNode()->setWindowExtent(windowExtent);
-                    return;
-                }
-
-                const auto pipelineExtent = pipeline_->target()->extent();
-                if (windowExtent.width == pipelineExtent.width && windowExtent.height == pipelineExtent.height) return;
-
-                if (vsg::clock::now() - stableSince_ >= settleTime) pipeline_->resize(windowExtent, *viewer_);
-            }
-
-        protected:
-            ~RenderTargetResize() override = default;
-
-            static constexpr std::chrono::milliseconds settleTime{150};
-
-            vsg::ref_ptr<vsg::Window> window_;
-            vsg::ref_ptr<vsg::Viewer> viewer_;
-            vsg::ref_ptr<RenderPipeline> pipeline_;
-            VkExtent2D seen_{};
-            vsg::clock::time_point stableSince_{vsg::clock::now()};
         };
     }
 
@@ -540,9 +517,9 @@ namespace vsgOcean
     {
         // the composite is presented to the window, in front of which the HUD and the
         // GUI overlays are drawn, within the same render pass
-        // the present view has its own camera: vsg's window resize handler rescales the
+        // the present view has its own camera: the window resize handler rescales the
         // cameras of the window render graph, while the pipeline camera is resized
-        // together with its render target (RenderTargetResize)
+        // together with its render target (the TargetResizeHandler below)
         auto presentCamera = vsg::Camera::create(vsg::Orthographic::create(0.0, 1.0, 0.0, 1.0, 0.0, 1.0),
                                                  vsg::LookAt::create(), vsg::ViewportState::create(window->extent2D()));
         auto presentView = vsg::View::create(presentCamera);
@@ -552,13 +529,17 @@ namespace vsgOcean
         windowRenderGraph->addChild(presentView);
         if (overlay) windowRenderGraph->addChild(overlay);
 
+        // resize: the offscreen target keeps its extent; the pipeline camera
+        // follows the window aspect (ProjectionFollow above), and the default
+        // handler rescales the present view and the overlays
+        auto resizeHandler = ProjectionFollow::create();
+        resizeHandler->pipeline = pipeline;
+        windowRenderGraph->windowResizeHandler = resizeHandler;
+
         auto commandGraph = vsg::CommandGraph::create(window);
         commandGraph->addChild(pipeline->sceneRenderGraph());
         commandGraph->addChild(pipeline->compositeRenderGraph());
         commandGraph->addChild(windowRenderGraph);
-
-        // follow the window size (debounced); runs every frame from viewer->update()
-        viewer->updateOperations->add(RenderTargetResize::create(window, viewer, pipeline), vsg::UpdateOperations::ALL_FRAMES);
 
         return commandGraph;
     }
