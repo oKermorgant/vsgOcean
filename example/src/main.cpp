@@ -154,6 +154,15 @@ int main(int argc, char** argv)
             vsg_scene->setLightIntensity(name, factor);
         }
 
+        // the lamps clustered into the models' direction groups (one control
+        // per robot face - the [L] widget's sliders)
+        for (const auto& group : vsg_scene->lightGroupNames())
+        {
+            std::string members;
+            for (const auto& lamp : vsg_scene->lightGroupMembers(group)) members += (members.empty() ? "" : ", ") + lamp;
+            vsg::info("Light group ", group, ": ", members);
+        }
+
         // demo: links animated wrt their parent frame (steering pods of the surface vehicle,
         // spinning propellers and thrusters). getJoint() composes their motion on the poses
         // captured from the SDF files at load time.
@@ -293,12 +302,14 @@ int main(int argc, char** argv)
                 environment->setSunElevation(40.0);
                 environment->setSunAzimuth(135.0);
                 // the ROV's dive lamps are dimmed to a quarter of their SDF
-                // ceiling (full power cuts the murk and reads "blind")
+                // ceiling (full power cuts the murk and reads "blind"): the two
+                // lamps share ONE control - they aim within 45 deg of each
+                // other, so they form a single light group
                 if (t < 1.0 / 60.0)
                 {
-                    for (const auto& light : vsg_scene->lightNames())
+                    for (const auto& group : vsg_scene->lightGroupNames())
                     {
-                        if (light.rfind("bluerov2/", 0) == 0) vsg_scene->setLightIntensity(light, 0.25);
+                        if (group.rfind("bluerov2/", 0) == 0) vsg_scene->setLightGroupIntensity(group, 0.25);
                     }
                 }
 

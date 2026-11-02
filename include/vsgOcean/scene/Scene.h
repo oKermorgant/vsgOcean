@@ -58,6 +58,8 @@ namespace vsgOcean
             std::string name;   // qualified "model/light"
             double ceiling = 0.0; // the SDF load-time intensity
             double factor = 1.0;  // the runtime intensity factor, 0..1
+            vsg::dvec3 direction{0.0, 0.0, 0.0}; // the aim (spot lamps)
+            bool aimed = false;                  // false: a point lamp, no direction
         };
 
         /// The scene's dimmable lamps by qualified name "model/light" (every SDF
@@ -75,6 +77,29 @@ namespace vsgOcean
         /// Dim a named lamp below its SDF ceiling (0 off, 1 the SDF value;
         /// anything above is clamped). Unknown names are ignored with a warning.
         void setLightIntensity(const std::string& lightName, double factor);
+
+        /// The lamps of each model are CLUSTERED BY AIM DIRECTION: the cluster
+        /// relation is "directions within 45 deg", and the groups are its
+        /// CONNECTED COMPONENTS - a lamp joins through any member (chaining),
+        /// and two groups merge whenever any cross pair comes within 45 deg.
+        /// In practice a group spans one face of the robot (a vehicle's spread
+        /// dive lamps are ONE lamp); a model's point lamps (no direction) form
+        /// one group among themselves. The groups are the control surface of
+        /// the lights widget and of the ROS topics; the per-lamp API above
+        /// stays for precise programmatic use. Qualified "model/lightsN"
+        /// names, ordered per model.
+        [[nodiscard]] std::vector<std::string> lightGroupNames() const;
+
+        /// The member lamp names of a light group (empty for an unknown group).
+        [[nodiscard]] std::vector<std::string> lightGroupMembers(const std::string& groupName) const;
+
+        /// The group's intensity factor (0..1 of the members' SDF ceilings);
+        /// the FIRST member's factor (a group is set as a whole).
+        [[nodiscard]] double lightGroupIntensity(const std::string& groupName) const;
+
+        /// Dim a whole light group below its members' SDF ceilings (0 off, 1 the
+        /// SDF values). Unknown names are ignored with a warning.
+        void setLightGroupIntensity(const std::string& groupName, double factor);
 
         /// Add a model to the scene, attached to the named parent model
         /// (empty, or "world", means the world model).
@@ -158,10 +183,22 @@ namespace vsgOcean
         [[nodiscard]] static vsg::ref_ptr<Scene> load(const vsg::Path& filename, vsg::ref_ptr<vsg::Options> options);
 
     protected:
+        /// A direction cluster of one model's lamps: every aimed member lies
+        /// within 45 deg of every other (one robot face); the aimless (point)
+        /// lamps of a model share one group.
+        struct LampGroup
+        {
+            std::string name;              // qualified "model/lightsN"
+            std::vector<size_t> members;   // indices into the lamp records
+        };
+
         /// Record the load-time intensity of every point / spot light under root
         /// as its CEILING (an SDF <light> intensity is the max; update() scales
-        /// the lights by setLightIntensity below it).
+        /// the lights by setLightIntensity below it), then rebuild the groups.
         void captureLampMaxima(vsg::Node* root, const std::string& modelName);
+
+        /// Recluster the captured lamps into the per-model direction groups.
+        void rebuildLightGroups();
 
         vsg::ref_ptr<Model> world_;
         vsg::ref_ptr<Environment> environment_;
@@ -174,6 +211,8 @@ namespace vsgOcean
         // the dimmable scene lamps: the SDF load-time intensity (the ceiling)
         // and the runtime factor of each, by qualified name
         std::vector<LampRecord> lamps_;
+        // the per-model direction clusters (the control surface)
+        std::vector<LampGroup> lampGroups_;
         // the smoothed sun visibility driving the ocean's sun reflection terms
         float sunVisibility_ = 1.0f;
         std::optional<double> timeOrigin_; // the t of the first update()

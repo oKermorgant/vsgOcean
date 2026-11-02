@@ -70,6 +70,11 @@ namespace vsgOcean
                 lamp.name = modelName + "/" + name;
                 lamp.ceiling = light.intensity;
                 lamp.factor = 1.0;
+                if (const auto spot = light.cast<vsg::SpotLight>())
+                {
+                    lamp.direction = vsg::normalize(spot->direction);
+                    lamp.aimed = true;
+                }
                 lamps.push_back(std::move(lamp));
             }
 
@@ -159,6 +164,105 @@ namespace vsgOcean
 
         LampMaximaCollector collector{lamps_, modelName};
         root->accept(collector);
+        rebuildLightGroups();
+    }
+
+    void Scene::rebuildLightGroups()
+    {
+        lampGroups_.clear();
+
+        // bucket the lamps by model, keeping the first-appearance order
+        std::vector<std::pair<std::string, std::vector<size_t>>> byModel;
+        for (size_t i = 0; i < lamps_.size(); ++i)
+        {
+            const auto model = lamps_[i].name.substr(0, lamps_[i].name.find('/'));
+            const auto bucket = std::find_if(byModel.begin(), byModel.end(),
+                                             [&model](const auto& entry) { return entry.first == model; });
+            if (bucket != byModel.end()) bucket->second.push_back(i);
+            else byModel.emplace_back(model, std::vector<size_t>{i});
+        }
+
+        // cluster each model's lamps: the relation is "directions within
+        // 45 deg", and clusters are its CONNECTED COMPONENTS - a lamp joins
+        // through ANY member (chaining), and two clusters merge whenever any
+        // cross pair comes within 45 deg, so a group spans a whole face of
+        // the robot however the lamps spread. The aimless (point) lamps of a
+        // model form one group among themselves (a point light has no face)
+        constexpr auto withinFace = 0.70710678; // cos(45 deg)
+        for (const auto& [model, indices] : byModel)
+        {
+            // union-find over the model's lamps
+            std::vector<size_t> parent(indices.size());
+            std::iota(parent.begin(), parent.end(), 0);
+            const auto find = [&parent](size_t a)
+            {
+                while (parent[a] != a) a = parent[a] = parent[parent[a]];
+                return a;
+            };
+            const auto unite = [&find](std::vector<size_t>& p, size_t a, size_t b) { p[find(a)] = find(b); };
+            for (size_t i = 0; i < indices.size(); ++i)
+            {
+                for (size_t j = i + 1; j < indices.size(); ++j)
+                {
+                    const auto& a = lamps_[indices[i]];
+                    const auto& b = lamps_[indices[j]];
+                    if (a.aimed != b.aimed) continue; // the aimless lamps group among themselves only
+                    if (!a.aimed || dot(a.direction, b.direction) >= withinFace) unite(parent, i, j);
+                }
+            }
+
+            // the components, ordered by their root member (stable names)
+            std::map<size_t, std::vector<size_t>> components;
+            for (size_t i = 0; i < indices.size(); ++i) components[find(i)].push_back(indices[i]);
+            size_t groupIndex = 0;
+            for (auto& [root, members] : components)
+            {
+                (void)root;
+                lampGroups_.push_back({model + "/lights" + std::to_string(++groupIndex), std::move(members)});
+            }
+        }
+    }
+
+    std::vector<std::string> Scene::lightGroupNames() const
+    {
+        std::vector<std::string> names;
+        names.reserve(lampGroups_.size());
+        for (const auto& group : lampGroups_) names.push_back(group.name);
+        return names;
+    }
+
+    std::vector<std::string> Scene::lightGroupMembers(const std::string& groupName) const
+    {
+        std::vector<std::string> members;
+        if (const auto it = std::find_if(lampGroups_.begin(), lampGroups_.end(),
+                                         [&groupName](const auto& group) { return group.name == groupName; });
+            it != lampGroups_.end())
+        {
+            members.reserve(it->members.size());
+            for (const auto i : it->members) members.push_back(lamps_[i].name);
+        }
+        return members;
+    }
+
+    double Scene::lightGroupIntensity(const std::string& groupName) const
+    {
+        const auto it = std::find_if(lampGroups_.begin(), lampGroups_.end(),
+                                     [&groupName](const auto& group) { return group.name == groupName; });
+        if (it != lampGroups_.end() && !it->members.empty()) return lamps_[it->members.front()].factor;
+        return 1.0;
+    }
+
+    void Scene::setLightGroupIntensity(const std::string& groupName, double factor)
+    {
+        const auto clamped = std::clamp(factor, 0.0, 1.0);
+        if (const auto it = std::find_if(lampGroups_.begin(), lampGroups_.end(),
+                                         [&groupName](const auto& group) { return group.name == groupName; });
+            it != lampGroups_.end())
+        {
+            for (const auto i : it->members) lamps_[i].factor = clamped;
+            return;
+        }
+        vsg::warn("vsgOcean::Scene::setLightGroupIntensity - unknown light group ", groupName);
     }
 
     std::vector<std::string> Scene::lightNames() const

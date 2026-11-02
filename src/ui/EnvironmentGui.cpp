@@ -310,9 +310,11 @@ namespace vsgOcean
 
         // the underwater layer: the water optics (the Jerlov taxonomy), the sea
         // level, the drift of the water column and its particles
-        // the lights widget: one intensity slider per scene lamp. An SDF <light>
-        // intensity is each lamp's CEILING - the sliders only dim below it, and
-        // the shading, the volumetric cones and the snow sparkle all follow
+        // the lights widget: one intensity slider per LIGHT GROUP. Each model's
+        // lamps are clustered by aim direction (pairwise within 45 deg - one
+        // face of the robot), and the group is the control; an SDF <light>
+        // intensity is each member's CEILING - the sliders only dim below it,
+        // and the shading, the volumetric cones and the snow sparkle all follow
         bool drawLightsWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene)
         {
             if (!controls->lightsVisible) return true;
@@ -321,15 +323,21 @@ namespace vsgOcean
             ImGui::Begin("lights", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
             ImGui::PushItemWidth(220.0f);
 
-            const auto names = scene->lightNames();
-            if (names.empty())
+            const auto groups = scene->lightGroupNames();
+            if (groups.empty())
             {
                 ImGui::TextUnformatted("no lights in the scene");
             }
-            for (const auto& name : names)
+            for (const auto& group : groups)
             {
-                auto factor = static_cast<float>(scene->lightIntensity(name));
-                if (ImGui::SliderFloat(name.c_str(), &factor, 0.0f, 1.0f)) scene->setLightIntensity(name, factor);
+                auto factor = static_cast<float>(scene->lightGroupIntensity(group));
+                if (ImGui::SliderFloat(group.c_str(), &factor, 0.0f, 1.0f)) scene->setLightGroupIntensity(group, factor);
+                if (ImGui::IsItemHovered())
+                {
+                    std::string members;
+                    for (const auto& lamp : scene->lightGroupMembers(group)) members += (members.empty() ? "" : ", ") + lamp;
+                    ImGui::SetTooltip("%s", members.c_str());
+                }
             }
 
             ImGui::PopItemWidth();
