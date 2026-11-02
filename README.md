@@ -4,7 +4,18 @@
 
 > :warning: **Status: ongoing, experimental project.** vsgOcean is under active development: APIs will change, features are incomplete, and rendering is a baseline that will be refined. It is not ready for production use. Feedback and contributions are welcome, but expect churn.
 
-vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation:
+vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. Its differentiator is the **water itself**: the light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the waves follow the same model as a Gazebo dynamics simulation, and every layer is settable at runtime — by the GUI, the command line, or the ROS topics of the Coral frontend.
+
+In short:
+
+- **Scene model**: named, nestable `Model`s with frames addressable by name and movable at runtime through `setPose()` — the seam for driving visuals from a dynamics simulator; SDF worlds and models load natively *(optional, [sdformat](https://github.com/gazebosim/sdformat))*.
+- **Sky and weather**: analytic sky with a sun-driven day/night cycle (moonless, genuinely dark nights — no ambient floors anywhere), hemisphere-dependent constellations, cloud cover on the okta scale, rain (falling streaks, splash rings, a roughened sea).
+- **Ocean surface**: Gerstner waves from the same wave model as [asv_wave_sim](https://github.com/srmainwaring/asv_wave_sim) (Gazebo-synchronisable), or an ECKV FFT sea with a detail cascade and Jacobian whitecap foam; wind-driven ripple detail; sky reflection, glitter and glare above, the Snell window below.
+- **Underwater rendering**: per-pixel, per-channel Jerlov attenuation over the true submerged view segment, Henyey-Greenstein in-scatter, an underwater sky, volumetric lamp cones, marine snow and a turbidity-driven depth-of-field blur.
+- **Dimmable lights**: an SDF `<light>` intensity is each lamp's ceiling; lamps cluster by aim direction into per-robot light groups (one face, one control) — shading, cones and snow sparkle all follow.
+- **Render pipelines**: the scene renders from any number of cameras (sensor cameras to texture, ready for image readback); `--headless` renders offscreen without a window, for servers, CI and non-presenting GPUs.
+
+## Videos
 
 [![The ocean surface: the wind builds a foam-capped FFT sea while the water type steps from oceanic to coastal](https://github.com/user-attachments/assets/4b821752-acc9-4fc9-8505-bbc6754527d7)](https://github.com/user-attachments/assets/4b821752-acc9-4fc9-8505-bbc6754527d7)
 
@@ -12,20 +23,137 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 
 *(still frames: [`img/surface.png`](img/surface.png), [`img/underwater.png`](img/underwater.png))*
 
-- **Scene model**: a tree of named, nestable `Model`s rooted at a `world` model, holding meshes under fixed or dynamic transforms. Frames are addressable by name and movable at runtime through `setPose()` — the seam for driving visuals from a dynamics simulator.
-- **SDF loading** *(optional, requires [sdformat](https://github.com/gazebosim/sdformat))*: SDF worlds and models become the scene model, with poses resolved through SDF semantic poses, `package://` / `model://` / `file://` URI resolution, and mesh scales.
-- **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime. Night is moonless and genuinely dark: every light path (sky, fog, in-scatter, scene lighting) is sun-driven, so an unlit night scene is lit only by its own lamps.
-- **Sky**: analytic shader sky (day/night cycle from the sun elevation, constellations at night), with scene lighting that follows the sun. A cloud cover parameter on the classical okta scale (`--clouds 0..8`, the sky widget) is independent of the fog: the clouds dim and hide the sun and the stars, grey the sky and the sea reflections, and dim the scene lighting - the fog stays the distance haze. The night sky follows the hemisphere: the northern sky carries Orion, the Big and Little Dippers (Ursa Major and Minor), Cassiopeia and Taurus; the southern sky carries Crux (the Southern Cross), Centaurus, Carina, Scorpius and Sirius.
-- **Rain**: a rain rate (`--rain 0..1`, the sky widget, the `sky.rain` parameter on the Coral frontend) renders the weather above the surface - falling streaks bent by the wind and expanding splash rings on the water, both in camera-following particle fields that scale with the rate and follow the sky's brightness (rain under overcast is grey, none at night). The sea responds: the rain adds capillary roughness and flattens the specular glitter, and the rain fades out with the camera's submersion.
-- **Ocean surface**: a Gerstner wave field using the **same wave model as Gazebo** ([asv_wave_sim](https://github.com/srmainwering/asv_wave_sim)), so the visual waves and a dynamic wave field in a physics simulation can be synchronised. The CPU `Wavefield` evaluation and the GPU displacement are the same model. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the component count, scale and angle are tunable (GUI sliders or `--wave-*`). Wind-driven ripple detail is layered on top as a drifting noise field (with a faint floor in dead calm). An alternative FFT sea (`--fft`) synthesises an ECKV spectrum by inverse FFT through the same wave-field interface (as asv_wave_sim's linear-random-FFT model), with an optional finer detail cascade and Jacobian whitecap foam (`--fft-detail`, `--foam`, both off by default); the CPU wave height follows the displaced surface so floating bodies sit on the rendered waves. The animation time `t` passed to `Scene::update` may be a wall clock: it is measured from the first call. The surface shades around the shared analytic sky in both directions: above, Fresnel-weighted sky reflection (fading in toward the horizon), sun glitter and glare, and the transmitted Jerlov body colour; from below, the Snell window with total internal reflection beyond the critical angle. The composite applies FXAA anti-aliasing.
-- **Underwater rendering**: when the camera dives below the waves, the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the true submerged view segment (red is absorbed first), Henyey-Greenstein forward in-scatter (g = 0.924) and an underwater sky — all driven by the water composition (chlorophyll, CDOM, sediment) through a simple bio-optical model, with the 14 Jerlov types as presets. (Known approximation: the models themselves are still lit by the unfiltered sun at any depth — the light on the geometry is not yet attenuated by its depth, only the view path is; the scene lighting and the in-scatter are on the roadmap for depth-consistent rendering.)
-- **Volumetric lamp cones**: the scene's point and spot lights are ray-marched as visible single-scattering cones through the water column — the night wreck scene is lit only by the ROV's dive beams, with the cones readable against open water.
-- **Marine snow**: slowly wandering particles in a box wrapped around the camera, with additional bulk drift from the water current (`setWaterCurrent()` — the seam for a dynamics-driven current topic). They reflect sunlight that reaches their depth and scene lamps, sparkling in the ROV beams at night. Density is tunable up to 100x the unit field (`--snow 0..100`, default 0.6, the GUI slider) — a storm-stirred water column of fine, sub-millimetre to centimetre flakes.
-- **SDF lights**: `<light>` elements (point, spot with cone aperture and range, directional) become scene lights attached to their frame, so vehicle lamps follow the vehicle. Each light's SDF intensity is its **ceiling**: every lamp is dimmable at runtime by name (`Scene::setLightIntensity`, e.g. `--light bluerov2/lamp_port 0.2` on the example), and each model's lamps cluster by aim direction (within 45°, chained — one robot face is one control) into **light groups** (`Scene::setLightGroupIntensity`) — the lights widget's sliders ([L]), one per group, and the per-group ROS topics on the Coral frontend. The model shading, the volumetric lamp cones and the marine snow sparkle all follow.
-- **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic, and the composited image can be written to a PNG (`--screenshot`).
-- **Headless rendering**: `--headless` renders offscreen without a window or swapchain and writes the screenshot — for servers and CI, and for GPUs that can render but not present (e.g. over a forwarded X connection).
+## The important parameters: water colour and waves
 
-The example application renders an islands scene with a surface vehicle (aquabot), an ROV (BlueROV2) diving around a ship wreck, animated in real time, with a day/night cycle (opt-in) and moving waves.
+Most of the look lives in two parameter families.
+
+### Water colour and light transport
+
+The water is described either by a **Jerlov water type** (the classical marine-optics taxonomy: oceanic I, IA, IB, II, III, then coastal 1–9 — open ocean to murky harbour) or directly by its **bio-optical composition**: chlorophyll [mg/m³], coloured dissolved organic matter (CDOM absorption at 440 nm [1/m]) and suspended sediment [g/m³]. The composition drives a simple bio-optical model producing the per-channel diffuse attenuation, the scattering coefficient and the sub-surface colour, from which everything follows: the underwater attenuation and in-scatter (per-channel Beer–Lambert along the true submerged view segment, Henyey–Greenstein forward scattering g = 0.924), the water's own colour seen from above, the depth-of-field blur and the lamp cones. The 14 Jerlov types are presets of the composition space; the default is coastal 3 (the western English Channel). The composition is the `underwater.*` parameter set on the ROS frontend.
+
+### Waves
+
+The default sea is a **Gerstner component wave field** using the same wave model as [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (Gazebo's wave plugin): the visual displacement on the GPU and the CPU `Wavefield` evaluation are the same model, so the rendered surface and a dynamics simulation's wave field can be synchronised — floating bodies sit on the rendered waves. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters (`ocean.*` on ROS).
+
+The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional spectrum by inverse FFT through the same wave-field interface, with a choppiness parameter (horizontal displacement whose folds produce **Jacobian whitecap foam** with `--foam`), a wave-age parameter and an optional second, finer cascade (`--fft-detail`) that kills tile repetition and adds detail.
+
+### References
+
+- N. G. Jerlov, *Marine Optics*, Elsevier, 1976 — the water type taxonomy.
+- L. de Gerstner (1809), *Theorie der Wellen* — the trochoidal wave model.
+- W. J. Pierson & L. Moskowitz, *A proposed spectral form for fully developed wind seas…*, J. Geophys. Res., 1964 — the wind-sea spectrum asv_wave_sim samples.
+- T. Elfouhaily, B. Chapron & D. Katsaros, *A unified directional spectrum for long and short wind-driven waves*, J. Geophys. Res., 1997 — the ECKV spectrum of the FFT sea.
+- J. Tessendorf, *Simulating Ocean Water*, 2001 — the inverse-FFT synthesis and the Jacobian foam.
+- L. C. Henyey & J. L. Greenstein, *Diffuse radiation in the galaxy*, ApJ, 1941 — the forward-scattering phase function.
+- [asv_wave_sim](https://github.com/srmainwaring/asv_wave_sim) (R. Mainwaring) — the Gazebo-compatible Gerstner wave field vsgOcean's `Wavefield` derives from.
+
+## The example
+
+The example application renders an islands scene with a surface vehicle (aquabot), an ROV (BlueROV2) circling a ship wreck with its dive lamps, and a floating wind turbine — animated in real time on the waves, with the environment fully tunable at runtime. Two sensor cameras (the ROV's nose camera and a boat camera) render to texture and preview in the panel.
+
+```bash
+# default: islands + aquabot + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth) and waves
+./vsgOcean_example
+
+# a few looks
+./vsgOcean_example --sun-cycle                                # animate the sun (1 simulated hour per second; Space pauses)
+./vsgOcean_example --fft --fft-detail --foam 0.7 --wind 14 45 # a wind-built, foam-capped FFT sea
+./vsgOcean_example --clouds 7 --rain 0.8                     # a downpour: streaks, splash rings, a roughened sea
+./vsgOcean_example --light bluerov2/lights1 0.25              # the ROV's dive lamps to 25% of their SDF intensity
+./vsgOcean_example --latitude -35 --longitude 18             # the southern hemisphere: Crux replaces the Dipper
+
+# headless: render offscreen (no window; for servers, CI, non-presenting GPUs) and write a PNG
+./vsgOcean_example --headless --extent 1920 1080 -f 60 --screenshot shot.png
+
+# custom scenes: pass SDF files as positional arguments
+./vsgOcean_example my_world.sdf
+```
+
+### Runtime controls
+
+The environment is tuned at runtime through the keyboard and widgets (`vsgOcean::EnvironmentControls`, a library feature). The keys are deliberately few — the tuning lives in the widgets:
+
+| input | action |
+| --- | --- |
+| left drag / right drag / wheel | translate / orbit (stable horizon) / dolly |
+| H | help window on / off (the bindings, the model tracking, the live stats) |
+| C | camera previews on / off (hidden by default; says so when no camera is rendering) |
+| S | sky widget on / off (sun, day cycle, fog, cloud cover, rain) |
+| O | ocean surface widget on / off (wind, waves) |
+| U | underwater widget on / off (water optics, current, snow, DOF blur) |
+| L | lights widget on / off (one intensity slider per light group) |
+| Tab | cycle the tracked model (camera follows) |
+| Esc | quit |
+
+The bindings are always visible in a small HUD in a corner of the window. When vsgOcean is built with vsgImGui, each widget is its own window: the widgets read the environment every frame and write only on change — an update from outside (a topic, the code) is reflected immediately, and changing a widget takes over from any preset. The underwater widget carries the **depth-of-field blur** (off by default): the water's turbidity blurs the view with the water path length, following the Jerlov beam attenuation.
+
+## All the parameters
+
+Environment (sky and weather):
+
+| flag | values | meaning |
+| --- | --- | --- |
+| `--sun` | *elev azim* (deg) | static sun position |
+| `--sun-cycle` | | animate the sun, 1 simulated hour per second |
+| `--wind` | *speed dir* (m/s, deg) | wind speed and direction (ripples, glitter, rain drift, FFT spectrum) |
+| `--clouds` | 0..8 | cloud cover in oktas (independent of the fog) |
+| `--rain` | 0..1 | rain rate: streaks, splash rings, a roughened sea |
+| `--fog` | 0..1 | distance haze density (default 0.02) |
+| `--latitude` / `--longitude` | deg | geolocation: the hemisphere's constellations |
+
+Water (colour and optics):
+
+| flag | values | meaning |
+| --- | --- | --- |
+| `--jerlov` | 0..13 | the water type: I, IA, IB, II, III, coastal 1–9 (default 7 = coastal 3, western English Channel) |
+| `--chlorophyll` / `--cdom` / `--sediment` | mg/m³, 1/m, g/m³ | a bio-optical composition (overrides the fields of the type) |
+| `--blur` | 0/1 | underwater depth-of-field blur |
+| `--snow` | 0..100 | marine snow density (default 0.6) |
+| `--current` | *vx vy* (m/s) | the water current (snow and particles drift with it) |
+
+Waves (Gerstner sea):
+
+| flag | values | meaning |
+| --- | --- | --- |
+| `--wave-amplitude` | m | mean component amplitude |
+| `--wave-period` | s | mean component period |
+| `--wave-steepness` | 0..1 | Gerstner steepness |
+| `--wave-number` | 1..8 | component count (1: a regular, long-crested sea) |
+| `--wave-scale` | | component scale |
+| `--wave-angle` | deg | component spreading angle |
+
+Waves (FFT sea):
+
+| flag | values | meaning |
+| --- | --- | --- |
+| `--fft` | | the FFT sea (ECKV spectrum, as asv_wave_sim) instead of the Gerstner sea |
+| `--fft-tile` | m | the cascade tile size (default 256) |
+| `--fft-choppiness` | | the horizontal displacement whose folds produce the foam |
+| `--fft-wave-age` | | the ECKV wave age (default 0.84) |
+| `--fft-detail` | | a second, finer cascade (tile/8) that kills tile repetition |
+| `--foam` | 0..1 | Jacobian whitecap foam amount |
+
+Lights:
+
+| flag | values | meaning |
+| --- | --- | --- |
+| `--light` | *model/lamp* *0..1* | dim a lamp below its SDF intensity (the ceiling); repeatable |
+
+Camera, capture and diagnostics:
+
+| flag | values | meaning |
+| --- | --- | --- |
+| `--eye` / `--center` | x y z | a deterministic camera position / look-at |
+| `--headless` | | render offscreen, no window or swapchain |
+| `--extent` | W H | the render extent (window or headless) |
+| `-f` / `--num-frames` | N | render N frames then exit |
+| `--screenshot` | file.png | write the composited view at exit |
+| `--video` | printf pattern | write every headless frame (encode with ffmpeg) |
+| `--showcase` | surface / underwater / rov | scripted maritime showcase videos (see the example source) |
+| `--debug` | | Vulkan validation layers |
+| `--fps` / `--profiler` | | average frame rate at exit / per-stage instrumentation |
+
+vsg's standard viewer flags (`--window`, `--gpu`, `--mt`, `--log-level`, …) also apply.
 
 ## Building
 
@@ -44,81 +172,14 @@ cmake --build build -j
 ./build/example/vsgOcean_example
 ```
 
-## The example
-
-```bash
-# default: islands + aquabot + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth) and waves
-./vsgOcean_example
-
-# customise
-./vsgOcean_example --sun-cycle                     # animate the sun (1 simulated hour per second; Space pauses)
-./vsgOcean_example --sun 20 200                    # static sun at 20 deg elevation, azimuth 200
-./vsgOcean_example --wind 8 45 --wave-amplitude 0.2 --wave-period 6
-./vsgOcean_example --wave-number 4 --wave-scale 1.5 --wave-angle 20   # regular, long-crested sea
-./vsgOcean_example --fft --wind 8 45                # FFT sea (ECKV spectrum, as asv_wave_sim); --fft-tile 256 --fft-choppiness 0.6 --fft-wave-age 0.84
-./vsgOcean_example --fft --fft-detail --foam 0.7 --wind 14 45   # second, finer FFT cascade (tile/8) + Jacobian whitecap foam (both off by default)
-./vsgOcean_example --jerlov 13                     # Jerlov type 0-13: I, IA, IB, II, III, coastal 1-9 (default 7 = coastal 3, western English Channel)
-./vsgOcean_example --chlorophyll 5 --cdom 0.3 --sediment 2   # any water: a bio-optical composition (overrides the fields of the type)
-./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
-./vsgOcean_example --snow 60 --current 0.5 0 --blur 1  # storm-stirred snow, drifting East, with DOF blur
-./vsgOcean_example --light bluerov2/lamp_port 0.2 --light bluerov2/lamp_starboard 0.2   # dim the ROV's dive lamps to 20% of their SDF intensity
-./vsgOcean_example --latitude -35 --longitude 18   # the southern hemisphere: Crux replaces the Dipper
-./vsgOcean_example --clouds 7                         # overcast: no sun disc, no stars
-./vsgOcean_example --clouds 7 --rain 0.8             # a downpour: streaks, splash rings, a roughened sea
-./vsgOcean_example --debug --eye 12 5 -40          # validation layers, camera near the wreck
-./vsgOcean_example --eye 12 5 -40 --center 12 0 -48   # fully deterministic view
-
-# headless: render N frames offscreen (no window) and write a PNG
-./vsgOcean_example --headless -f 20 --sun 35 135 --screenshot shot.png
-./vsgOcean_example --headless --extent 1920 1080 -f 60 --screenshot shot.png
-
-# custom scenes: pass SDF files as positional arguments
-./vsgOcean_example my_world.sdf
-```
-
-### Runtime controls
-
-The environment can be tuned at runtime (`vsgOcean::EnvironmentControls`, a library
-feature also usable headless through the keyboard). The keys are deliberately few — the
-tuning lives in the widgets:
-
-| input | action |
-| --- | --- |
-| left drag / right drag / wheel | translate / orbit (stable horizon) / dolly |
-| H | help window on / off (the bindings and the model tracking) |
-| C | camera previews on / off (hidden by default; says so when no camera is rendering) |
-| S | sky widget on / off (sun, day cycle, fog, cloud cover) |
-| O | ocean surface widget on / off (wind, waves) |
-| U | underwater widget on / off (water optics, current, snow, DOF blur) |
-| L | lights widget on / off (one intensity slider per light group) |
-| Tab | cycle the tracked model (camera follows) |
-| Esc | quit |
-
-The bindings are always visible in a small HUD in a corner of the window. When
-vsgOcean is built with vsgImGui, each of the four widgets is its own window (toggled by
-the key above); the widgets read the environment every frame and write only on change:
-an update from outside (a topic, the code) is reflected immediately, and changing a
-widget takes over from any preset. The help window also carries the live application
-stats — fps and frame time, process CPU (percent of one core), resident memory and the
-render device name. For deeper profiling vsg's own instrumentation is built in:
-`--fps` reports the average rate at exit, `--profiler` logs per-stage CPU/GPU timings.
-The font for the HUD is loaded from the system (override with the `VSGOCEAN_FONT`
-environment variable).
-
-The underwater widget also carries the **underwater depth-of-field blur** (as
-osgOcean's underwater DOF, off by default, `--blur 0/1` on the example): the water's
-turbidity blurs the view with the water path length — near objects stay sharp, distant
-ones dissolve into the water — following the Jerlov beam attenuation, so a coastal
-water blurs much sooner than a clear oceanic one.
-
 ## Roadmap
 
 - Underwater rendering refinements
     - god rays
     - wave-field caustics on geometry
-- Surface refinements: planar reflection / refraction passes of the actual scene; foam persistence; subsurface scattering; screen-space reflections; exposure / tone mapping
-- A separate ROS wrapper package (tf-driven poses, image topics)
-- A separate Gazebo rendering plugin (Gazebo-driven poses, image topics)
+    - depth-consistent scene lighting (the light on the geometry attenuated by its depth)
+- Surface refinements: planar reflection / refraction passes of the actual scene; foam persistence; subsurface scattering; screen-space reflections; exposure / tone mapping; sun shadow map on the water
+- A separate ROS wrapper package (tf-driven poses, image topics) — the Coral frontend consumes vsgOcean today
 
 ## Acknowledgments and third-party notices
 
