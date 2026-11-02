@@ -4,7 +4,7 @@
 
 > :warning: **Status: ongoing, experimental project.** vsgOcean is under active development: APIs will change, features are incomplete, and rendering is a baseline that will be refined. It is not ready for production use. Feedback and contributions are welcome, but expect churn.
 
-vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. Its differentiator is the **water itself**: the light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the waves follow the same model as a Gazebo dynamics simulation, and every layer is settable at runtime — by the GUI, the command line, or the ROS topics of the Coral frontend.
+vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. Its differentiator is the **water itself**: the light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the waves follow the same model as a Gazebo dynamics simulation, and every layer is settable at runtime — by the GUI, the command line, or the topics of the Coral frontend.
 
 In short:
 
@@ -29,11 +29,11 @@ The look lives in two parameter families, both runtime-tunable.
 
 ### Water colour and light transport
 
-The water is described either by a **Jerlov water type** (the classical marine-optics taxonomy: oceanic I, IA, IB, II, III, then coastal 1–9 — open ocean to murky harbour) or directly by its **bio-optical composition**: chlorophyll [mg/m³], coloured dissolved organic matter (CDOM absorption at 440 nm [1/m]) and suspended sediment [g/m³]. The composition drives a simple bio-optical model producing the per-channel diffuse attenuation, the scattering coefficient and the sub-surface colour, from which everything follows: the underwater attenuation and in-scatter (per-channel Beer–Lambert along the true submerged view segment, Henyey–Greenstein forward scattering g = 0.924), the water's own colour seen from above, the depth-of-field blur and the lamp cones. The 14 Jerlov types are presets of the composition space; the default is coastal 3 (the western English Channel). The composition is the `underwater.*` parameter set on the ROS frontend.
+The water is described either by a **Jerlov water type** (the classical marine-optics taxonomy: oceanic I, IA, IB, II, III, then coastal 1–9 — open ocean to murky harbour) or directly by its **bio-optical composition**: chlorophyll [mg/m³], coloured dissolved organic matter (CDOM absorption at 440 nm [1/m]) and suspended sediment [g/m³]. The composition drives a simple bio-optical model producing the per-channel diffuse attenuation, the scattering coefficient and the sub-surface colour, from which everything follows: the underwater attenuation and in-scatter (per-channel Beer–Lambert along the true submerged view segment, Henyey–Greenstein forward scattering g = 0.924), the water's own colour seen from above, the depth-of-field blur and the lamp cones. The 14 Jerlov types are presets of the composition space; the default is coastal 3 (the western English Channel). The composition is exposed as the `underwater.*` parameters by the Coral frontend.
 
 ### Waves
 
-The default sea is a **Gerstner component wave field** using the same wave model as [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (Gazebo's wave plugin): the visual displacement on the GPU and the CPU `Wavefield` evaluation are the same model, so the rendered surface and a dynamics simulation's wave field can be synchronised — floating bodies sit on the rendered waves. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters (`ocean.*` on ROS).
+The default sea is a **Gerstner component wave field** using the same wave model as [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (Gazebo's wave plugin): the visual displacement on the GPU and the CPU `Wavefield` evaluation are the same model, so the rendered surface and a dynamics simulation's wave field can be synchronised — floating bodies sit on the rendered waves. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters (the `ocean.*` parameters in the Coral frontend).
 
 The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional spectrum by inverse FFT through the same wave-field interface, with a choppiness parameter (horizontal displacement whose folds produce **Jacobian whitecap foam** with `--foam`), a wave-age parameter and an optional second, finer cascade (`--fft-detail`) that kills tile repetition and adds detail.
 
@@ -90,7 +90,7 @@ waves:
 ./vsgOcean_example --env storm.yaml
 ```
 
-The file is applied first, so any explicit command line flag still overrides its key (`--env storm.yaml --rain 0` for a dry storm). The full key list is documented in [`include/vsgOcean/core/EnvironmentFile.h`](include/vsgOcean/core/EnvironmentFile.h); the support is built when [yaml-cpp](https://github.com/jbeder/yaml-cpp) is found (ROS 2 systems ship it).
+The file is applied first, so any explicit command line flag still overrides its key (`--env storm.yaml --rain 0` for a dry storm). The full key list is documented in [`include/vsgOcean/core/EnvironmentFile.h`](include/vsgOcean/core/EnvironmentFile.h); the support is built when [yaml-cpp](https://github.com/jbeder/yaml-cpp) is found (a common system package).
 
 ### Runtime controls
 
@@ -140,7 +140,7 @@ cmake --build build -j
     - wave-field caustics on geometry
     - depth-consistent scene lighting (the light on the geometry attenuated by its depth)
 - Surface refinements: planar reflection / refraction passes of the actual scene; foam persistence; subsurface scattering; screen-space reflections; exposure / tone mapping; sun shadow map on the water
-- A separate ROS wrapper package (tf-driven poses, image topics) — the Coral frontend consumes vsgOcean today
+- Middleware integration is kept out of this library on purpose — poses come from the outside; the Coral frontend (a separate project) drives vsgOcean today
 
 ## Acknowledgments and third-party notices
 
