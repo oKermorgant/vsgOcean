@@ -34,7 +34,7 @@ namespace vsgOcean
     UriResolver::UriResolver()
     {
         // robotics package install prefixes, giving <prefix>/share/<package>/<relativePath>
-        // (the AMENT_PREFIX_PATH layout the Coral frontend installs into)
+        // (the AMENT_PREFIX_PATH install layout of robotics packages)
         for (const auto& prefix : vsg::getEnvPaths("AMENT_PREFIX_PATH"))
         {
             packageRoots_.push_back(prefix);

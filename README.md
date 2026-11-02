@@ -4,7 +4,7 @@
 
 > :warning: **Status: ongoing, experimental project.** vsgOcean is under active development: APIs will change, features are incomplete, and rendering is a baseline that will be refined. It is not ready for production use. Feedback and contributions are welcome, but expect churn.
 
-vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. The light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the wave models are inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin), and every layer is settable at runtime — by the GUI, the command line, or the topics of the Coral frontend.
+vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. The light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the wave models are inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin), and every layer is settable at runtime — by the GUI, the command line, or the C++ API.
 
 In short:
 
@@ -29,11 +29,11 @@ The look lives in two parameter families, both runtime-tunable.
 
 ### Water colour and light transport
 
-The water is described either by a **Jerlov water type** (the classical marine-optics taxonomy: oceanic I, IA, IB, II, III, then coastal 1–9 — open ocean to murky harbour) or directly by its **bio-optical composition**: chlorophyll [mg/m³], coloured dissolved organic matter (CDOM absorption at 440 nm [1/m]) and suspended sediment [g/m³]. The composition drives a simple bio-optical model producing the per-channel diffuse attenuation, the scattering coefficient and the sub-surface colour, from which everything follows: the underwater attenuation and in-scatter (per-channel Beer–Lambert along the true submerged view segment, Henyey–Greenstein forward scattering g = 0.924), the water's own colour seen from above, the depth-of-field blur and the lamp cones. The 14 Jerlov types are presets of the composition space; the default is coastal 3 (the western English Channel). The composition is exposed as the `underwater.*` parameters by the Coral frontend.
+The water is described either by a **Jerlov water type** (the classical marine-optics taxonomy: oceanic I, IA, IB, II, III, then coastal 1–9 — open ocean to murky harbour) or directly by its **bio-optical composition**: chlorophyll [mg/m³], coloured dissolved organic matter (CDOM absorption at 440 nm [1/m]) and suspended sediment [g/m³]. The composition drives a simple bio-optical model producing the per-channel diffuse attenuation, the scattering coefficient and the sub-surface colour, from which everything follows: the underwater attenuation and in-scatter (per-channel Beer–Lambert along the true submerged view segment, Henyey–Greenstein forward scattering g = 0.924), the water's own colour seen from above, the depth-of-field blur and the lamp cones. The 14 Jerlov types are presets of the composition space; the default is coastal 3 (the western English Channel).
 
 ### Waves
 
-The default sea is a **Gerstner component wave field**, a wave model inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin): it follows its component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea. The mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters (the `ocean.*` parameters in the Coral frontend), and the field can also be evaluated on the CPU (`Wavefield::height`), not only rendered.
+The default sea is a **Gerstner component wave field**, a wave model inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin): it follows its component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea. The mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters, and the field can also be evaluated on the CPU (`Wavefield::height`), not only rendered.
 
 The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional spectrum by inverse FFT, after the linear random FFT model of asv_wave_sim, with a choppiness parameter (horizontal displacement whose folds produce **Jacobian whitecap foam** with `--foam`), a wave-age parameter and an optional second, finer cascade (`--fft-detail`) that kills tile repetition and adds detail.
 
@@ -140,7 +140,7 @@ cmake --build build -j
     - wave-field caustics on geometry
     - depth-consistent scene lighting (the light on the geometry attenuated by its depth)
 - Surface refinements: planar reflection / refraction passes of the actual scene; foam persistence; subsurface scattering; screen-space reflections; exposure / tone mapping; sun shadow map on the water
-- Middleware integration is kept out of this library on purpose — poses come from the outside; the Coral frontend (a separate project) drives vsgOcean today
+- Middleware integration is kept out of this library on purpose — poses and environment updates come from the outside, through the C++ API
 
 ## Acknowledgments and third-party notices
 

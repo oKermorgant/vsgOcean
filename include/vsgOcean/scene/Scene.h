@@ -86,8 +86,8 @@ namespace vsgOcean
         /// In practice a group spans one face of the robot (a vehicle's spread
         /// dive lamps are ONE lamp); a model's point lamps (no direction) form
         /// one group among themselves. The groups are the control surface of
-        /// the lights widget and of the environment topics (see the Coral
-        /// frontend); the per-lamp API above stays for precise programmatic
+        /// the lights widget and of any external control
+        /// (a middleware frontend, a script); the per-lamp API above stays for precise programmatic
         /// use. Qualified "model/lightsN" names, ordered per model.
         [[nodiscard]] std::vector<std::string> lightGroupNames() const;
 
