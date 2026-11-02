@@ -49,10 +49,10 @@ The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional sp
 
 ## The example
 
-The example application renders an islands scene with a surface vehicle (aquabot), an ROV (BlueROV2) circling a ship wreck with its dive lamps, and a floating wind turbine — animated in real time on the waves, with the environment fully tunable at runtime. Two sensor cameras (the ROV's nose camera and a boat camera) render to texture and preview in the panel.
+The example application renders an islands scene with a surface vehicle (a WAM-V), an ROV (BlueROV2) circling a ship wreck with its dive lamps, and a floating wind turbine — animated in real time on the waves, with the environment fully tunable at runtime. Two sensor cameras (the ROV's nose camera and a boat camera) render to texture and preview in the panel.
 
 ```bash
-# default: islands + aquabot + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth) and waves
+# default: islands + wamv + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth) and waves
 ./vsgOcean_example
 
 # a few looks

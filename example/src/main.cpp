@@ -51,7 +51,7 @@ int main(int argc, char** argv)
 #ifdef VSGOCEAN_WITH_SDF
         else
         {
-            vsg_scene = vsgOcean::Scene::load({modelFile("islands/islands.sdf"), modelFile("aquabot/aquabot.sdf"),
+            vsg_scene = vsgOcean::Scene::load({modelFile("islands/islands.sdf"), modelFile("wamv/wamv.sdf"),
                                                modelFile("bluerov2/bluerov2.sdf"), modelFile("herkules_ship_wreck/model.sdf"), modelFile("floatgen/model.sdf")}, options);
         }
 #else
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
             // degraded demo without SDF support: load the raw terrain and hull meshes as named
             // models, so the vehicle trajectories below still have something to animate
             vsg_scene = vsgOcean::Scene::load({modelFile("islands/islands.glb"),
-                                               modelFile("aquabot/mesh/blue_boat.glb"),
+                                               modelFile("wamv/mesh/wamv_base.glb"),
                                                modelFile("bluerov2/meshes/bluerov2_noprop.glb")}, options);
         }
 #endif
@@ -196,7 +196,7 @@ int main(int argc, char** argv)
         const auto demoFrame = [&](double t)
         {
             // the models' world poses
-            for (const auto* model : {"aquabot", "bluerov2", "floatgen"})
+            for (const auto* model : {"wamv", "bluerov2", "floatgen"})
             {
                 if (vsg_scene->model(model))
                 {
@@ -208,9 +208,9 @@ int main(int argc, char** argv)
             // roofline of the central pod (the pod's front edge reaches ~2.2 m - a
             // lower camera sees the roof in the lower half of the frame), looking
             // along the direction of travel: the vehicle's +X is its heading
-            if (boatPipeline && vsg_scene->model("aquabot"))
+            if (boatPipeline && vsg_scene->model("wamv"))
             {
-                if (auto pose = demoPoses.getPose("aquabot", *wavefield, t))
+                if (auto pose = demoPoses.getPose("wamv", *wavefield, t))
                 {
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);
@@ -457,7 +457,7 @@ int main(int argc, char** argv)
 
             // set up the camera, starting with a close view of the boat when present;
             // the far plane still covers the whole scene
-            if (auto boat = vsg_scene->model("aquabot"))
+            if (auto boat = vsg_scene->model("wamv"))
             {
                 vsg::ComputeBounds boatBounds;
                 boat->accept(boatBounds);
@@ -539,7 +539,7 @@ int main(int argc, char** argv)
         };
 
         if (vsg_scene->model("bluerov2")) rovPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
-        if (vsg_scene->model("aquabot")) boatPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
+        if (vsg_scene->model("wamv")) boatPipeline = vsgOcean::RenderPipeline::create(vsg_scene, device, makeSensorCamera(), sensorExtent, colorFormat, depthFormat);
 
         std::vector<std::pair<std::string, vsg::ref_ptr<vsg::ImageView>>> cameraViews;
         if (rovPipeline) cameraViews.emplace_back("ROV camera (underwater)", rovPipeline->outputView());

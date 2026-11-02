@@ -35,8 +35,8 @@ namespace vsgOceanExample
         static const std::vector<std::pair<std::string, std::string>>& animatedJoints()
         {
             static const std::vector<std::pair<std::string, std::string>> joints = {
-                {"aquabot", "left_engine_link"}, {"aquabot", "right_engine_link"},
-                {"aquabot", "left_propeller_link"}, {"aquabot", "right_propeller_link"},
+                {"wamv", "left_engine_link"}, {"wamv", "right_engine_link"},
+                {"wamv", "left_propeller_link"}, {"wamv", "right_propeller_link"},
                 {"bluerov2", "thruster1"}, {"bluerov2", "thruster2"}, {"bluerov2", "thruster3"},
                 {"bluerov2", "thruster4"}, {"bluerov2", "thruster5"}, {"bluerov2", "thruster6"},
                 {"floatgen", "blades"}};
@@ -57,7 +57,7 @@ namespace vsgOceanExample
         /// nullopt for a model the demo does not animate.
         std::optional<vsg::dmat4> getPose(const std::string& model, const vsgOcean::Wavefield& surface, double t)
         {
-            if (model == "aquabot")
+            if (model == "wamv")
             {
                 // the surface vehicle performs a large circle, riding the waves: the
                 // wave field is sampled at its position, slightly below the local
@@ -113,7 +113,7 @@ namespace vsgOceanExample
             const auto initial = initialJointPoses_.find(model + "/" + joint);
             if (initial == initialJointPoses_.end()) return std::nullopt;
 
-            if (model == "aquabot" && (joint == "left_engine_link" || joint == "right_engine_link"))
+            if (model == "wamv" && (joint == "left_engine_link" || joint == "right_engine_link"))
             {
                 // steering pods of the surface vehicle: rotation about the local Z axis
                 const auto steer = 0.5 * std::sin(2.0 * vsg::PI * t / 10.0);
@@ -129,7 +129,7 @@ namespace vsgOceanExample
             }
 
             // the remaining animated joints spin about their local X axis: the
-            // aquabot's propellers and the bluerov2's thrusters (5 rev/s)
+            // the wamv propellers and the bluerov2's thrusters (5 rev/s)
             const auto spin = 2.0 * vsg::PI * 5.0 * t;
             return initial->second * vsg::rotate(spin, 1.0, 0.0, 0.0);
         }

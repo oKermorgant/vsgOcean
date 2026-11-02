@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- The WAM-V surface vehicle (VRX / asv_wave_sim gz-waves-models model, textures
+     downscaled to 1024): the twin-hull base with one steering engine pod per hull,
+     each carrying its propeller. Visuals only - the poses come from outside, and the
+     frames animated by the example are left_engine_link / right_engine_link and
+     their propeller children. -->
+<sdf version="1.9">
+  <model name="wamv">
+    <link name="wamv/base_link">
+      <visual name="wamv/base_link_visual">
+        <geometry>
+          <mesh><uri>mesh/wamv_base.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="wamv/left_engine_link">
+      <pose relative_to="wamv/base_link">-1.9 0.95 0.42 0 0 0</pose>
+      <visual name="wamv/left_engine_visual">
+        <geometry>
+          <mesh><uri>mesh/engine.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="wamv/right_engine_link">
+      <pose relative_to="wamv/base_link">-1.9 -0.95 0.42 0 0 0</pose>
+      <visual name="wamv/right_engine_visual">
+        <geometry>
+          <mesh><uri>mesh/engine.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="wamv/left_propeller_link">
+      <pose relative_to="wamv/left_engine_link">-0.278 0 -0.509 0 0 0</pose>
+      <visual name="wamv/left_propeller_visual">
+        <geometry>
+          <mesh><uri>mesh/propeller.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+    <link name="wamv/right_propeller_link">
+      <pose relative_to="wamv/right_engine_link">-0.278 0 -0.509 0 0 0</pose>
+      <visual name="wamv/right_propeller_visual">
+        <geometry>
+          <mesh><uri>mesh/propeller.glb</uri></mesh>
+        </geometry>
+      </visual>
+    </link>
+  </model>
+</sdf>

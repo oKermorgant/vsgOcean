@@ -89,7 +89,7 @@ namespace vsgOcean::Headless
         const vsg::dvec3 centre = (computeBounds.bounds.min + computeBounds.bounds.max) * 0.5;
         const double radius = vsg::length(computeBounds.bounds.max - computeBounds.bounds.min) * 0.6;
         vsg::dvec3 eye = centre + vsg::dvec3(0.0, -radius * 3.5, 0.0);
-        if (auto boat = scene->model("aquabot"))
+        if (auto boat = scene->model("wamv"))
         {
             vsg::ComputeBounds boatBounds;
             boat->accept(boatBounds);
