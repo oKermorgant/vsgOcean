@@ -70,8 +70,8 @@ namespace vsgOcean
     /// Every key, group and subgroup is optional on load: absent entries leave
     /// their parameter untouched, so hand-written files can be partial.
     ///
-    /// The support is built when yaml-cpp is found (VSGOCEAN_WITH_ENV_FILE; ROS 2
-    /// systems ship it); without it the functions warn and return false.
+    /// The support is built when yaml-cpp is found (VSGOCEAN_WITH_ENV_FILE, a
+    /// common system package); without it the functions warn and return false.
     [[nodiscard]] VSG_OCEAN_EXPORT bool writeEnvironmentFile(const vsg::Path& path, const Environment& environment,
                                                              const Wavefield& waves);
 
