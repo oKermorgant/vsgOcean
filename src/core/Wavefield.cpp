@@ -255,7 +255,24 @@ namespace vsgOcean
 
     double Wavefield::height(double x, double y, double t) const
     {
-        if (model_ == Model::FFT) return (fft_->height(x, y) + (fftDetail_ ? detailFft_->height(x, y) : 0.0)) * growFactor(t);
+        if (model_ == Model::FFT)
+        {
+            // the surface is displaced horizontally (choppiness): find the undisplaced point that
+            // lands on (x, y) by fixed-point iteration, as the vertex shader moves it
+            const auto grow = growFactor(t);
+            const auto sample = [&](const vsg::dvec2& p) {
+                auto d = fft_->displacement(p.x, p.y);
+                if (fftDetail_) d += detailFft_->displacement(p.x, p.y);
+                return d * grow;
+            };
+            vsg::dvec2 p(x, y);
+            for (int i = 0; i < 4; ++i)
+            {
+                const auto d = sample(p);
+                p = vsg::dvec2(x - d.x, y - d.y);
+            }
+            return sample(p).z;
+        }
 
         // sum of the component waves, as in Wavefield::ComputeDepthSimply of boating_gz
         auto h = 0.0;

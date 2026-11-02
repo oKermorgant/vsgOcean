@@ -293,6 +293,11 @@ namespace vsgOcean
 
     double FftWaves::height(double x, double y) const
     {
+        return displacement(x, y).z;
+    }
+
+    vsg::dvec3 FftWaves::displacement(double x, double y) const
+    {
         const auto n = static_cast<double>(parameters_.cells);
         const double d = parameters_.tileSize / n;
         const double u = std::fmod(std::fmod(x / d, n) + n, n);
@@ -305,7 +310,10 @@ namespace vsgOcean
         const double fu = u - static_cast<double>(r0);
         const double fv = v - static_cast<double>(c0);
 
-        const auto h = [&](size_t r, size_t c) { return static_cast<double>(displacement_->at(r, c).z); };
-        return (1 - fu) * ((1 - fv) * h(r0, c0) + fv * h(r0, c1)) + fu * ((1 - fv) * h(r1, c0) + fv * h(r1, c1));
+        const auto at = [&](size_t r, size_t c) {
+            const auto& texel = displacement_->at(r, c);
+            return vsg::dvec3(texel.x, texel.y, texel.z);
+        };
+        return (1 - fu) * ((1 - fv) * at(r0, c0) + fv * at(r0, c1)) + fu * ((1 - fv) * at(r1, c0) + fv * at(r1, c1));
     }
 }

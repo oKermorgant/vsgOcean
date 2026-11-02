@@ -86,8 +86,11 @@ namespace vsgOcean
         double maxHeight() const { return maxHeight_; }
 
         /// Bilinear height of the periodic tile at the horizontal position (x, y) [m].
-        /// Valid for the last update(); the horizontal displacement is ignored.
+        /// Valid for the last update(); the horizontal displacement is ignored (see displacement()).
         double height(double x, double y) const;
+
+        /// Bilinear (dx, dy, height) of the periodic tile at the undisplaced position (x, y) [m].
+        vsg::dvec3 displacement(double x, double y) const;
 
     protected:
         using Complex = std::complex<double>;
