@@ -22,8 +22,8 @@ namespace vsgOcean
     /// the underwater composite (see vsgOcean::createCommandGraph). Both attachments
     /// end the scene render pass in SHADER_READ_ONLY layout, ready to be sampled.
     ///
-    /// The target is created at the window extent and follows the window size
-    /// through resize(), which keeps the render pass (see RenderPipeline::resize).
+    /// The target keeps its creation extent for the whole run (a mid-run
+    /// teardown hangs the GPU during a drag-resize - see Scene.cpp).
     class VSG_OCEAN_EXPORT RenderTarget : public vsg::Inherit<vsg::Object, RenderTarget>
     {
     public:
@@ -38,11 +38,6 @@ namespace vsgOcean
         const vsg::ref_ptr<vsg::ImageView>& colorView() const { return colorView_; }
         const vsg::ref_ptr<vsg::ImageView>& depthView() const { return depthView_; }
         [[nodiscard]] VkExtent2D extent() const { return extent_; }
-
-        /// Recreate the attachments and the framebuffer at a new extent; the render
-        /// pass (and so every pipeline compiled against it) is kept. The device must
-        /// be idle: the old attachments are released.
-        void resize(VkExtent2D extent);
 
     protected:
         vsg::ref_ptr<vsg::Window> window_;

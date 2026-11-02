@@ -72,18 +72,6 @@ namespace vsgOcean
         build();
     }
 
-    void Hud::resize(VkExtent2D extent)
-    {
-        if (!font_) return;
-        extent_ = extent;
-
-        const auto oldViewport = camera_->viewportState->viewports[0];
-        const VkExtent2D oldExtent{static_cast<uint32_t>(oldViewport.width), static_cast<uint32_t>(oldViewport.height)};
-        camera_->viewportState = vsg::ViewportState::create(extent_);
-        if (camera_->projectionMatrix) camera_->projectionMatrix->changeExtent(oldExtent, extent_);
-
-        build();
-    }
 
     void Hud::build()
     {

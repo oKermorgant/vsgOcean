@@ -97,14 +97,4 @@ namespace vsgOcean
         build(std::move(device), extent, colorFormat, depthFormat, colorView_, depthView_, renderPass_, framebuffer_);
     }
 
-    void RenderTarget::resize(VkExtent2D extent)
-    {
-        if (extent.width == extent_.width && extent.height == extent_.height) return;
-        if (extent.width == 0 || extent.height == 0) return;
-
-        // the caller has made sure the device no longer uses the old attachments
-        extent_ = extent;
-        const vsg::ref_ptr<vsg::Device> device(framebuffer_->getDevice());
-        build(device, extent_, colorFormat_, depthFormat_, colorView_, depthView_, renderPass_, framebuffer_);
-    }
 }

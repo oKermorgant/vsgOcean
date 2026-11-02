@@ -30,8 +30,9 @@ namespace vsgOcean
     /// fonts. When no font can be found the HUD renders nothing and valid() is false.
     ///
     /// Created by vsgOcean::createEnvironmentHud for the environment bindings; add the
-    /// HUD to the overlay node passed to vsgOcean::createCommandGraph, which follows
-    /// window resizes with it.
+    /// HUD to the overlay node passed to vsgOcean::createCommandGraph. The HUD keeps
+    /// its creation extent for the whole run (a window resize leaves the text at the
+    /// original layout).
     class VSG_OCEAN_EXPORT Hud : public vsg::Inherit<vsg::Group, Hud>
     {
     public:
@@ -42,9 +43,6 @@ namespace vsgOcean
 
         /// The text lines, rendered from the top-left corner; replaces the text.
         void setLines(std::vector<std::string> lines);
-
-        /// Follow a window resize.
-        void resize(VkExtent2D extent);
 
     protected:
         void build();

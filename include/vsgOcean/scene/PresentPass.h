@@ -30,11 +30,6 @@ namespace vsgOcean
         /// The window extent the composite is drawn over (a uniform update only).
         void setWindowExtent(VkExtent2D extent);
 
-        /// Point the pass at a new composited image (after a pipeline resize): swaps
-        /// the sampled view and releases the descriptor set, so the next compile
-        /// (vsg::CompileManager) rebinds it.
-        void setComposite(vsg::ref_ptr<vsg::ImageView> composite);
-
     protected:
         vsg::ref_ptr<vsg::vec4Array> uniform_;
         vsg::ref_ptr<vsg::DescriptorImage> imageDescriptor_;
