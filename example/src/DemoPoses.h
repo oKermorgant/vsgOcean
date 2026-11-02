@@ -60,14 +60,14 @@ namespace vsgOceanExample
             if (model == "wamv")
             {
                 // the surface vehicle performs a large circle, riding the waves: the
-                // wave field is sampled at its position, slightly below the local
-                // surface so the hulls keep a visible draft (the mesh waterline is
-                // at its origin, the hull bottom 0.026 m above)
+                // wave field is sampled at its position, low enough that a third of
+                // the ~0.51 m tall pontoons is in the water (the mesh pontoon bottom
+                // is 6 mm above the origin, so the draft needs -0.17 - 0.006)
                 const auto angle = 2.0 * vsg::PI * t / 60.0;
                 const double x = 10.0 * std::cos(angle);
                 const double y = 10.0 * std::sin(angle);
                 const double surfaceZ = surface.height(x, y, t);
-                return vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.03)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0);
+                return vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.176)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0);
             }
 
             if (model == "bluerov2")
