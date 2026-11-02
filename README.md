@@ -71,22 +71,26 @@ The example application renders an islands scene with a surface vehicle (aquabot
 
 ### Saving and reloading an environment
 
-An environment tuned in the widgets is worth keeping: **E** exports the current environment to a flat YAML file — sky and weather, wind, water optics and waves, everything the widgets tune (never the lights or the camera). **`--env`** loads it back at startup, and every key is optional, so hand-written files can be partial:
+An environment tuned in the widgets is worth keeping: **E** exports the current environment to a YAML file — sky and weather, wind, water optics and waves, everything the widgets tune (never the lights or the camera). **`--env`** loads it back at startup, and every group and key is optional, so hand-written files can be partial:
 
 ```yaml
-# the storm.yaml of someone in a hurry
-wind_speed_m_s: 16
-cloud_cover_oktas: 7
-rain_rate: 0.8
-wave_model: fft
-fft_foam: 0.6
+# storm.yaml, by someone in a hurry
+wind:
+  speed_m_s: 16
+sky:
+  cloud_cover_oktas: 7
+  rain_rate: 0.8
+waves:
+  model: fft
+  fft:
+    foam: 0.6
 ```
 
 ```bash
 ./vsgOcean_example --env storm.yaml
 ```
 
-The file is applied first, so any explicit command line flag still overrides its key (`--env storm.yaml --rain 0` for a dry storm). The full key list is documented in [`include/vsgOcean/core/EnvironmentFile.h`](include/vsgOcean/core/EnvironmentFile.h).
+The file is applied first, so any explicit command line flag still overrides its key (`--env storm.yaml --rain 0` for a dry storm). The full key list is documented in [`include/vsgOcean/core/EnvironmentFile.h`](include/vsgOcean/core/EnvironmentFile.h); the support is built when [yaml-cpp](https://github.com/jbeder/yaml-cpp) is found (ROS 2 systems ship it).
 
 ### Runtime controls
 
@@ -120,6 +124,7 @@ Dependencies:
 - [vsgXchange](https://github.com/vsg-dev/vsgXchange) (model loading)
 - [sdformat](https://github.com/gazebosim/sdformat) ≥ 16 *(optional)* — SDF support is enabled automatically when sdformat is found; build with `-DVSGOCEAN_WITH_SDF=OFF` to force it off
 - [vsgImGui](https://github.com/vsg-dev/vsgImGui) *(optional)* — the environment tuning GUI is enabled automatically when vsgImGui is found; build with `-DVSGOCEAN_WITH_GUI=OFF` to force it off
+- [yaml-cpp](https://github.com/jbeder/yaml-cpp) *(optional)* — the YAML environment files (the E export / `--env` load) are enabled automatically when yaml-cpp is found; build with `-DVSGOCEAN_WITH_ENV_FILE=OFF` to force it off
 - A Vulkan-capable GPU and driver
 
 ```bash

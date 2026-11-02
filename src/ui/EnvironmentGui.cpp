@@ -174,14 +174,22 @@ namespace vsgOcean
             }
             ImGui::Separator();
 
-            // export the environment as tuned so far: a flat YAML file, reloadable
-            // with the example's --env flag (same as the E key)
+            // export the environment as tuned so far: a structured YAML file,
+            // reloadable with the example's --env flag (same as the E key)
             if (ImGui::Button("export environment"))
             {
-                scene->saveEnvironment(controls->environmentExportPath);
+                if (!scene->saveEnvironment(controls->environmentExportPath))
+                {
+                    ImGui::OpenPopup("export failed");
+                }
             }
             ImGui::SameLine();
             ImGui::TextUnformatted(std::string(controls->environmentExportPath).c_str());
+            if (ImGui::BeginPopup("export failed"))
+            {
+                ImGui::TextUnformatted("could not export (built without yaml-cpp?)");
+                ImGui::EndPopup();
+            }
             ImGui::Separator();
 
             // camera tracking: cycle through the models of the scene

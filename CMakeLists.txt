@@ -12,6 +12,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # sdformat is optional: SDF scene support is enabled when it is found
 find_package(sdformat 16.1.0 QUIET)
 
+# yaml-cpp is optional: the YAML environment files (the E export / --env load)
+# are enabled when it is found; ROS 2 systems ship it
+find_package(yaml-cpp QUIET)
+
 find_package(Vulkan REQUIRED)
 message(STATUS "Found Vulkan: ${Vulkan_DIR}")
 
@@ -53,6 +57,18 @@ if(VSGOCEAN_WITH_SDF)
     message(STATUS "Found sdformat: ${sdformat_DIR} - SDF support enabled")
 else()
     message(STATUS "SDF support disabled")
+endif()
+
+# YAML environment files (set to OFF to build a core without the yaml-cpp
+# dependency); the save / load functions warn and do nothing when disabled
+option(VSGOCEAN_WITH_ENV_FILE "Build the YAML environment file support (requires yaml-cpp)" ${yaml-cpp_FOUND})
+if(VSGOCEAN_WITH_ENV_FILE)
+    if(NOT yaml-cpp_FOUND)
+        message(FATAL_ERROR "VSGOCEAN_WITH_ENV_FILE is ON but yaml-cpp could not be found")
+    endif()
+    message(STATUS "Found yaml-cpp: ${yaml-cpp_DIR} - environment files enabled")
+else()
+    message(STATUS "YAML environment files disabled")
 endif()
 
 # Embed the GLSL shader files into generated headers, so the library does not
@@ -151,6 +167,13 @@ if(VSGOCEAN_WITH_GUI)
     # PUBLIC: consumers may call the GUI utilities, so they must see the same flag
     target_compile_definitions(vsgOcean PUBLIC VSGOCEAN_WITH_GUI)
     target_link_libraries(vsgOcean PRIVATE vsgImGui::vsgImGui)
+endif()
+
+if(VSGOCEAN_WITH_ENV_FILE)
+    # PRIVATE: the flag only guards the implementation; the header always declares
+    # the functions, which warn and return false when built without the support
+    target_compile_definitions(vsgOcean PRIVATE VSGOCEAN_WITH_ENV_FILE)
+    target_link_libraries(vsgOcean PRIVATE yaml-cpp::yaml-cpp)
 endif()
 
 if(VSGOCEAN_WITH_XCHANGE_ALL)

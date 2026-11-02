@@ -54,9 +54,12 @@ namespace vsgOcean
             lightsVisible = !lightsVisible;
             break;
         case vsg::KEY_e:
-            // export the environment as tuned so far (a flat YAML file, reloadable
-            // with the example's --env flag); the path is logged
-            scene_->saveEnvironment(environmentExportPath);
+            // export the environment as tuned so far (a structured YAML file,
+            // reloadable with the example's --env flag); the path is logged
+            if (!scene_->saveEnvironment(environmentExportPath))
+            {
+                vsg::warn("vsgOcean: could not export the environment (built without environment file support?)");
+            }
             break;
         case vsg::KEY_Tab:
         {
