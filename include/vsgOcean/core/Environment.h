@@ -129,6 +129,14 @@ namespace vsgOcean
         void setMarineSnowDensity(double density);
         double marineSnowDensity() const { return marineSnowDensity_; }
 
+        /// Rain rate, 0..1: 0 none, 1 a downpour. Drives the rain rendering
+        /// above the surface (falling streaks, splash rings on the water) and
+        /// the sea's response (rain roughens the ripples and flattens the
+        /// glitter). The weather layer goes with the cloud cover; INDEPENDENT
+        /// of the fog. Default 0.
+        void setRainRate(double rate);
+        double rainRate() const { return rainRate_; }
+
         /// Cloud cover above the water on the classical meteorological okta scale,
         /// 0..8: 0 a clear sky, 8 overcast (each okta is one eighth of the sky).
         /// INDEPENDENT of the fog (the distance haze): the clouds dim the sun disc
@@ -187,6 +195,7 @@ namespace vsgOcean
         bool customWater_ = false;
         double seaLevel_{0.0};
         double marineSnowDensity_{0.6};
+        double rainRate_{0.0}; // 0..1, the weather layer with the clouds
         double cloudiness_{0.0}; // oktas, 0..8
         bool underwaterBlur_{false};
         vsg::vec3 waterCurrent_{0.0f, 0.0f, 0.0f}; // m/s, world frame

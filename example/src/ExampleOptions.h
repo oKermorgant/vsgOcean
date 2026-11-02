@@ -59,6 +59,8 @@ namespace vsgOceanExample
         bool overrideBlur = false;
         bool underwaterBlur = false;
         double cloudiness = 0.0;
+        bool overrideRain = false;
+        double rainRate = 0.0;
         bool overrideCurrent = false;
         vsg::vec3 waterCurrent{0.0f, 0.0f, 0.0f};
 
@@ -324,6 +326,7 @@ namespace vsgOceanExample
         if (arguments.read("--longitude", settings.longitude)) settings.overrideLongitude = true;
         if (arguments.read("--snow", settings.snowDensity)) settings.overrideSnow = true;
         if (arguments.read("--clouds", settings.cloudiness)) settings.overrideClouds = true;
+        if (arguments.read("--rain", settings.rainRate)) settings.overrideRain = true;
         if (arguments.read("--blur", settings.underwaterBlur)) settings.overrideBlur = true;
         if (arguments.read("--current", settings.waterCurrent.x, settings.waterCurrent.y)) settings.overrideCurrent = true;
 

@@ -93,6 +93,7 @@ namespace vsgOcean
         sky_(Sky::create()),
         surface_(OceanSurface::create()),
         marineSnow_(MarineSnow::create()),
+        rain_(Rain::create()),
         ambientLight_(vsg::AmbientLight::create()),
         sunLight_(vsg::DirectionalLight::create())
     {
@@ -112,8 +113,10 @@ namespace vsgOcean
         addChild(world_);
         addChild(surfaceSwitch_);
         // the snow is transparent and never writes depth: drawn last, it blends over
-        // everything, including the transparent surface
+        // everything, including the transparent surface. The rain follows: also
+        // transparent, also never writing depth, and only ever above the water
         addChild(marineSnow_);
+        addChild(rain_);
     }
 
     void Scene::setSurfaceEnabled(bool enabled)
@@ -385,6 +388,11 @@ namespace vsgOcean
 
         // the marine snow follows the water current and the lamp-lit water column
         marineSnow_->update(*environment_, t, lampLights_);
+
+        // the rain follows the environment; the surface responds (roughness,
+        // flattened glitter) through the rain rate it reads every frame
+        rain_->update(*environment_, t);
+        surface_->setRainRate(static_cast<float>(environment_->rainRate()));
 
         // the main pipeline's composite follows the main camera; every other pipeline
         // computes its own (see RenderPipeline::update)

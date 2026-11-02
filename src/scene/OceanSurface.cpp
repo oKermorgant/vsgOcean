@@ -183,9 +183,12 @@ namespace vsgOcean
             const auto q = valid ? wavefield_->steepnesses()[i] : 0.0;
             const auto d = valid ? wavefield_->directions()[i] : vsg::dvec2(1.0, 0.0);
 
-            // amplitude[0].y carries the sun visibility (see setSunVisibility)
+            // amplitude[0].y carries the sun visibility (see setSunVisibility);
+            // amplitude[1].y carries the rain rate (the surface response: the
+            // rain roughens the ripples and flattens the glitter)
             (*uniform_)[5 + slot] = vsg::vec4(static_cast<float>(a),
-                                             slot == 0 ? sunVisibility_ : 0.0f, 0.0f, 0.0f);
+                                             slot == 0 ? sunVisibility_ : 0.0f,
+                                             slot == 1 ? rainRate_ : 0.0f, 0.0f);
             (*uniform_)[5 + Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(k), 0.0f, 0.0f, 0.0f);
             (*uniform_)[5 + 2 * Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(w), 0.0f, 0.0f, 0.0f);
             (*uniform_)[5 + 3 * Wavefield::maxWaves + slot] = vsg::vec4(static_cast<float>(q), 0.0f, 0.0f, 0.0f);

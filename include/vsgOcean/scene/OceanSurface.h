@@ -56,9 +56,15 @@ namespace vsgOcean
         /// the Scene against the world geometry; defaults to fully visible.
         void setSunVisibility(float visibility) { sunVisibility_ = visibility; }
 
+        /// The rain rate (0..1) driving the surface response: the rain adds
+        /// capillary roughness (impact-plussed ripples) and flattens the
+        /// specular glitter. Set by the Scene from the environment each frame.
+        void setRainRate(float rate) { rainRate_ = rate; }
+
     protected:
         vsg::ref_ptr<Wavefield> wavefield_;
         float sunVisibility_ = 1.0f;
+        float rainRate_ = 0.0f;
 
         // uniform block layout: [0] sun direction, [1] fog color + density, [2] water color,
         // [3] params (t, tau, number, water depth), [4] attenuation + sea level,

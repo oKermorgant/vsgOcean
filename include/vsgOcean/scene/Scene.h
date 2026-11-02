@@ -17,6 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/core/Model.h>
 #include <vsgOcean/scene/OceanSurface.h>
 #include <vsgOcean/scene/MarineSnow.h>
+#include <vsgOcean/scene/Rain.h>
 #include <vsgOcean/scene/Sky.h>
 #include <vsgOcean/scene/Underwater.h>
 #include <optional>
@@ -137,6 +138,10 @@ namespace vsgOcean
         /// the Environment).
         vsg::ref_ptr<MarineSnow> marineSnow() const { return marineSnow_; }
 
+        /// The rain field of the air column above the surface (density and
+        /// wind live in the Environment).
+        vsg::ref_ptr<Rain> rain() const { return rain_; }
+
         /// Enable / disable the ocean surface rendering; disabling it also disables the
         /// underwater rendering (the camera is never considered submerged).
         void setSurfaceEnabled(bool enabled);
@@ -205,6 +210,7 @@ namespace vsgOcean
         vsg::ref_ptr<Sky> sky_;
         vsg::ref_ptr<OceanSurface> surface_;
         vsg::ref_ptr<MarineSnow> marineSnow_;
+        vsg::ref_ptr<Rain> rain_;
         vsg::ref_ptr<vsg::Switch> surfaceSwitch_;
         vsg::ref_ptr<Underwater> underwater_;
         std::vector<LampLight> lampLights_;

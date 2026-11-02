@@ -172,8 +172,10 @@ float foamCoverage()
 vec2 rippleSlope(vec2 p, float t, vec2 foot)
 {
     // the capillary ripples follow the WIND (less wind = fewer ripples): 1.0 at the
-    // default 5 m/s breeze, a faint 0.2 floor in dead calm (water is never glass), saturated above ~10 m/s
-    const float sea = 0.2 + 0.8 * pow(clamp(ocean.direction[0].z / 5.0, 0.0, 1.0), 1.5) + clamp((ocean.direction[0].z - 10.0) / 10.0, 0.0, 0.5);
+    // default 5 m/s breeze, a faint 0.2 floor in dead calm (water is never glass), saturated above ~10 m/s.
+    // Rain adds its own capillary roughness (impact-plussed water) on top.
+    const float sea = 0.2 + 0.8 * pow(clamp(ocean.direction[0].z / 5.0, 0.0, 1.0), 1.5) + clamp((ocean.direction[0].z - 10.0) / 10.0, 0.0, 0.5)
+                    + 0.5 * ocean.amplitude[1].y;
     const vec2 wind = normalize(ocean.direction[7].xy + vec2(1e-5, 0.0));
     const mat2 windFrame = mat2(wind.x, -wind.y, wind.y, wind.x);
 
@@ -256,8 +258,10 @@ void main()
     // glitter sparks keep the full normal)
     const vec3 halfway = normalize(toEye + sunDirection);
     const float sunFade = clamp(sunDirection.z * 10.0 + 0.5, 0.0, 1.0);
-    const float glitter = pow(max(dot(n, halfway), 0.0), 256.0) * 4.0;
-    const float glare = pow(max(dot(nMix, halfway), 0.0), 96.0) * 0.12;
+    // rain flattens the specular terms (the impact-plussed water breaks the
+    // mirror path; amplitude[1].y is the rain rate)
+    const float glitter = pow(max(dot(n, halfway), 0.0), 256.0) * 4.0 * (1.0 - 0.8 * ocean.amplitude[1].y);
+    const float glare = pow(max(dot(nMix, halfway), 0.0), 96.0) * 0.12 * (1.0 - 0.5 * ocean.amplitude[1].y);
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
 
     vec3 color;

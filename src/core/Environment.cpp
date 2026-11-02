@@ -146,6 +146,11 @@ namespace vsgOcean
         marineSnowDensity_ = std::clamp(density, 0.0, 100.0);
     }
 
+    void Environment::setRainRate(double rate)
+    {
+        rainRate_ = std::clamp(rate, 0.0, 1.0);
+    }
+
     void Environment::setWaterCurrent(const vsg::vec3& current)
     {
         waterCurrent_ = current;

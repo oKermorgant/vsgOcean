@@ -102,6 +102,10 @@ int main(int argc, char** argv)
         {
             environment->setCloudiness(settings.cloudiness);
         }
+        if (settings.overrideRain)
+        {
+            environment->setRainRate(settings.rainRate);
+        }
         if (settings.overrideBlur)
         {
             environment->setUnderwaterBlur(settings.underwaterBlur);

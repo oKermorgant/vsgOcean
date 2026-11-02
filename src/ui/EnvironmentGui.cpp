@@ -235,6 +235,9 @@ namespace vsgOcean
             auto clouds = static_cast<int>(environment->cloudiness());
             if (ImGui::SliderInt("cloud cover (oktas)", &clouds, 0, 8)) environment->setCloudiness(static_cast<double>(clouds));
 
+            auto rain = static_cast<float>(environment->rainRate());
+            if (ImGui::SliderFloat("rain", &rain, 0.0f, 1.0f)) environment->setRainRate(rain);
+
             ImGui::PopItemWidth();
             ImGui::End();
             return true;

@@ -84,6 +84,9 @@ vsgocean_embed_shader(underwater.frag)
 vsgocean_embed_shader(present.vert)
 vsgocean_embed_shader(snow.vert)
 vsgocean_embed_shader(snow.frag)
+vsgocean_embed_shader(rain.vert)
+vsgocean_embed_shader(rain_ring.vert)
+vsgocean_embed_shader(rain.frag)
 vsgocean_embed_shader(present.frag)
 
 # vsgOcean library
@@ -102,6 +105,7 @@ set(VSGOCEAN_LIBRARY_SOURCES
     src/scene/RenderTarget.cpp
     src/scene/LampLights.cpp
     src/scene/MarineSnow.cpp
+    src/scene/Rain.cpp
     src/scene/Scene.cpp
     src/scene/Sky.cpp
     src/scene/Underwater.cpp
