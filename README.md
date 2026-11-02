@@ -6,9 +6,11 @@
 
 vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation:
 
-![The ocean surface: a wind-built FFT sea with Jacobian whitecap foam under broken cloud](img/surface.png)
+[![The ocean surface: the wind builds a foam-capped FFT sea while the water type steps from oceanic to coastal](https://github.com/user-attachments/assets/4b821752-acc9-4fc9-8505-bbc6754527d7)](https://github.com/user-attachments/assets/4b821752-acc9-4fc9-8505-bbc6754527d7)
 
-![Underwater: an ROV at a ship wreck, its dive lamps dimmed to a quarter of their SDF intensity, the water stepping from oceanic to coastal (the picture-in-picture is its own camera)](img/underwater.png)
+[![Underwater: an ROV at a ship wreck, its dive lamps dimmed to a quarter of their SDF intensity, the water stepping from oceanic to coastal (the picture-in-picture is its own camera)](https://github.com/user-attachments/assets/f06d16ad-1c0f-4c85-80ff-6aadfeeea3d0)](https://github.com/user-attachments/assets/f06d16ad-1c0f-4c85-80ff-6aadfeeea3d0)
+
+*(still frames: [`img/surface.png`](img/surface.png), [`img/underwater.png`](img/underwater.png))*
 
 - **Scene model**: a tree of named, nestable `Model`s rooted at a `world` model, holding meshes under fixed or dynamic transforms. Frames are addressable by name and movable at runtime through `setPose()` — the seam for driving visuals from a dynamics simulator.
 - **SDF loading** *(optional, requires [sdformat](https://github.com/gazebosim/sdformat))*: SDF worlds and models become the scene model, with poses resolved through SDF semantic poses, `package://` / `model://` / `file://` URI resolution, and mesh scales.
