@@ -227,16 +227,20 @@ void main()
             waterPath *= clamp((env.eye.z - seaLevel) / (env.eye.z - world.z), 0.0, 1.0);
         }
     }
-    else if (world.z < seaLevel - env.surface.x) // geometry below the waves, seen from above
+    else
     {
-        // the ray crosses the surface partway along: only the segment past the crossing is
-        // water. The crossing is taken at the trough level of the waves: the surface itself
-        // lies between the crests and the troughs, and measured from the mean level its low
-        // parts seen at a grazing angle would sit in tens of metres of tinted water
-        // (cyan streaks along the horizon and in the troughs)
-        const float troughLevel = seaLevel - env.surface.x;
-        const float crossing = clamp((troughLevel - env.eye.z) / (world.z - env.eye.z), 0.0, 1.0);
-        waterPath = dist * (1.0 - crossing);
+        // geometry below the waves, seen from above: the ray refracts into the water, so
+        // the path is the depth over the cosine of the REFRACTED angle (at most ~1.5x the
+        // depth). The straight view ray past the crossing would be hundreds of metres long
+        // at a grazing angle and turn a shoreline's submerged terrain, or the surface in a
+        // wave trough, into solid water colour (the cyan bands along the horizon). The
+        // depth is counted from the wave troughs: the surface itself lies above them
+        const float depthBelow = seaLevel - env.surface.x - world.z;
+        if (depthBelow > 0.0)
+        {
+            const float sinView2 = 1.0 - pow((world.z - env.eye.z) / dist, 2.0);
+            waterPath = depthBelow / sqrt(max(1.0 - sinView2 / (1.33 * 1.33), 0.05));
+        }
     }
 
     // atmospheric fog over the air segment of the ray: the density is the air's

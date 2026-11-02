@@ -87,6 +87,9 @@ namespace vsgOcean
         void setSurfaceEnabled(bool enabled);
         [[nodiscard]] bool surfaceEnabled() const;
 
+        /// height scale of the surface waves in metres, 0 when the surface is disabled
+        [[nodiscard]] double waveHeightScale() const;
+
         /// The underwater composite pass, applied to the scene when the camera is below
         /// the surface. Created by createCommandGraph together with the render target.
         [[nodiscard]] vsg::ref_ptr<Underwater> underwater() const { return underwater_; }

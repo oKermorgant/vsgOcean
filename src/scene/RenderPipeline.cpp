@@ -279,7 +279,7 @@ namespace vsgOcean
         }
 
         // the lamps are collected once per frame by the Scene and shared
-        composite_->update(*scene->environment(), camera, submersion, &scene->lampLights());
+        composite_->update(*scene->environment(), camera, submersion, &scene->lampLights(), scene->waveHeightScale());
     }
 
     bool RenderPipeline::capture(Capture& image) const

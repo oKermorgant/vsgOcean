@@ -68,6 +68,11 @@ namespace vsgOcean
         surfaceSwitch_->setAllChildren(enabled);
     }
 
+    double Scene::waveHeightScale() const
+    {
+        return surfaceEnabled() ? surface_->wavefield()->heightScale() : 0.0;
+    }
+
     bool Scene::surfaceEnabled() const
     {
         return !surfaceSwitch_->children.empty() && surfaceSwitch_->children[0].mask != 0;
@@ -198,8 +203,7 @@ namespace vsgOcean
                     submersion = environment_->seaLevel() - lookAt->eye.z; // positive below the surface
                 }
             }
-            underwater_->update(*environment_, camera, submersion, &lampLights_,
-                                surfaceEnabled() ? surface_->wavefield()->heightScale() : 0.0);
+            underwater_->update(*environment_, camera, submersion, &lampLights_, waveHeightScale());
         }
 
         // camera tracking: the camera follows the tracked frame with a constant
