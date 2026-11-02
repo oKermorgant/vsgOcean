@@ -251,7 +251,9 @@ void main()
         // approaches the full grazing-angle Fresnel reflection
         vec3 reflected = reflect(-toEye, n);
         reflected.z = abs(reflected.z); // a ray still dipping below the horizon bounces off the next wave
-        const vec3 reflectedSky = skyColor(reflected, sunDirection, length(fwidth(reflected)));
+        // an overcast sky is a dim, flat dome: its mirror image darkens the sea instead of
+        // veiling the far field in pale grey (the water body dominates under cloud)
+        const vec3 reflectedSky = skyColor(reflected, sunDirection, length(fwidth(reflected))) * (1.0 - 0.5 * ocean.sunDirection.w);
         const float viewDistance = length(worldPosition - cameraEye);
         const float skyWeight = mix(0.15, 1.0, smoothstep(20.0, 300.0, viewDistance));
 
