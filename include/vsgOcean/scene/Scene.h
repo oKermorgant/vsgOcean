@@ -142,6 +142,18 @@ namespace vsgOcean
         /// wind live in the Environment).
         vsg::ref_ptr<Rain> rain() const { return rain_; }
 
+        // --- environment files ---
+
+        /// Write the environment-related state of the scene (sky and weather, wind,
+        /// water optics, waves - everything the runtime widgets tune) to a flat YAML
+        /// file. See vsgOcean::writeEnvironmentFile for the keys.
+        [[nodiscard]] bool saveEnvironment(const vsg::Path& path) const;
+
+        /// Read a flat YAML environment file and apply it to the scene's environment
+        /// and wave field: an environment tuned in the GUI and exported is
+        /// reproducible from the command line.
+        bool loadEnvironment(const vsg::Path& path);
+
         /// Enable / disable the ocean surface rendering; disabling it also disables the
         /// underwater rendering (the camera is never considered submerged).
         void setSurfaceEnabled(bool enabled);

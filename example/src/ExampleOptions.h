@@ -86,6 +86,10 @@ namespace vsgOceanExample
         bool overrideFog = false;
         double fogDensity = 0.0;
 
+        // a saved environment file (E in the GUI exports it): applied first, so any
+        // explicit command line environment flag below overrides its key
+        vsg::Path environmentFile;
+
         // geolocation (negative latitude = the southern hemisphere: the southern
         // constellations replace the northern ones)
         bool overrideLatitude = false;
@@ -95,7 +99,10 @@ namespace vsgOceanExample
 
         // waves: the mean component wave of the Gazebo wave model (asv_wave_sim);
         // the component count, scale and angle follow asv_wave_sim's defaults, so
-        // the sea is irregular and short-crested rather than a single wave train
+        // the sea is irregular and short-crested rather than a single wave train.
+        // Applied only when a wave flag is given (else a loaded environment file
+        // would be overwritten by these defaults); ungiven flags use the default.
+        bool overrideWaves = false;
         double waveAmplitude = 0.1;
         double wavePeriod = 5.0;
         double waveSteepness = 1.0;
@@ -157,12 +164,71 @@ namespace vsgOceanExample
         pbr->defaultShaderHints = shaderHints;
     }
 
+    // The example's own flags, printed by --help (the vsg viewer flags are listed by
+    // vsg itself through --log-level etc.; this is the vsgOcean layer). The environment
+    // is also fully tunable at runtime in the GUI - E exports it as a YAML file that
+    // --env loads back.
+    inline void printUsage(std::ostream& out)
+    {
+        out << "vsgOcean_example: the islands demo (an ROV, a wreck, dive lamps)\n"
+            << "\n"
+            << "environment (all tunable at runtime in the GUI; E exports a YAML file, --env loads it back)\n"
+            << "  --sun elev azim            static sun position (deg)\n"
+            << "  --sun-cycle                animate the sun (1 simulated hour per second)\n"
+            << "  --wind speed dir           wind speed and direction (m/s, deg)\n"
+            << "  --clouds 0..8              cloud cover in oktas\n"
+            << "  --rain 0..1                rain rate (streaks, splash rings, a roughened sea)\n"
+            << "  --fog 0..1                 distance haze density\n"
+            << "  --latitude deg             geolocation: the hemisphere's constellations\n"
+            << "  --longitude deg\n"
+            << "  --env file.yaml            a saved environment file (as exported with E)\n"
+            << "  --jerlov 0..13             the water type: I, IA, IB, II, III, coastal 1-9 (default coastal 3)\n"
+            << "  --chlorophyll mg/m3        a bio-optical water composition (overrides the type)\n"
+            << "  --cdom 1/m --sediment g/m3\n"
+            << "  --snow 0..100              marine snow density\n"
+            << "  --blur 0/1                 the underwater depth-of-field blur\n"
+            << "  --current vx vy            the water current (m/s)\n"
+            << "\n"
+            << "waves\n"
+            << "  --wave-amplitude m         mean Gerstner component (amplitude, period, steepness,\n"
+            << "  --wave-period s            spreading count, scale and angle below it - the wave\n"
+            << "  --wave-steepness 0..1      model of asv_wave_sim, Gazebo-synchronisable)\n"
+            << "  --wave-number 1..8 --wave-scale --wave-angle deg\n"
+            << "  --fft                      the FFT sea instead (an ECKV spectrum, as asv_wave_sim)\n"
+            << "  --fft-tile m --fft-choppiness --fft-wave-age\n"
+            << "  --fft-detail               a second, finer cascade (kills the tile repetition)\n"
+            << "  --foam 0..1                Jacobian whitecap foam\n"
+            << "\n"
+            << "lights\n"
+            << "  --light model/lamp 0..1    dim a lamp below its SDF intensity (repeatable)\n"
+            << "\n"
+            << "camera, capture and diagnostics\n"
+            << "  --eye x y z                camera position / --center x y z its look-at\n"
+            << "  --headless --extent W H    render offscreen, no window (servers, CI)\n"
+            << "  -f N                       render N frames then exit\n"
+            << "  --screenshot file.png      write the composited view at exit\n"
+            << "  --video pattern            write every headless frame (encode with ffmpeg)\n"
+            << "  --showcase kind            a scripted showcase video: surface | underwater | rov\n"
+            << "  --fps / --profiler / --debug   frame rate at exit / instrumentation / validation\n"
+            << "\n"
+            << "the standard vsg viewer flags also apply (--window, --gpu, --mt, --log-level, ...);\n"
+            << "the positional arguments are SDF world or model files (default: the islands demo)\n";
+    }
+
     // Parse the command line into the example settings. vsg::CommandLine removes the
     // arguments it consumes, so the positional scene files are collected last,
     // through the argc it keeps up to date.
     inline Options parseOptions(vsg::CommandLine& arguments, int& argc)
     {
         Options settings;
+
+        if (arguments.read({"--help", "-h"}))
+        {
+            printUsage(std::cout);
+            settings.exitCode = 0;
+            settings.quit = true; // nothing else to do
+            return settings;
+        }
 
         // window traits from the standard vsg window arguments, plus the Vulkan
         // validation layers for --debug
@@ -318,6 +384,7 @@ namespace vsgOceanExample
         if (arguments.read("--sun", settings.sunElevation, settings.sunAzimuth)) settings.overrideSun = true;
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;
         if (arguments.read("--jerlov", settings.jerlov)) settings.overrideJerlov = true;
+        settings.environmentFile = arguments.value<vsg::Path>("", "--env");
         settings.overrideWater |= arguments.read("--chlorophyll", settings.water.chlorophyll);
         settings.overrideWater |= arguments.read("--cdom", settings.water.cdom);
         settings.overrideWater |= arguments.read("--sediment", settings.water.sediment);
@@ -330,18 +397,27 @@ namespace vsgOceanExample
         if (arguments.read("--blur", settings.underwaterBlur)) settings.overrideBlur = true;
         if (arguments.read("--current", settings.waterCurrent.x, settings.waterCurrent.y)) settings.overrideCurrent = true;
 
-        settings.waveAmplitude = arguments.value(0.1, "--wave-amplitude");
-        settings.wavePeriod = arguments.value(5.0, "--wave-period");
-        settings.waveSteepness = arguments.value(1.0, "--wave-steepness");
-        settings.waveNumber = arguments.value(8, "--wave-number");
-        settings.waveScale = arguments.value(2.0, "--wave-scale");
-        settings.waveAngle = arguments.value(36.0, "--wave-angle");
-        settings.fft = arguments.read("--fft");
-        settings.fftTile = arguments.value(256.0, "--fft-tile");
-        settings.fftChoppiness = arguments.value(0.6, "--fft-choppiness");
-        settings.fftWaveAge = arguments.value(0.84, "--fft-wave-age");
-        settings.fftDetail = arguments.read("--fft-detail");
-        settings.foam = arguments.value(0.0, "--foam");
+        settings.overrideWaves |= arguments.read("--wave-amplitude", settings.waveAmplitude);
+        settings.overrideWaves |= arguments.read("--wave-period", settings.wavePeriod);
+        settings.overrideWaves |= arguments.read("--wave-steepness", settings.waveSteepness);
+        settings.overrideWaves |= arguments.read("--wave-number", settings.waveNumber);
+        settings.overrideWaves |= arguments.read("--wave-scale", settings.waveScale);
+        settings.overrideWaves |= arguments.read("--wave-angle", settings.waveAngle);
+
+        if (arguments.read("--fft"))
+        {
+            settings.fft = true;
+            settings.overrideWaves = true;
+        }
+        settings.overrideWaves |= arguments.read("--fft-tile", settings.fftTile);
+        settings.overrideWaves |= arguments.read("--fft-choppiness", settings.fftChoppiness);
+        settings.overrideWaves |= arguments.read("--fft-wave-age", settings.fftWaveAge);
+        if (arguments.read("--fft-detail"))
+        {
+            settings.fftDetail = true;
+            settings.overrideWaves = true;
+        }
+        settings.overrideWaves |= arguments.read("--foam", settings.foam);
 
         if (arguments.errors())
         {

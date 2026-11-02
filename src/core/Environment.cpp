@@ -132,8 +132,27 @@ namespace vsgOcean
     void Environment::setWaterComposition(const WaterComposition& composition)
     {
         composition_ = composition;
-        customWater_ = true;
         optics_ = computeWaterOptics(composition_);
+        // a composition that coincides with a Jerlov preset keeps the preset's
+        // identity (its name in the UIs and the environment files); else it is custom
+        customWater_ = true;
+        for (uint8_t type = 0; type < jerlovTypeCount; ++type)
+        {
+            if (composition == jerlovTable[type].composition)
+            {
+                jerlovType_ = static_cast<JerlovType>(type);
+                customWater_ = false;
+            }
+        }
+    }
+
+    std::optional<Environment::JerlovType> Environment::jerlovTypeFromName(std::string_view name)
+    {
+        for (uint8_t type = 0; type < jerlovTypeCount; ++type)
+        {
+            if (name == jerlovTable[type].name) return static_cast<JerlovType>(type);
+        }
+        return {};
     }
 
     void Environment::setSeaLevel(double metres)

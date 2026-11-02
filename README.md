@@ -23,9 +23,9 @@ In short:
 
 *(still frames: [`img/surface.png`](img/surface.png), [`img/underwater.png`](img/underwater.png))*
 
-## The important parameters: water colour and waves
+## Core rendering: the water colour and the waves
 
-Most of the look lives in two parameter families.
+The look lives in two parameter families, both runtime-tunable.
 
 ### Water colour and light transport
 
@@ -69,6 +69,25 @@ The example application renders an islands scene with a surface vehicle (aquabot
 ./vsgOcean_example my_world.sdf
 ```
 
+### Saving and reloading an environment
+
+An environment tuned in the widgets is worth keeping: **E** exports the current environment to a flat YAML file — sky and weather, wind, water optics and waves, everything the widgets tune (never the lights or the camera). **`--env`** loads it back at startup, and every key is optional, so hand-written files can be partial:
+
+```yaml
+# the storm.yaml of someone in a hurry
+wind_speed_m_s: 16
+cloud_cover_oktas: 7
+rain_rate: 0.8
+wave_model: fft
+fft_foam: 0.6
+```
+
+```bash
+./vsgOcean_example --env storm.yaml
+```
+
+The file is applied first, so any explicit command line flag still overrides its key (`--env storm.yaml --rain 0` for a dry storm). The full key list is documented in [`include/vsgOcean/core/EnvironmentFile.h`](include/vsgOcean/core/EnvironmentFile.h).
+
 ### Runtime controls
 
 The environment is tuned at runtime through the keyboard and widgets (`vsgOcean::EnvironmentControls`, a library feature). The keys are deliberately few — the tuning lives in the widgets:
@@ -82,78 +101,15 @@ The environment is tuned at runtime through the keyboard and widgets (`vsgOcean:
 | O | ocean surface widget on / off (wind, waves) |
 | U | underwater widget on / off (water optics, current, snow, DOF blur) |
 | L | lights widget on / off (one intensity slider per light group) |
+| E | export the environment (a flat YAML file) |
 | Tab | cycle the tracked model (camera follows) |
 | Esc | quit |
 
 The bindings are always visible in a small HUD in a corner of the window. When vsgOcean is built with vsgImGui, each widget is its own window: the widgets read the environment every frame and write only on change — an update from outside (a topic, the code) is reflected immediately, and changing a widget takes over from any preset. The underwater widget carries the **depth-of-field blur** (off by default): the water's turbidity blurs the view with the water path length, following the Jerlov beam attenuation.
 
-## All the parameters
+## The rest of the command line
 
-Environment (sky and weather):
-
-| flag | values | meaning |
-| --- | --- | --- |
-| `--sun` | *elev azim* (deg) | static sun position |
-| `--sun-cycle` | | animate the sun, 1 simulated hour per second |
-| `--wind` | *speed dir* (m/s, deg) | wind speed and direction (ripples, glitter, rain drift, FFT spectrum) |
-| `--clouds` | 0..8 | cloud cover in oktas (independent of the fog) |
-| `--rain` | 0..1 | rain rate: streaks, splash rings, a roughened sea |
-| `--fog` | 0..1 | distance haze density (default 0.02) |
-| `--latitude` / `--longitude` | deg | geolocation: the hemisphere's constellations |
-
-Water (colour and optics):
-
-| flag | values | meaning |
-| --- | --- | --- |
-| `--jerlov` | 0..13 | the water type: I, IA, IB, II, III, coastal 1–9 (default 7 = coastal 3, western English Channel) |
-| `--chlorophyll` / `--cdom` / `--sediment` | mg/m³, 1/m, g/m³ | a bio-optical composition (overrides the fields of the type) |
-| `--blur` | 0/1 | underwater depth-of-field blur |
-| `--snow` | 0..100 | marine snow density (default 0.6) |
-| `--current` | *vx vy* (m/s) | the water current (snow and particles drift with it) |
-
-Waves (Gerstner sea):
-
-| flag | values | meaning |
-| --- | --- | --- |
-| `--wave-amplitude` | m | mean component amplitude |
-| `--wave-period` | s | mean component period |
-| `--wave-steepness` | 0..1 | Gerstner steepness |
-| `--wave-number` | 1..8 | component count (1: a regular, long-crested sea) |
-| `--wave-scale` | | component scale |
-| `--wave-angle` | deg | component spreading angle |
-
-Waves (FFT sea):
-
-| flag | values | meaning |
-| --- | --- | --- |
-| `--fft` | | the FFT sea (ECKV spectrum, as asv_wave_sim) instead of the Gerstner sea |
-| `--fft-tile` | m | the cascade tile size (default 256) |
-| `--fft-choppiness` | | the horizontal displacement whose folds produce the foam |
-| `--fft-wave-age` | | the ECKV wave age (default 0.84) |
-| `--fft-detail` | | a second, finer cascade (tile/8) that kills tile repetition |
-| `--foam` | 0..1 | Jacobian whitecap foam amount |
-
-Lights:
-
-| flag | values | meaning |
-| --- | --- | --- |
-| `--light` | *model/lamp* *0..1* | dim a lamp below its SDF intensity (the ceiling); repeatable |
-
-Camera, capture and diagnostics:
-
-| flag | values | meaning |
-| --- | --- | --- |
-| `--eye` / `--center` | x y z | a deterministic camera position / look-at |
-| `--headless` | | render offscreen, no window or swapchain |
-| `--extent` | W H | the render extent (window or headless) |
-| `-f` / `--num-frames` | N | render N frames then exit |
-| `--screenshot` | file.png | write the composited view at exit |
-| `--video` | printf pattern | write every headless frame (encode with ffmpeg) |
-| `--showcase` | surface / underwater / rov | scripted maritime showcase videos (see the example source) |
-| `--debug` | | Vulkan validation layers |
-| `--fps` / `--profiler` | | average frame rate at exit / per-stage instrumentation |
-
-vsg's standard viewer flags (`--window`, `--gpu`, `--mt`, `--log-level`, …) also apply.
+The few flags shown above cover the common looks; the example has many more (capture, diagnostics, every wave and water parameter). Run it with `--help` for the full list of the vsgOcean flags — and the standard vsg viewer flags (`--window`, `--gpu`, `--mt`, `--log-level`, …) also apply.
 
 ## Building
 

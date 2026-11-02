@@ -20,6 +20,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace vsgOcean
 {
@@ -115,6 +116,11 @@ namespace vsgOcean
         /// Name of the current Jerlov water type (e.g. "Coastal5"), or "Custom" for a composition
         /// that was set directly, for logging and UIs.
         [[nodiscard]] std::string jerlovName() const;
+
+        /// The Jerlov type of a name as produced by jerlovName() ("OceanicI" .. "Coastal9");
+        /// no value for "Custom" or an unknown name. A preset lookup for environment files
+        /// and UIs.
+        [[nodiscard]] static std::optional<JerlovType> jerlovTypeFromName(std::string_view name);
 
         /// Mean water level (sea level) in metres above the origin z = 0. Default 0.
         /// Raises or lowers the ocean surface, and the underwater rendering with it.

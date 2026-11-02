@@ -31,7 +31,7 @@ namespace vsgOcean
     public:
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
-        inline static constexpr std::array<Binding, 11> bindings{{
+        inline static constexpr std::array<Binding, 12> bindings{{
             {"mouse left drag", "orbit the view (stable horizon)"},
             {"mouse right drag", "translate the camera"},
             {"mouse wheel", "dolly in / out"},
@@ -41,6 +41,7 @@ namespace vsgOcean
             {"O", "ocean surface widget on / off"},
             {"U", "underwater widget on / off"},
             {"L", "lights widget on / off"},
+            {"E", "export the environment (YAML)"},
             {"Tab", "cycle the tracked model"},
             {"Esc", "quit"},
         }};
@@ -73,6 +74,11 @@ namespace vsgOcean
         /// per scene lamp (the SDF <light> intensity is each lamp's ceiling).
         /// Hidden by default.
         bool lightsVisible = false;
+
+        /// The file the E key exports the environment to (the environment-related
+        /// state only - sky and weather, wind, water optics, waves; never the
+        /// lights). Reload it with the example's --env flag.
+        vsg::Path environmentExportPath = "vsgOcean-environment.yaml";
 
         /// Whether a GUI currently captures the input (set by the environment GUI each
         /// frame from the ImGui state). The keyboard controls ignore keys while it is

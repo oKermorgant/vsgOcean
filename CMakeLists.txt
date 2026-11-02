@@ -93,6 +93,7 @@ vsgocean_embed_shader(present.frag)
 set(VSGOCEAN_LIBRARY_SOURCES
     # core: environment state and the scene model tree
     src/core/Environment.cpp
+    src/core/EnvironmentFile.cpp
     src/core/WaterOptics.cpp
     src/core/Model.cpp
     src/core/UriResolver.cpp

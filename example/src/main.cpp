@@ -65,8 +65,15 @@ int main(int argc, char** argv)
         }
 #endif
 
-        // apply the command line environment / wave settings to the scene
+        // apply the command line environment / wave settings to the scene; the
+        // saved environment file goes first, so every explicit flag below overrides
+        // its key (an absent flag leaves the file's value in place)
         const auto environment = vsg_scene->environment();
+        if (!settings.environmentFile.empty() && !vsg_scene->loadEnvironment(settings.environmentFile))
+        {
+            std::cerr << "cannot load the environment file " << settings.environmentFile << std::endl;
+            return 1;
+        }
         if (settings.overrideSun)
         {
             environment->setSunElevation(settings.sunElevation);
@@ -115,12 +122,15 @@ int main(int argc, char** argv)
             environment->setWaterCurrent(settings.waterCurrent);
         }
         const auto wavefield = vsg_scene->surface()->wavefield();
-        wavefield->setAmplitude(settings.waveAmplitude);
-        wavefield->setPeriod(settings.wavePeriod);
-        wavefield->setSteepness(settings.waveSteepness);
-        wavefield->setNumber(static_cast<size_t>(settings.waveNumber));
-        wavefield->setScale(settings.waveScale);
-        wavefield->setAngle(vsg::radians(settings.waveAngle));
+        if (settings.overrideWaves) // no wave flag: keep the wave field as loaded
+        {
+            wavefield->setAmplitude(settings.waveAmplitude);
+            wavefield->setPeriod(settings.wavePeriod);
+            wavefield->setSteepness(settings.waveSteepness);
+            wavefield->setNumber(static_cast<size_t>(settings.waveNumber));
+            wavefield->setScale(settings.waveScale);
+            wavefield->setAngle(vsg::radians(settings.waveAngle));
+        }
         if (settings.fft)
         {
             auto fft = wavefield->fftParameters();

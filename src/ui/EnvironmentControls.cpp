@@ -27,7 +27,7 @@ namespace vsgOcean
         // widgets themselves (and must always be able to hide a capturing GUI)
         if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_c
             && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u
-            && keyPress.keyBase != vsg::KEY_l)
+            && keyPress.keyBase != vsg::KEY_l && keyPress.keyBase != vsg::KEY_e)
         {
             return;
         }
@@ -52,6 +52,11 @@ namespace vsgOcean
             break;
         case vsg::KEY_l:
             lightsVisible = !lightsVisible;
+            break;
+        case vsg::KEY_e:
+            // export the environment as tuned so far (a flat YAML file, reloadable
+            // with the example's --env flag); the path is logged
+            scene_->saveEnvironment(environmentExportPath);
             break;
         case vsg::KEY_Tab:
         {

@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </editor-fold> */
 
 #include <vsgOcean/scene/Scene.h>
+#include <vsgOcean/core/EnvironmentFile.h>
 #include <vsgOcean/scene/RenderTarget.h>
 #include <vsg/utils/LineSegmentIntersector.h>
 #include <vsgOcean/scene/RenderPipeline.h>
@@ -132,6 +133,18 @@ namespace vsgOcean
     bool Scene::surfaceEnabled() const
     {
         return !surfaceSwitch_->children.empty() && surfaceSwitch_->children[0].mask != 0;
+    }
+
+    bool Scene::saveEnvironment(const vsg::Path& path) const
+    {
+        if (!environment_ || !surface_ || !surface_->wavefield()) return false;
+        return writeEnvironmentFile(path, *environment_, *surface_->wavefield());
+    }
+
+    bool Scene::loadEnvironment(const vsg::Path& path)
+    {
+        if (!environment_ || !surface_ || !surface_->wavefield()) return false;
+        return loadEnvironmentFile(path, *environment_, *surface_->wavefield());
     }
 
     vsg::ref_ptr<Model> Scene::model(const std::string& modelName) const
