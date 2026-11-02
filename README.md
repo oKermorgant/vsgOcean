@@ -6,6 +6,10 @@
 
 vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation:
 
+![The ocean surface: a wind-built FFT sea with Jacobian whitecap foam under broken cloud](img/surface.png)
+
+![Underwater: an ROV at a ship wreck, its dive lamps dimmed to a quarter of their SDF intensity, the water stepping from oceanic to coastal (the picture-in-picture is its own camera)](img/underwater.png)
+
 - **Scene model**: a tree of named, nestable `Model`s rooted at a `world` model, holding meshes under fixed or dynamic transforms. Frames are addressable by name and movable at runtime through `setPose()` — the seam for driving visuals from a dynamics simulator.
 - **SDF loading** *(optional, requires [sdformat](https://github.com/gazebosim/sdformat))*: SDF worlds and models become the scene model, with poses resolved through SDF semantic poses, `package://` / `model://` / `file://` URI resolution, and mesh scales.
 - **Environment**: sun position (elevation/azimuth), fog, wind, geolocation and Jerlov water types — all with reasonable defaults and settable at runtime. Night is moonless and genuinely dark: every light path (sky, fog, in-scatter, scene lighting) is sun-driven, so an unlit night scene is lit only by its own lamps.
@@ -14,7 +18,7 @@ vsgOcean renders marine scenes — terrain, surface vehicles and underwater robo
 - **Underwater rendering**: when the camera dives below the waves, the scene is composited underwater — per-pixel, per-channel Jerlov light attenuation following the true submerged view segment (red is absorbed first), Henyey-Greenstein forward in-scatter (g = 0.924) and an underwater sky — all driven by the water composition (chlorophyll, CDOM, sediment) through a simple bio-optical model, with the 14 Jerlov types as presets. (Known approximation: the models themselves are still lit by the unfiltered sun at any depth — the light on the geometry is not yet attenuated by its depth, only the view path is; the scene lighting and the in-scatter are on the roadmap for depth-consistent rendering.)
 - **Volumetric lamp cones**: the scene's point and spot lights are ray-marched as visible single-scattering cones through the water column — the night wreck scene is lit only by the ROV's dive beams, with the cones readable against open water.
 - **Marine snow**: slowly wandering particles in a box wrapped around the camera, with additional bulk drift from the water current (`setWaterCurrent()` — the seam for a dynamics-driven current topic). They reflect sunlight that reaches their depth and scene lamps, sparkling in the ROV beams at night. Density is tunable up to 100x the unit field (`--snow 0..100`, default 0.6, the GUI slider) — a storm-stirred water column of fine, sub-millimetre to centimetre flakes.
-- **SDF lights**: `<light>` elements (point, spot with cone aperture and range, directional) become scene lights attached to their frame, so vehicle lamps follow the vehicle.
+- **SDF lights**: `<light>` elements (point, spot with cone aperture and range, directional) become scene lights attached to their frame, so vehicle lamps follow the vehicle. Each light's SDF intensity is its **ceiling**: every lamp is dimmable at runtime by name (`Scene::setLightIntensity`, e.g. `--light bluerov2/lamp_port 0.2` on the example, the lights widget's per-lamp sliders, or a per-lamp ROS topic on the Coral frontend) — the model shading, the volumetric lamp cones and the marine snow sparkle all follow.
 - **Multiple render pipelines**: the scene renders from any number of cameras — the camera state flows through push constants, so the shared sky, surface and models are correct from every view. Sensor cameras render to texture with their own composite (the example previews an ROV underwater camera and a boat surface camera in its panel); the output image is ready for readback to an image topic, and the composited image can be written to a PNG (`--screenshot`).
 - **Headless rendering**: `--headless` renders offscreen without a window or swapchain and writes the screenshot — for servers and CI, and for GPUs that can render but not present (e.g. over a forwarded X connection).
 
@@ -54,6 +58,7 @@ cmake --build build -j
 ./vsgOcean_example --chlorophyll 5 --cdom 0.3 --sediment 2   # any water: a bio-optical composition (overrides the fields of the type)
 ./vsgOcean_example --fog 0.01                      # haze (default 0.02, scaled 0..1)
 ./vsgOcean_example --snow 60 --current 0.5 0 --blur 1  # storm-stirred snow, drifting East, with DOF blur
+./vsgOcean_example --light bluerov2/lamp_port 0.2 --light bluerov2/lamp_starboard 0.2   # dim the ROV's dive lamps to 20% of their SDF intensity
 ./vsgOcean_example --latitude -35 --longitude 18   # the southern hemisphere: Crux replaces the Dipper
 ./vsgOcean_example --clouds 7                         # overcast: no sun disc, no stars
 ./vsgOcean_example --debug --eye 12 5 -40          # validation layers, camera near the wreck
@@ -81,6 +86,7 @@ tuning lives in the widgets:
 | S | sky widget on / off (sun, day cycle, fog, cloud cover) |
 | O | ocean surface widget on / off (wind, waves) |
 | U | underwater widget on / off (water optics, current, snow, DOF blur) |
+| L | lights widget on / off (one intensity slider per scene lamp) |
 | Tab | cycle the tracked model (camera follows) |
 | Esc | quit |
 

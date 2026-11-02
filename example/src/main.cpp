@@ -146,6 +146,14 @@ int main(int argc, char** argv)
                   environment->jerlovName(), "; fog density ", environment->fogDensity(), "; location ", environment->latitude(),
                   " lat, ", environment->longitude(), " lon");
 
+        // per-lamp dimming below the SDF ceilings (the lights widget's sliders
+        // and the same API a robot driver would use)
+        for (const auto& [name, factor] : settings.lightFactors)
+        {
+            vsg::info("Dimming light ", name, " to ", factor, " of its SDF intensity");
+            vsg_scene->setLightIntensity(name, factor);
+        }
+
         // demo: links animated wrt their parent frame (steering pods of the surface vehicle,
         // spinning propellers and thrusters). getJoint() composes their motion on the poses
         // captured from the SDF files at load time.
@@ -218,7 +226,7 @@ int main(int argc, char** argv)
         // the ROV's own nose camera over the same underwater script - render it
         // alongside "underwater" and overlay it as a picture-in-picture. The demo
         // animation runs on the SAME showcase clock, so the two runs match.
-        const auto showcaseFrame = [&environment, &wavefield, &demoPoses, &settings](double t, vsg::Camera* camera)
+        const auto showcaseFrame = [&environment, &wavefield, &demoPoses, &settings, &vsg_scene](double t, vsg::Camera* camera)
         {
             const auto ease = [](double u) { u = std::clamp(u, 0.0, 1.0); return u * u * (3.0 - 2.0 * u); };
             vsg::dvec3 eye{0.0, -30.0, 5.0}, center{0.0, 0.0, 0.0};
@@ -270,23 +278,34 @@ int main(int argc, char** argv)
             else // "underwater" (the tracking shot) and "rov" (its camera)
             {
                 // the environment: a bright day; the water type steps MURKIER
-                // over the video (oceanic I -> type II -> coastal 3 -> coastal 9:
-                // the view and the ROV camera lose visibility as it goes) while
-                // the marine snow varies - a bloom, a lull, then thick
+                // over the video (oceanic I -> type II -> coastal 3 -> coastal 9)
+                // while the marine snow plays - a bloom, a lull, then a thick
+                // storm; the ROV's dive lamps are dimmed to a quarter of their
+                // SDF ceiling (full power cuts the murk and reads "blind")
                 static const int jerlovStops[]{0, 3, 7, 13};
                 const auto stop = std::min(static_cast<size_t>(t / 6.0), std::size(jerlovStops) - 1);
                 environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(jerlovStops[stop]));
                 double snow;
-                if (t < 8.0) snow = vsg::mix(0.0, 6.0, ease(t / 8.0));
-                else if (t < 16.0) snow = vsg::mix(6.0, 1.0, ease((t - 8.0) / 8.0));
-                else snow = vsg::mix(1.0, 9.0, ease((t - 16.0) / 8.0));
+                if (t < 8.0) snow = vsg::mix(10.0, 16.0, ease(t / 8.0));
+                else if (t < 16.0) snow = vsg::mix(16.0, 4.0, ease((t - 8.0) / 8.0));
+                else snow = vsg::mix(4.0, 40.0, ease((t - 16.0) / 8.0));
                 environment->setMarineSnowDensity(snow);
-                environment->setSunElevation(35.0);
+                environment->setSunElevation(40.0);
                 environment->setSunAzimuth(135.0);
+                // the ROV's dive lamps are dimmed to a quarter of their SDF
+                // ceiling (full power cuts the murk and reads "blind")
+                if (t < 1.0 / 60.0)
+                {
+                    for (const auto& light : vsg_scene->lightNames())
+                    {
+                        if (light.rfind("bluerov2/", 0) == 0) vsg_scene->setLightIntensity(light, 0.25);
+                    }
+                }
 
-                // the ROV circles the wreck nose-first: the tracking camera rides
-                // behind and above it, looking past it at the wreck; the "rov"
-                // camera sits at the vehicle's nose (the sensor view)
+                // the ROV circles the wreck nose-first: the "rov" camera sits at
+                // the vehicle's nose (the sensor view); the tracking camera makes
+                // its approach from 45 deg behind the ROV, closing from ~32 to
+                // ~18 m, so the vehicle and the wreck beyond it share the frame
                 const auto pose = demoPoses.getPose("bluerov2", *wavefield, t);
                 if (pose)
                 {
@@ -301,8 +320,17 @@ int main(int argc, char** argv)
                     }
                     else
                     {
-                        eye = position - forward * 3.5 + vsg::dvec3(0.0, 0.0, 1.0);
-                        center = position + forward * 2.0 + vsg::dvec3(0.0, 0.0, -0.4);
+                        // the horizontal direction 225 deg around from the heading
+                        // (behind and to the side), the trailing viewpoint,
+                        // closing from 30 to 15 m; the center sits on the vehicle
+                        // so it, its lamp cones on the wreck and the snow carry
+                        // the frame (the open-water background is dark at depth)
+                        const auto c = std::cos(vsg::radians(225.0)), s = std::sin(vsg::radians(225.0));
+                        const vsg::dvec3 behind45 = vsg::normalize(vsg::dvec3(forward.x * c - forward.y * s,
+                                                                              forward.x * s + forward.y * c, 0.0));
+                        const auto distance = vsg::mix(30.0, 15.0, ease(t / 24.0));
+                        eye = position + behind45 * distance + vsg::dvec3(0.0, 0.0, 2.0);
+                        center = position + vsg::dvec3(0.0, 0.0, -1.0);
                     }
                 }
             }
