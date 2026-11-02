@@ -100,7 +100,7 @@ namespace vsgOcean
              {-1.0f, 3.0f, 0.0f}});
 
         // environment uniform block: [0] sun direction, [1] fog color + density,
-        // [2..33] stars of the night sky, [34] Jerlov water color + mean attenuation,
+        // [2..33] stars of the night sky, [34] Jerlov water color + photopic attenuation,
         // [35] wave params, [36..67] component waves. The camera state comes
         // through push constants, so one sky node renders correctly from any camera
         environmentUniform_ = vsg::vec4Array::create(2 + maxStars + 2 + 4 * Wavefield::maxWaves);
@@ -161,10 +161,13 @@ namespace vsgOcean
         (*environmentUniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), static_cast<float>(environment.cloudiness() / 8.0));
         (*environmentUniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogExtinction()));
 
-        // the water (Jerlov type); the underwater mode is evaluated per camera, in-shader
+        // the water (Jerlov type); the underwater mode is evaluated per camera, in-shader.
+        // The packed attenuation is the PHOTOPIC mean (green + blue over 2): the sky
+        // background dims with the light an eye actually sees at depth - the RGB mean
+        // is dominated by the fast-dying red and turns the deep black
         const auto attenuation = environment.underwaterAttenuation();
-        const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
-        (*environmentUniform_)[2 + maxStars] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
+        const auto photopicAttenuation = (attenuation.y + attenuation.z) / 2.0f;
+        (*environmentUniform_)[2 + maxStars] = vsg::vec4(environment.underwaterColor(), photopicAttenuation);
 
         // the wave field, so each camera evaluates its own submersion below the waves;
         // a null wave field (no ocean surface) keeps every camera above the water

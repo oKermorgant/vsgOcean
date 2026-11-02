@@ -281,10 +281,13 @@ void main()
     // is sun-driven only, so a deep night scene attenuates to black
     {
         const vec3 transmit = exp(-env.attenuation.rgb * waterPath);
-        // the sun light surviving to the depth of the viewed water: the camera's
-        // submersion when below, the surface when looking down from above
+        // the sun light surviving to the depth of the viewed water, PER CHANNEL
+        // (the beam attenuation is the vertical diffuse Kd over 3): red is
+        // absorbed first, so the deep background keeps its blue-green instead of
+        // dimming with the RGB-mean attenuation, which darkens like red water.
+        // The depth is the camera's submersion when below, the surface from above
         const float depth = max(env.eye.w, 0.0);
-        const float light = exp(-env.water.a * max(depth, 0.5)) * max(env.attenuation.w, 0.0);
+        const vec3 light = exp(-env.attenuation.rgb * 3.0 * max(depth, 0.5)) * max(env.attenuation.w, 0.0);
         // the in-scattered light is the sum of the multiply-scattered ambient
         // (isotropic, the water colour) and the singly-scattered sun light, which
         // follows the Henyey-Greenstein phase (g = 0.924, strongly forward-peaked -
