@@ -147,7 +147,7 @@ vsgOcean is MIT-licensed. The following third-party work is included or derived,
 - The interleaved gradient noise dithering used in the shaders follows the technique of Jorge Jimenez, *"Next Generation Post Processing in Call of Duty: Advanced Warfare"* (2014).
 - Example models: **[VRX / WAM-V](https://github.com/osrf/vrx)** (© OSRF, Apache-2.0) for the aquabot, **[bluerov2_description](https://github.com/bluerov2_description)** (MIT) for the BlueROV2, and the M/S Herkules ship wreck from **[UUV Simulator](https://github.com/uuvsimulator/uuv_simulator)** (© 2016 Bosch / The UUV Simulator Authors, Apache-2.0).
 
-A large part of the development was carried out with **[Mistral Code](https://mistral.ai)**, Mistral AI's agentic coding assistant.
+A large part of the development was carried out with agentic AI coding assistants: **[GitHub Copilot](https://github.com/features/copilot)** and **[Mistral Vibe](https://mistral.ai)** (Mistral AI's agentic CLI coding agent).
 
 Projects consulted as rendering references but **not** included: [osgOcean](https://github.com/kbale/osgOcean) (LGPL-3), [Stonefish](https://github.com/patrykcieslak/stonefish) (GPL-3), [Vulkan-Spectral-Ocean](https://github.com/micaalle/Vulkan-Spectral-Ocean) (MIT).
 
