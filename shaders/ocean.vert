@@ -26,17 +26,20 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 omega[8];
     vec4 steepness[8];
     vec4 direction[8];    // xy: horizontal direction of the component
-    vec4 fft;             // x: 1 when the surface is the FFT sea, y: its tile size [m]
+    vec4 fft;             // x: 1 when the surface is the FFT sea, y: its tile size [m], z: tile size of the detail cascade (0: off), w: foam amount
 } ocean;
 
 layout(set = 0, binding = 1) uniform sampler2D fftDisplacement; // (dx, dy, height) of the tile
 layout(set = 0, binding = 2) uniform sampler2D fftSlopes;       // (dh/dx, dh/dy, jacobian)
+layout(set = 0, binding = 3) uniform sampler2D detailDisplacement; // the same for the detail cascade
+layout(set = 0, binding = 4) uniform sampler2D detailSlopes;
 
 layout(location = 0) in vec3 position; // grid point on the mean water level (z = 0)
 
 layout(location = 0) out vec3 worldPosition;
 layout(location = 1) out vec3 worldNormal;
 layout(location = 2) out vec3 cameraEye; // world position of the camera of this view
+layout(location = 3) out vec3 fftCoord;  // undisplaced xy of the point [m], and the FFT fade (see below)
 
 void main()
 {
@@ -88,6 +91,7 @@ void main()
         N += vec3(d.x * kas, d.y * kas, -qkac);
     }
 
+    fftCoord = vec3(p.xy, 0.0);
     if (ocean.fft.x > 0.5)
     {
         // the FFT sea replaces the component waves: the periodic tile is looked up at the
@@ -95,8 +99,15 @@ void main()
         const vec2 uv = p.xy / ocean.fft.y;
         const float dist = length(p.xy - cameraEye.xy);
         const float fade = grow * (1.0 - smoothstep(2.0 * ocean.fft.y, 6.0 * ocean.fft.y, dist));
-        const vec3 d = textureLod(fftDisplacement, uv, 0.0).xyz;
-        const vec2 slope = textureLod(fftSlopes, uv, 0.0).xy;
+        vec3 d = textureLod(fftDisplacement, uv, 0.0).xyz;
+        vec2 slope = textureLod(fftSlopes, uv, 0.0).xy;
+        if (ocean.fft.z > 0.0)
+        {
+            const vec2 uvDetail = p.xy / ocean.fft.z;
+            d += textureLod(detailDisplacement, uvDetail, 0.0).xyz;
+            slope += textureLod(detailSlopes, uvDetail, 0.0).xy;
+        }
+        fftCoord = vec3(p.xy, fade);
         p += fade * vec3(d.xy, d.z);
         N = normalize(vec3(-fade * slope, 1.0));
     }

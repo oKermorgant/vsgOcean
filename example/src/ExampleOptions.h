@@ -101,6 +101,8 @@ namespace vsgOceanExample
         double fftTile = 256.0;
         double fftChoppiness = 0.6;
         double fftWaveAge = 0.84;
+        bool fftDetail = false;  // --fft-detail: a second, finer cascade
+        double foam = 0.0;       // --foam amount in [0, 1]
 
         // capture: write the main view to a PNG file when the render loop ends
         // (combine with numFrames to capture a deterministic frame)
@@ -300,6 +302,8 @@ namespace vsgOceanExample
         settings.fftTile = arguments.value(256.0, "--fft-tile");
         settings.fftChoppiness = arguments.value(0.6, "--fft-choppiness");
         settings.fftWaveAge = arguments.value(0.84, "--fft-wave-age");
+        settings.fftDetail = arguments.read("--fft-detail");
+        settings.foam = arguments.value(0.0, "--foam");
 
         if (arguments.errors())
         {

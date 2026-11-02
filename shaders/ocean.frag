@@ -35,6 +35,9 @@ layout(std140, set = 0, binding = 0) uniform Ocean
 layout(location = 0) in vec3 worldPosition;
 layout(location = 1) in vec3 worldNormal;
 layout(location = 2) in vec3 cameraEye; // world position of the camera of this view
+layout(location = 3) in vec3 fftCoord;  // undisplaced xy [m] and FFT fade (see ocean.vert)
+layout(set = 0, binding = 2) uniform sampler2D fftSlopes;     // (dh/dx, dh/dy, jacobian) of the FFT tile
+layout(set = 0, binding = 4) uniform sampler2D detailSlopes;  // the same for the detail cascade
 layout(location = 0) out vec4 fragColor;
 
 // the interleaved gradient noise used for dithering (shared with the sky shader)
@@ -135,6 +138,24 @@ float rippleNoise(vec2 p)
     const float c = rippleHash(i + vec2(0.0, 1.0));
     const float d = rippleHash(i + vec2(1.0, 1.0));
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
+}
+
+// whitecap coverage in [0, 1] of the FFT sea: foam where the horizontal displacement folds
+// over itself (the Jacobian of the displacement drops), broken up by noise so it reads as
+// patches and streaks rather than the smooth contour of the Jacobian
+float foamCoverage()
+{
+    const float amount = ocean.fft.w;
+    if (ocean.fft.x < 0.5 || amount <= 0.0) return 0.0;
+
+    float jacobian = texture(fftSlopes, fftCoord.xy / ocean.fft.y).z;
+    if (ocean.fft.z > 0.0) jacobian += texture(detailSlopes, fftCoord.xy / ocean.fft.z).z - 1.0;
+    jacobian = 1.0 + (jacobian - 1.0) * fftCoord.z;
+
+    const float threshold = mix(0.35, 0.95, amount);
+    const float folded = 1.0 - smoothstep(threshold - 0.4, threshold, jacobian);
+    const float grain = 0.5 + 0.5 * (0.6 * rippleNoise(worldPosition.xy * 1.7) + 0.4 * rippleNoise(worldPosition.xy * 5.3));
+    return folded * smoothstep(0.2, 0.7, grain + 0.6 * folded);
 }
 
 // ripple detail: drifting octave bands of the noise above, evaluated as slopes per
@@ -265,12 +286,18 @@ void main()
         const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0) * (1.0 - ocean.sunDirection.w);
         const vec3 throughWater = ocean.waterColor.rgb * scatter + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
 
-        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0) * ocean.amplitude[0].y;
+        // the whitecaps: diffusely lit, so neither the sky mirror nor the sun glitter shows through
+        const float foam = foamCoverage();
+        const float foamLight = 0.45 + 0.55 * mix(max(dot(n, sunDirection), 0.0), 0.7, ocean.sunDirection.w);
+        const vec3 foamColor = vec3(0.92, 0.95, 0.97) * foamLight * day;
+
+        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0) * ocean.amplitude[0].y * (1.0 - foam);
+        color = mix(color, foamColor, foam);
 
         // transparency towards the scene behind the surface: more mirror-like at
         // grazing angles, more transparent looking straight down
         const float clarity = exp(-ocean.waterColor.a * ocean.params.w);
-        alpha = fresnel + (1.0 - fresnel) * (1.0 - clarity);
+        alpha = mix(fresnel + (1.0 - fresnel) * (1.0 - clarity), 1.0, foam);
     }
     else
     {

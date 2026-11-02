@@ -23,6 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/all.h>
 
 #include <complex>
+#include <random>
 #include <cstdint>
 #include <vector>
 
@@ -52,12 +53,16 @@ namespace vsgOcean
             double spread = 5.0;     ///< cos^2s spreading exponent s
             double choppiness = 0.6; ///< horizontal displacement scale (lambda); 0 gives plain sines
             double gravity = 9.81;
+            double kMin = 0.0;       ///< only the wavenumbers [kMin, kMax) [rad/m] are synthesised: a band of a cascade
+            double kMax = 0.0;       ///< 0: no upper limit
+            uint32_t seed = static_cast<uint32_t>(std::default_random_engine::default_seed); ///< of the random draws
 
             bool operator==(const Parameters& o) const
             {
                 return cells == o.cells && tileSize == o.tileSize && windSpeed == o.windSpeed &&
                        windDirection == o.windDirection && capOmegaC == o.capOmegaC && spread == o.spread &&
-                       choppiness == o.choppiness && gravity == o.gravity;
+                       choppiness == o.choppiness && gravity == o.gravity &&
+                       kMin == o.kMin && kMax == o.kMax && seed == o.seed;
             }
         };
 

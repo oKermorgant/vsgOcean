@@ -75,14 +75,16 @@ namespace vsgOcean
 
         // uniform block: [0] sun direction, [1] fog color + density, [2] water color,
         // [3] params (t, tau, number, water depth), [4] per-channel attenuation + sea
-        // level, [5..44] component wave arrays, [45] FFT sea (enabled, tile size)
+        // level, [5..44] component wave arrays, [45] FFT sea (enabled, tile size, detail tile size, foam)
         uniform_ = vsg::vec4Array::create(6 + 5 * Wavefield::maxWaves);
         uniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
 
         vsg::DescriptorSetLayoutBindings oceanBindings{
             {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
             {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},  // FFT displacement
-            {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr}}; // FFT slopes
+            {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},  // FFT slopes (foam)
+            {3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT, nullptr},  // detail cascade displacement
+            {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}}; // detail cascade slopes
         auto oceanLayout = vsg::DescriptorSetLayout::create(oceanBindings);
 
         // the projection and modelview matrices are pushed by the vsg record traversal
@@ -133,7 +135,10 @@ namespace vsgOcean
         sampler->anisotropyEnable = VK_FALSE;
         auto displacementDescriptor = vsg::DescriptorImage::create(sampler, wavefield_->fft()->displacement(), 1, 0);
         auto slopesDescriptor = vsg::DescriptorImage::create(sampler, wavefield_->fft()->slopes(), 2, 0);
-        auto oceanSet = vsg::DescriptorSet::create(oceanLayout, vsg::Descriptors{oceanDescriptor, displacementDescriptor, slopesDescriptor});
+        auto detailDisplacementDescriptor = vsg::DescriptorImage::create(sampler, wavefield_->detailFft()->displacement(), 3, 0);
+        auto detailSlopesDescriptor = vsg::DescriptorImage::create(sampler, wavefield_->detailFft()->slopes(), 4, 0);
+        auto oceanSet = vsg::DescriptorSet::create(oceanLayout, vsg::Descriptors{oceanDescriptor, displacementDescriptor, slopesDescriptor,
+                                                                                  detailDisplacementDescriptor, detailSlopesDescriptor});
 
         auto stateGroup = vsg::StateGroup::create();
         stateGroup->add(vsg::BindGraphicsPipeline::create(pipeline));
@@ -193,7 +198,9 @@ namespace vsgOcean
         }
 
         (*uniform_)[5 + 5 * Wavefield::maxWaves] = vsg::vec4(wavefield_->model() == Wavefield::Model::FFT ? 1.0f : 0.0f,
-                                                            static_cast<float>(wavefield_->fftParameters().tileSize), 0.0f, 0.0f);
+                                                            static_cast<float>(wavefield_->fftParameters().tileSize),
+                                                            wavefield_->fftDetail() ? static_cast<float>(wavefield_->detailFft()->parameters().tileSize) : 0.0f,
+                                                            static_cast<float>(wavefield_->foam()));
 
         uniform_->dirty();
     }

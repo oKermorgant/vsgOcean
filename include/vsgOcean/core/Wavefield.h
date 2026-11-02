@@ -109,6 +109,18 @@ namespace vsgOcean
         const FftWaves::Parameters& fftParameters() const { return fft_->parameters(); }
         vsg::ref_ptr<FftWaves> fft() const { return fft_; }
 
+        /// A second, finer FFT cascade (default off): the spectrum is split at a wavenumber, the
+        /// main tile keeps the long waves and a tile eight times smaller adds the short ones,
+        /// down to a few decimetres, without the visible tiling of a single tile.
+        void setFftDetail(bool enabled);
+        bool fftDetail() const { return fftDetail_; }
+        vsg::ref_ptr<FftWaves> detailFft() const { return detailFft_; }
+
+        /// Whitecap foam of the FFT sea in [0, 1] (default 0: off), where the horizontal
+        /// displacement folds over itself (Jacobian below 1).
+        void setFoam(double amount);
+        double foam() const { return foam_; }
+
         /// Synthesise the FFT sea at time t (a no-op for the other models). The textures of
         /// the FFT and height() then refer to this time.
         void updateFft(double t);
@@ -130,7 +142,7 @@ namespace vsgOcean
 
         /// Mean water level at (x, y) at time t in seconds: the sum of the component waves,
         /// including the exponential grow-in from t = 0. The FFT model returns the field of
-        /// the last updateFft(), without horizontal displacement.
+        /// the last updateFft() (all the cascades), without horizontal displacement.
         double height(double x, double y, double t) const;
 
         /// The height scale of the waves in metres: the sum of the component amplitudes, or
@@ -162,6 +174,11 @@ namespace vsgOcean
         double gain_{1.0};
         double tau_{2.0};
         vsg::ref_ptr<FftWaves> fft_;
+        vsg::ref_ptr<FftWaves> detailFft_;
+        bool fftDetail_ = false;
+        double foam_ = 0.0;
+
+        void syncCascades();
 
         std::vector<double> amplitudes_;
         std::vector<double> wavenumbers_;

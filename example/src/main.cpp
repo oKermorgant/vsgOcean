@@ -116,6 +116,8 @@ int main(int argc, char** argv)
             fft.capOmegaC = settings.fftWaveAge;
             wavefield->setFftParameters(fft);
             wavefield->setModel(vsgOcean::Wavefield::Model::FFT);
+            wavefield->setFftDetail(settings.fftDetail);
+            wavefield->setFoam(settings.foam);
         }
 
         // geolocation of the scene: taken from the SDF world when available,

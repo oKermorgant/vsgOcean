@@ -273,6 +273,10 @@ namespace vsgOcean
                     changed |= ImGui::SliderFloat("choppiness", &choppiness, 0.0f, 1.5f);
                     changed |= ImGui::SliderFloat("wave age (inverse)", &waveAge, 0.84f, 5.0f);
                     changed |= ImGui::SliderFloat("directional spread", &spread, 1.0f, 30.0f);
+                    auto detail = wavefield->fftDetail();
+                    if (ImGui::Checkbox("fine detail cascade", &detail)) wavefield->setFftDetail(detail);
+                    auto foam = static_cast<float>(wavefield->foam());
+                    if (ImGui::SliderFloat("foam", &foam, 0.0f, 1.0f)) wavefield->setFoam(foam);
                     if (changed)
                     {
                         fft.tileSize = tile;

@@ -24,7 +24,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 namespace vsgOcean
 {
     Wavefield::Wavefield(uint32_t fftCells) :
-        fft_(FftWaves::create(fftCells))
+        fft_(FftWaves::create(fftCells)),
+        detailFft_(FftWaves::create(fftCells))
     {
         recalculate();
     }
@@ -197,18 +198,53 @@ namespace vsgOcean
         fft_->setParameters(p);
     }
 
+    void Wavefield::setFftDetail(bool enabled)
+    {
+        fftDetail_ = enabled;
+        syncCascades();
+    }
+
+    void Wavefield::setFoam(double amount)
+    {
+        foam_ = std::clamp(amount, 0.0, 1.0);
+    }
+
+    void Wavefield::syncCascades()
+    {
+        // the cascades share the spectrum: the main tile keeps the wavenumbers below half its
+        // Nyquist limit, the detail tile (an eighth of the size, another seed) the ones above
+        constexpr double detailRatio = 8.0;
+        auto main = fft_->parameters();
+        const auto split = 0.5 * vsg::PI * main.cells / main.tileSize;
+        main.kMax = fftDetail_ ? split : 0.0;
+        fft_->setParameters(main);
+
+        auto detail = main;
+        detail.tileSize = main.tileSize / detailRatio;
+        detail.kMin = split;
+        detail.kMax = 0.0;
+        detail.seed = main.seed + 1;
+        detailFft_->setParameters(detail);
+    }
+
     void Wavefield::updateFft(double t)
     {
         if (model_ != Model::FFT) return;
         auto parameters = fft_->parameters();
         parameters.windDirection = direction_;
         fft_->setParameters(parameters);
+        syncCascades();
         fft_->update(t);
+        if (fftDetail_) detailFft_->update(t);
     }
 
     double Wavefield::heightScale() const
     {
-        if (model_ == Model::FFT) return fft_->maxHeight() * (1.0 + fft_->parameters().choppiness);
+        if (model_ == Model::FFT)
+        {
+            const auto detail = fftDetail_ ? detailFft_->maxHeight() : 0.0;
+            return (fft_->maxHeight() + detail) * (1.0 + fft_->parameters().choppiness);
+        }
         return std::accumulate(amplitudes_.begin(), amplitudes_.end(), 0.0);
     }
 
@@ -219,7 +255,7 @@ namespace vsgOcean
 
     double Wavefield::height(double x, double y, double t) const
     {
-        if (model_ == Model::FFT) return fft_->height(x, y) * growFactor(t);
+        if (model_ == Model::FFT) return (fft_->height(x, y) + (fftDetail_ ? detailFft_->height(x, y) : 0.0)) * growFactor(t);
 
         // sum of the component waves, as in Wavefield::ComputeDepthSimply of boating_gz
         auto h = 0.0;

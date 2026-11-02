@@ -155,7 +155,7 @@ namespace vsgOcean
         }
 
         // the draw order of asv_wave_sim: ikx outer, iky inner, rho then sigma
-        std::default_random_engine generator(std::default_random_engine::default_seed);
+        std::default_random_engine generator(parameters_.seed);
         std::normal_distribution<double> distribution(0.0, 1.0);
 
         for (size_t ikx = 0; ikx < n; ++ikx)
@@ -170,7 +170,8 @@ namespace vsgOcean
                 {
                     const double spreading = cs * std::pow(std::abs(std::cos(phi / 2.0)), 2.0 * s);
                     const double psi = eckvSpectrum(k, parameters_.windSpeed, parameters_.capOmegaC, g) * spreading / k;
-                    psiRoot_[idx] = 0.5 * std::sqrt(psi * kf * kf);
+                    const bool inBand = k >= parameters_.kMin && (parameters_.kMax <= 0.0 || k < parameters_.kMax);
+                    psiRoot_[idx] = inBand ? 0.5 * std::sqrt(psi * kf * kf) : 0.0;
                     omega_[idx] = std::sqrt(g * k);
                 }
                 rho_[idx] = distribution(generator);
