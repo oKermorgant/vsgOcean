@@ -4,13 +4,13 @@
 
 > :warning: **Status: ongoing, experimental project.** vsgOcean is under active development: APIs will change, features are incomplete, and rendering is a baseline that will be refined. It is not ready for production use. Feedback and contributions are welcome, but expect churn.
 
-vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. Its differentiator is the **water itself**: the light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the waves follow the same model as a Gazebo dynamics simulation, and every layer is settable at runtime — by the GUI, the command line, or the topics of the Coral frontend.
+vsgOcean renders marine scenes — terrain, surface vehicles and underwater robots — with an environment designed for simulation. The light transport is driven by physical water parameters (the Jerlov taxonomy, a bio-optical composition), the wave models are inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin), and every layer is settable at runtime — by the GUI, the command line, or the topics of the Coral frontend.
 
 In short:
 
 - **Scene model**: named, nestable `Model`s with frames addressable by name and movable at runtime through `setPose()` — the seam for driving visuals from a dynamics simulator; SDF worlds and models load natively *(optional, [sdformat](https://github.com/gazebosim/sdformat))*.
-- **Sky and weather**: analytic sky with a sun-driven day/night cycle (moonless, genuinely dark nights — no ambient floors anywhere), hemisphere-dependent constellations, cloud cover on the okta scale, rain (falling streaks, splash rings, a roughened sea).
-- **Ocean surface**: Gerstner waves from the same wave model as [asv_wave_sim](https://github.com/srmainwaring/asv_wave_sim) (Gazebo-synchronisable), or an ECKV FFT sea with a detail cascade and Jacobian whitecap foam; wind-driven ripple detail; sky reflection, glitter and glare above, the Snell window below.
+- **Sky and weather**: analytic sky with a sun-driven day/night cycle (moonless, dark nights — no ambient floors), hemisphere-dependent constellations, cloud cover on the okta scale, rain (falling streaks, splash rings, a roughened sea).
+- **Ocean surface**: Gerstner component waves and an ECKV FFT sea, both wave models inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin), with a detail cascade and Jacobian whitecap foam; wind-driven ripple detail; sky reflection, glitter and glare above, the Snell window below.
 - **Underwater rendering**: per-pixel, per-channel Jerlov attenuation over the true submerged view segment, Henyey-Greenstein in-scatter, an underwater sky, volumetric lamp cones, marine snow and a turbidity-driven depth-of-field blur.
 - **Dimmable lights**: an SDF `<light>` intensity is each lamp's ceiling; lamps cluster by aim direction into per-robot light groups (one face, one control) — shading, cones and snow sparkle all follow.
 - **Render pipelines**: the scene renders from any number of cameras (sensor cameras to texture, ready for image readback); `--headless` renders offscreen without a window, for servers, CI and non-presenting GPUs.
@@ -33,9 +33,9 @@ The water is described either by a **Jerlov water type** (the classical marine-o
 
 ### Waves
 
-The default sea is a **Gerstner component wave field** using the same wave model as [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (Gazebo's wave plugin): the visual displacement on the GPU and the CPU `Wavefield` evaluation are the same model, so the rendered surface and a dynamics simulation's wave field can be synchronised — floating bodies sit on the rendered waves. The default sea follows asv_wave_sim's component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea; the mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters (the `ocean.*` parameters in the Coral frontend).
+The default sea is a **Gerstner component wave field**, a wave model inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin): it follows its component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea. The mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters (the `ocean.*` parameters in the Coral frontend), and the field can also be evaluated on the CPU (`Wavefield::height`), not only rendered.
 
-The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional spectrum by inverse FFT through the same wave-field interface, with a choppiness parameter (horizontal displacement whose folds produce **Jacobian whitecap foam** with `--foam`), a wave-age parameter and an optional second, finer cascade (`--fft-detail`) that kills tile repetition and adds detail.
+The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional spectrum by inverse FFT, after the linear random FFT model of asv_wave_sim, with a choppiness parameter (horizontal displacement whose folds produce **Jacobian whitecap foam** with `--foam`), a wave-age parameter and an optional second, finer cascade (`--fft-detail`) that kills tile repetition and adds detail.
 
 ### References
 
@@ -45,7 +45,7 @@ The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional sp
 - T. Elfouhaily, B. Chapron & D. Katsaros, *A unified directional spectrum for long and short wind-driven waves*, J. Geophys. Res., 1997 — the ECKV spectrum of the FFT sea.
 - J. Tessendorf, *Simulating Ocean Water*, 2001 — the inverse-FFT synthesis and the Jacobian foam.
 - L. C. Henyey & J. L. Greenstein, *Diffuse radiation in the galaxy*, ApJ, 1941 — the forward-scattering phase function.
-- [asv_wave_sim](https://github.com/srmainwaring/asv_wave_sim) (R. Mainwaring) — the Gazebo-compatible Gerstner wave field vsgOcean's `Wavefield` derives from.
+- [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (R. Mainwaring) — the component wave and linear random FFT models vsgOcean's wave fields are inspired by.
 
 ## The example
 
