@@ -112,6 +112,15 @@ namespace vsgOceanExample
         // (combine with numFrames to capture a deterministic frame)
         vsg::Path screenshotPath;
 
+        // headless video: write EVERY frame as a PNG (printf pattern, %05d is the
+        // frame index) - e.g. `--video frames/f%05d.png` then encode with ffmpeg
+        vsg::Path videoPattern;
+
+        // the scripted maritime tour (headless): the camera and the environment
+        // follow a fixed showcase script - the ocean surface, an underwater dive
+        // at day, the night wreck lit by the ROV's lamps (see main.cpp)
+        bool showcase = false;
+
         // the scene files, from the remaining positional arguments
         std::vector<vsg::Path> sceneFilenames;
     };
@@ -284,6 +293,8 @@ namespace vsgOceanExample
 
         // capture: write the main view to a PNG file when the render loop ends
         settings.screenshotPath = arguments.value<vsg::Path>("", "--screenshot");
+        settings.videoPattern = arguments.value<vsg::Path>("", "--video");
+        if (arguments.read("--showcase")) settings.showcase = true;
 
         if (arguments.read("--sun", settings.sunElevation, settings.sunAzimuth)) settings.overrideSun = true;
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;

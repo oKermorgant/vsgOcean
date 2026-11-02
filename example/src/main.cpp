@@ -210,12 +210,96 @@ int main(int argc, char** argv)
             }
         };
 
+        // --showcase: a scripted single-shot tour of the pure maritime rendering
+        // (headless + --video): the ocean surface (low-sun glitter, the sea state
+        // building with the wind), a dive through the surface at the wreck, the
+        // underwater day (Snell window, Jerlov attenuation, marine snow), then the
+        // sun sets and the night wreck is lit only by the ROV's dive beams.
+        // t in seconds, 60 frames per second; the demo animation keeps running.
+        const auto showcaseFrame = [&environment, &wavefield](double t, vsg::Camera* camera)
+        {
+            const auto ease = [](double u) { u = std::clamp(u, 0.0, 1.0); return u * u * (3.0 - 2.0 * u); };
+
+            // the wreck (the tour's underwater anchor)
+            const vsg::dvec3 wreck{12.0, 0.0, -48.0};
+
+            // the camera: one smooth path, piecewise per phase
+            vsg::dvec3 eye, center;
+            if (t < 10.0) // the surface: drift low over the water, toward the sun
+            {
+                const auto u = ease(t / 10.0);
+                eye = vsg::mix(vsg::dvec3{32.0, -30.0, 8.0}, vsg::dvec3{16.0, -9.0, 2.5}, u);
+                center = vsg::mix(vsg::dvec3{-6.0, -6.0, 1.0}, vsg::dvec3{-28.0, 14.0, 0.0}, u);
+            }
+            else if (t < 12.5) // the dive: over the wreck, through the surface
+            {
+                const auto u = ease((t - 10.0) / 2.5);
+                eye = vsg::mix(vsg::dvec3{16.0, -9.0, 2.5}, vsg::dvec3{12.0, 0.0, -24.0}, u);
+                center = vsg::mix(vsg::dvec3{-28.0, 14.0, 0.0}, wreck, u);
+            }
+            else if (t < 21.0) // the underwater day: a slow orbit of the wreck
+            {
+                const auto a = vsg::radians(210.0 + 22.0 * (t - 12.5));
+                eye = wreck + vsg::dvec3{9.0 * std::cos(a), 9.0 * std::sin(a), 8.0};
+                center = wreck;
+            }
+            else if (t < 23.5) // hold while the sun sets
+            {
+                const auto a = vsg::radians(210.0 + 22.0 * (21.0 - 12.5));
+                const auto u = ease((t - 21.0) / 2.5);
+                eye = vsg::mix(wreck + vsg::dvec3{9.0 * std::cos(a), 9.0 * std::sin(a), 8.0},
+                               wreck + vsg::dvec3{7.0, 0.0, 5.0}, u);
+                center = wreck;
+            }
+            else // the night: a closer, slower orbit in the ROV's lamps
+            {
+                const auto a = vsg::radians(-20.0 + 14.0 * (t - 23.5));
+                eye = wreck + vsg::dvec3{7.0 * std::cos(a), 7.0 * std::sin(a), 5.0};
+                center = wreck;
+            }
+            const auto lookAt = camera->viewMatrix.cast<vsg::LookAt>();
+            lookAt->eye = eye;
+            lookAt->center = center;
+            lookAt->up = vsg::dvec3(0.0, 0.0, 1.0);
+
+            // the sun: a low glitter morning that holds, then sets fast at dusk
+            double sunElevation{18.0};
+            if (t < 10.0) sunElevation = 10.0 + 8.0 * ease(t / 10.0);
+            else if (t < 21.0) sunElevation = 18.0;
+            else if (t < 23.5) sunElevation = vsg::mix(18.0, -22.0, ease((t - 21.0) / 2.5));
+            else sunElevation = -22.0;
+            environment->setSunElevation(sunElevation);
+            environment->setSunAzimuth(135.0);
+
+            // the wind and the sea state: calm glitter, building in the second half
+            // of the surface phase, then holding (the sea keeps rolling underwater)
+            const auto build = ease((t - 5.0) / 5.0);
+            environment->setWindSpeed(vsg::mix(3.0, 15.0, build));
+            environment->setWindDirection(200.0);
+            wavefield->setAmplitude(vsg::mix(0.08, 0.55, build));
+            wavefield->setPeriod(vsg::mix(5.0, 7.0, build));
+
+            // marine snow, only once submerged
+            environment->setMarineSnowDensity(t < 12.0 ? 0.0 : vsg::mix(3.0, 6.0, ease((t - 12.0) / 4.0)));
+        };
+
         // headless: render offscreen (a hardware GPU when the render group allows it,
         // no window or swapchain) and write the screenshot - over ssh -X the hardware
         // cannot present, but the offscreen rendering is ~50x faster than software
         if (settings.headless)
         {
-            return vsgOcean::Headless::run(vsg_scene, settings, demoFrame);
+            // the showcase runs on its own deterministic clock (60 frames per tour
+            // second), NOT the viewer's simulationTime: headless frames render much
+            // faster than real time, and the wall-clock t compresses the whole tour
+            // into the first seconds
+            double showcaseT = 0.0;
+            return vsgOcean::Headless::run(vsg_scene, settings,
+                                           [&](double t, vsg::Camera* camera)
+                                           {
+                                               demoFrame(t);
+                                               if (settings.showcase) showcaseFrame(showcaseT, camera);
+                                               showcaseT += 1.0 / 60.0;
+                                           });
         }
 
         // create the viewer and assign window(s) to it

@@ -25,7 +25,9 @@
 #include <vsg/vk/PhysicalDevice.h>
 
 
+#include <cstdio>
 #include <functional>
+#include <string>
 
 namespace vsgOcean::Headless
 {
@@ -70,9 +72,12 @@ namespace vsgOcean::Headless
     /// Render the scene offscreen for the configured number of frames and write the
     /// screenshot. The fallback camera is built here (the bounds framing, matching the
     /// windowed path); perFrame runs the demo animation (model poses, link poses) for
-    /// each frame's simulation time. Returns the process exit code.
+    /// each frame's simulation time, and receives the camera so a scripted tour can
+    /// drive it (the --showcase maritime video). With --video, every frame is written
+    /// as a PNG (the pattern's %05d is the frame index) instead of a single end
+    /// screenshot. Returns the process exit code.
     inline int run(const vsg::ref_ptr<Scene>& scene, const vsgOceanExample::Options& settings,
-                   const std::function<void(double)>& perFrame)
+                   const std::function<void(double, vsg::Camera*)>& perFrame)
     {
         const auto [device, queueFamily] = createDevice(settings.windowTraits->debugLayer);
         if (!device) return 1;
@@ -125,16 +130,33 @@ namespace vsgOcean::Headless
 
         viewer->start_point() = vsg::clock::now();
         auto frames = settings.numFrames < 0 ? 20 : settings.numFrames;
+        uint32_t frameIndex = 0;
         while (frames > 0 && viewer->advanceToNextFrame())
         {
             --frames;
             const auto t = viewer->getFrameStamp()->simulationTime;
 
             // the same per-frame work as the windowed loop, minus the presentation
-            if (perFrame) perFrame(t);
+            if (perFrame) perFrame(t, camera.get());
             scene->update(camera.get(), t);
 
             viewer->recordAndSubmit();
+
+            // video mode: every frame goes to its own PNG (a printf pattern, e.g.
+            // `--video frames/f%05d.png`)
+            if (!settings.videoPattern.empty())
+            {
+                char path[512];
+                std::snprintf(path, sizeof(path), "%s", settings.videoPattern.string().c_str());
+                std::string filename{path};
+                if (const auto percent = filename.find('%'); percent != std::string::npos)
+                {
+                    std::snprintf(path, sizeof(path), filename.c_str(), frameIndex);
+                    filename = path;
+                }
+                if (!pipeline->writeScreenshot(filename)) return 1;
+            }
+            ++frameIndex;
         }
 
         if (!settings.screenshotPath.empty())
