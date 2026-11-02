@@ -23,6 +23,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsg/state/VertexInputState.h>
 #include <vsg/vk/Device.h>
 
+#include <algorithm>
+#include <cmath>
 #include <random>
 
 #include "snow_vert.h"
@@ -35,8 +37,8 @@ namespace vsgOcean
         particles_(particles)
     {
         // the particle base positions: random points of a unit cube, seeded so the
-        // field is reproducible; w carries the per-particle random seed (the
-        // density draw and the flake radius come from it in-shader)
+        // field is reproducible; w carries the per-particle random seed (the flake
+        // radius comes from it in-shader)
         auto bases = vsg::vec4Array::create(particles);
         {
             std::mt19937 generator(42);
@@ -100,7 +102,8 @@ namespace vsgOcean
         stateGroup->add(vsg::BindDescriptorSet::create(VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, snowSet));
 
         auto drawCommands = vsg::Commands::create();
-        drawCommands->addChild(vsg::Draw::create(6 * particles, 1, 0, 0));
+        draw_ = vsg::Draw::create(6 * particles, 1, 0, 0);
+        drawCommands->addChild(draw_);
         stateGroup->addChild(drawCommands);
 
         addChild(stateGroup);
@@ -111,11 +114,16 @@ namespace vsgOcean
         const auto attenuation = environment.underwaterAttenuation();
         const auto meanAttenuation = (attenuation.x + attenuation.y + attenuation.z) / 3.0f;
 
-        // the density as a fraction of the particle pool: 1.0 density unit is the
-        // unit field (4096 flakes), the pool is 10x that - so the density range
-        // 0..10 maps to the fraction 0..1
-        const float fraction = static_cast<float>(environment.marineSnowDensity()) * (4096.0f / static_cast<float>(particles_));
-        (*uniform_)[0] = vsg::vec4(static_cast<float>(t), fraction, box_, static_cast<float>(environment.cloudiness() / 8.0));
+        // the visible flake count follows the density directly: 1.0 density
+        // unit is the unit field (4096 flakes). The pool is a shuffled random
+        // set, so the first count particles are an unbiased subset, stable and
+        // monotone as the density changes - and the vertex work follows the
+        // density instead of always covering the whole pool
+        const auto visible = static_cast<uint32_t>(std::min(particles_,
+            static_cast<uint32_t>(std::lround(std::max(environment.marineSnowDensity(), 0.0) * 4096.0))));
+        draw_->vertexCount = 6 * visible;
+        (*uniform_)[0] = vsg::vec4(static_cast<float>(t), visible > 0 ? 1.0f : 0.0f, box_,
+                                   static_cast<float>(environment.cloudiness() / 8.0));
         (*uniform_)[1] = vsg::vec4(environment.waterCurrent(), static_cast<float>(environment.seaLevel()));
         (*uniform_)[2] = vsg::vec4(environment.sunDirection(), 0.0f);
         (*uniform_)[3] = vsg::vec4(environment.underwaterColor(), meanAttenuation);

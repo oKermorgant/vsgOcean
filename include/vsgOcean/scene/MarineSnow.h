@@ -16,6 +16,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/core/Environment.h>
 #include <vsgOcean/scene/LampLights.h>
 
+#include <vsg/commands/Draw.h>
+
 namespace vsgOcean
 {
     /// Marine snow: the drifting organic particles of the water column - small
@@ -36,9 +38,10 @@ namespace vsgOcean
     public:
         /// particles: the size of the flake pool in the camera-following box - the
         /// density (Environment::marineSnowDensity, 1.0 = the unit field of 4096
-        /// flakes, up to 10.0) scales how many of them are visible. box: the edge of
-        /// the box, metres. The default pool is 10x the unit field.
-        explicit MarineSnow(uint32_t particles = 10 * 4096, float box = 25.0f);
+        /// flakes, up to 100.0) scales how many of them are visible. box: the edge of
+        /// the box, metres. The default pool is 100x the unit field; only the
+        /// visible fraction is drawn, so the vertex cost follows the density.
+        explicit MarineSnow(uint32_t particles = 100 * 4096, float box = 25.0f);
 
         /// Refresh the snow from the environment (density, current, sun, water
         /// optics), the simulation time t in seconds, and the scene's point and spot
@@ -51,9 +54,12 @@ namespace vsgOcean
         const float box_;
         const uint32_t particles_;
 
-        // uniform block: [0] params (t, density, box), [1] current + sea level,
-        // [2] sun direction, [3] water colour + mean attenuation, [4] vertical
-        // attenuation, [5] beam attenuation, [6..38] the packed lamp lights
+        // the draw command, so the visible flake count can follow the density
+        vsg::ref_ptr<vsg::Draw> draw_;
+
+        // uniform block: [0] params (t, enabled 0/1, box), [1] current + sea
+        // level, [2] sun direction, [3] water colour + mean attenuation, [4]
+        // vertical attenuation, [5] beam attenuation, [6..38] the packed lamps
         vsg::ref_ptr<vsg::vec4Array> uniform_;
     };
 }

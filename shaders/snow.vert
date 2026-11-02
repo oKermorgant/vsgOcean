@@ -15,7 +15,7 @@ layout(push_constant) uniform PushConstants
 
 layout(std140, set = 0, binding = 0) uniform Snow
 {
-    vec4 params;       // x: time t [s], y: density fraction 0..1, z: box size [m], w: cloudiness 0..1
+    vec4 params;       // x: time t [s], y: the field enabled (0 disables it - the visible count is set on the CPU), z: box size [m], w: cloudiness 0..1
     vec4 current;      // xyz: water current [m/s], w: mean sea level [m]
     vec4 sunDirection; // xyz: unit vector towards the sun
     vec4 waterColor;   // rgb: Jerlov water colour, a: mean vertical attenuation (1/m)
@@ -42,9 +42,9 @@ void main()
     const mat4 inverseModelview = inverse(pc.modelview);
     const vec3 eye = vec3(inverseModelview * vec4(0.0, 0.0, 0.0, 1.0));
 
-    // density: a stable per-particle draw against the density (0 disables the field)
-    const float draw = fract(base.w * 7.13);
-    if (snow.params.y <= 0.0 || draw > snow.params.y)
+    // the visible flake count follows the density (set on the CPU, the first
+    // particles of the shuffled pool); params.y carries only the enable flag
+    if (snow.params.y <= 0.0)
     {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // clipped away
         return;
@@ -62,11 +62,10 @@ void main()
     const vec3 drifted = base.xyz * box + snow.current.xyz * t + wandering;
     const vec3 world = mod(drifted - eye + 0.5 * box, box) - 0.5 * box + eye;
 
-    // the flake radius: seeded per particle
-    // the flake radius: 1..30 mm, skewed small (the square of the seed) - most
-    // flakes are millimetre flecks, the biggest (the previous uniform size's
-    // maximum) is the rare large floc
-    const float radius = mix(0.001, 0.03, pow(fract(base.w * 3.71), 2.0));
+    // the flake radius: seeded per particle,
+    // 0.5..12 mm, skewed small (the square of the seed) - most flakes are
+    // sub-millimetre flecks, the biggest is the rare large floc
+    const float radius = mix(0.0005, 0.012, pow(fract(base.w * 3.71), 2.0));
 
     // the quad corner for this vertex, in view space (a camera-facing billboard)
     const vec2 corners[6] = {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}};

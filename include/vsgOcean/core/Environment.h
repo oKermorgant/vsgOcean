@@ -121,9 +121,10 @@ namespace vsgOcean
         void setSeaLevel(double metres);
         double seaLevel() const { return seaLevel_; }
 
-        /// Marine snow density, in units of the full field: 0 disables the
-        /// particles, 1.0 the full particle pool, 10.0 ten times it (a
-        /// storm-stirred water column). Scales the number of visible particles
+        /// Marine snow density, in units of the unit field (4096 flakes): 0
+        /// disables the particles, 1.0 the unit field in the 25 m box, up to
+        /// 100.0 the full particle pool (a storm-stirred water column, the
+        /// flakes fine-grained). Scales the number of visible particles
         /// drifting around the camera underwater. Default 0.6.
         void setMarineSnowDensity(double density);
         double marineSnowDensity() const { return marineSnowDensity_; }

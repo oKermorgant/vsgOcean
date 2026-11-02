@@ -349,7 +349,7 @@ namespace vsgOcean
             }
 
             auto snow = static_cast<float>(environment->marineSnowDensity());
-            if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 10.0f)) environment->setMarineSnowDensity(snow);
+            if (ImGui::SliderFloat("marine snow density", &snow, 0.0f, 100.0f)) environment->setMarineSnowDensity(snow);
 
             auto blur = environment->underwaterBlur();
             if (ImGui::Checkbox("underwater DOF blur", &blur)) environment->setUnderwaterBlur(blur);
