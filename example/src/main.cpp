@@ -239,8 +239,6 @@ int main(int argc, char** argv)
                 environment->setWindSpeed(vsg::mix(4.0, 13.0, build));
                 environment->setWindDirection(200.0);
                 wavefield->setFoam(t < 5.0 ? 0.0 : 0.7);
-                environment->setSunElevation(25.0);
-                environment->setSunAzimuth(135.0);
                 environment->setCloudiness(3.0); // broken cloud: softens the glitter without greying the sea out
                 environment->setMarineSnowDensity(0.0);
 
@@ -254,13 +252,15 @@ int main(int argc, char** argv)
                     environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(jerlovStops[stop]));
                 }
 
-                // the camera: high and far over the water (more sea in frame), the
-                // view aimed 19 deg off the sun so its glare rides the frame EDGE
-                // instead of the middle; a slow arc keeps the foam field moving
-                const auto orbit = vsg::radians(155.0 + 1.2 * t);
-                eye = vsg::dvec3{160.0 * std::cos(orbit), 160.0 * std::sin(orbit), 65.0};
-                const auto view = vsg::radians(135.0 + 19.0);
-                center = eye + vsg::dvec3{240.0 * std::cos(view), 240.0 * std::sin(view), -46.0};
+                // the camera: over the middle of the bay channel, drifting slowly
+                // away from the islands - the water fills most of the frame, the
+                // shores ride the edges, the hazy far end closes the view. The
+                // sun sits 20 deg left of the view axis (over the channel), so
+                // its glare stays at the frame edge, softened by the clouds
+                environment->setSunElevation(25.0);
+                environment->setSunAzimuth(80.0);
+                eye = vsg::dvec3{0.0, -120.0 + 8.0 * t, 35.0};
+                center = eye + vsg::dvec3{280.0 * std::cos(vsg::radians(100.0)), 280.0 * std::sin(vsg::radians(100.0)), -35.0};
             }
             else // "underwater" (the tracking shot) and "rov" (its camera)
             {
