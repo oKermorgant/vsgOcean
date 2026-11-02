@@ -32,6 +32,54 @@ namespace vsgOcean
             const auto extension = vsg::lowerCaseFileExtension(filename);
             return extension == ".sdf" || extension == ".world";
         }
+
+        // records the load-time intensity of every point / spot light it meets
+        // (the vsg light objects carry the SDF ceiling until update() scales them)
+        class LampMaximaCollector : public vsg::Visitor
+        {
+        public:
+            explicit LampMaximaCollector(std::vector<Scene::LampRecord>& lamps_, const std::string& modelName_)
+                : lamps(lamps_), modelName(modelName_) {}
+
+            std::vector<Scene::LampRecord>& lamps;
+            const std::string& modelName;
+
+            // the default apply(Object&) does not descend: walk every node
+            void apply(vsg::Node& node) override
+            {
+                node.traverse(*this);
+            }
+
+            void apply(vsg::PointLight& light) override
+            {
+                record(light);
+            }
+
+            void apply(vsg::SpotLight& light) override
+            {
+                record(light);
+            }
+
+        private:
+            void record(vsg::Light& light)
+            {
+                if (alreadySeen(light)) return;
+                auto name = light.name.empty() ? "light" + std::to_string(lamps.size()) : light.name;
+                Scene::LampRecord lamp;
+                lamp.light = &light;
+                lamp.name = modelName + "/" + name;
+                lamp.ceiling = light.intensity;
+                lamp.factor = 1.0;
+                lamps.push_back(std::move(lamp));
+            }
+
+            // a light reached through several paths (the model walk and the world
+            // walk) is one lamp: keep the first record
+            bool alreadySeen(const vsg::Light& light) const
+            {
+                return std::any_of(lamps.begin(), lamps.end(), [&light](const auto& record) { return record.light == &light; });
+            }
+        };
     }
 
     Scene::Scene() :
@@ -100,6 +148,49 @@ namespace vsgOcean
         }
 
         parent->addModel(model);
+
+        // the model's SDF lights (if any) join the dimmable set at their ceiling
+        captureLampMaxima(model.get(), model->name);
+    }
+
+    void Scene::captureLampMaxima(vsg::Node* root, const std::string& modelName)
+    {
+        if (!root) return;
+
+        LampMaximaCollector collector{lamps_, modelName};
+        root->accept(collector);
+    }
+
+    std::vector<std::string> Scene::lightNames() const
+    {
+        std::vector<std::string> names;
+        names.reserve(lamps_.size());
+        for (const auto& record : lamps_) names.push_back(record.name);
+        return names;
+    }
+
+    double Scene::lightIntensity(const std::string& lightName) const
+    {
+        if (const auto it = std::find_if(lamps_.begin(), lamps_.end(),
+                                         [&lightName](const auto& record) { return record.name == lightName; });
+            it != lamps_.end())
+        {
+            return it->factor;
+        }
+        return 1.0;
+    }
+
+    void Scene::setLightIntensity(const std::string& lightName, double factor)
+    {
+        const auto clamped = std::clamp(factor, 0.0, 1.0);
+        if (const auto it = std::find_if(lamps_.begin(), lamps_.end(),
+                                         [&lightName](const auto& record) { return record.name == lightName; });
+            it != lamps_.end())
+        {
+            it->factor = clamped;
+            return;
+        }
+        vsg::warn("vsgOcean::Scene::setLightIntensity - unknown light ", lightName);
     }
 
     void Scene::setPose(const std::string& frameName, const vsg::dmat4& pose, const std::string& parentFrameName)
@@ -182,7 +273,10 @@ namespace vsgOcean
         // the scene's point and spot lights, collected ONCE per frame (a full
         // scene-graph walk): the marine snow and every pipeline's composite share
         // this collection, so the walk runs exactly once per frame however many
-        // pipelines there are
+        // pipelines there are. First each lamp is scaled to its runtime factor
+        // below its SDF ceiling - both the model shading and the collected
+        // lights (cones, snow sparkle) then see the dimmed intensity
+        for (const auto& lamp : lamps_) lamp.light->intensity = lamp.ceiling * lamp.factor;
         lampLights_ = collectLampLights(world_.get());
 
         // the marine snow follows the water current and the lamp-lit water column
@@ -261,6 +355,11 @@ namespace vsgOcean
                 vsg::warn("Unable to load scene ", filename);
             }
         }
+
+        // every lamp loaded with the scene joins the dimmable set at its SDF
+        // ceiling (the models were already captured by addModel - the pointer
+        // dedup keeps one record per lamp)
+        scene->captureLampMaxima(scene->world_.get(), "world");
 
         return scene;
     }

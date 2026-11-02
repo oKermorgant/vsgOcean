@@ -310,6 +310,33 @@ namespace vsgOcean
 
         // the underwater layer: the water optics (the Jerlov taxonomy), the sea
         // level, the drift of the water column and its particles
+        // the lights widget: one intensity slider per scene lamp. An SDF <light>
+        // intensity is each lamp's CEILING - the sliders only dim below it, and
+        // the shading, the volumetric cones and the snow sparkle all follow
+        bool drawLightsWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene)
+        {
+            if (!controls->lightsVisible) return true;
+
+            ImGui::SetNextWindowPos(ImVec2(680.0f, 10.0f), ImGuiCond_Once);
+            ImGui::Begin("lights", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::PushItemWidth(220.0f);
+
+            const auto names = scene->lightNames();
+            if (names.empty())
+            {
+                ImGui::TextUnformatted("no lights in the scene");
+            }
+            for (const auto& name : names)
+            {
+                auto factor = static_cast<float>(scene->lightIntensity(name));
+                if (ImGui::SliderFloat(name.c_str(), &factor, 0.0f, 1.0f)) scene->setLightIntensity(name, factor);
+            }
+
+            ImGui::PopItemWidth();
+            ImGui::End();
+            return true;
+        }
+
         bool drawUnderwaterWidget(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Environment>& environment)
         {
             if (!controls->underwaterVisible) return true;
@@ -400,6 +427,7 @@ namespace vsgOcean
                                                      drawHelp(controls, scene, deviceName);
                                                      drawSkyWidget(controls, environment);
                                                      drawSurfaceWidget(controls, scene, environment, wavefield);
+                                                     drawLightsWidget(controls, scene);
                                                      return drawUnderwaterWidget(controls, environment);
                                                  });
         if (auto group = gui.cast<vsg::Group>())

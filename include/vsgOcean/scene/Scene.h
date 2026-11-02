@@ -20,6 +20,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/scene/Sky.h>
 #include <vsgOcean/scene/Underwater.h>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace vsgOcean
 {
@@ -45,6 +47,34 @@ namespace vsgOcean
 
         /// Look up a frame by name anywhere in the model tree (see Model::frame).
         [[nodiscard]] vsg::ref_ptr<Frame> frame(const std::string& frameName) const;
+
+        /// A scene lamp with its SDF ceiling and the runtime factor below it:
+        /// update() writes ceiling * factor into the vsg light each frame, so the
+        /// model shading and the collected lamp lights (the volumetric cones,
+        /// the snow sparkle) all follow.
+        struct LampRecord
+        {
+            vsg::ref_ptr<vsg::Light> light;
+            std::string name;   // qualified "model/light"
+            double ceiling = 0.0; // the SDF load-time intensity
+            double factor = 1.0;  // the runtime intensity factor, 0..1
+        };
+
+        /// The scene's dimmable lamps by qualified name "model/light" (every SDF
+        /// <light> of every model, and any light of a directly loaded scene file).
+        /// An SDF intensity is the CEILING; setLightIntensity scales a lamp below
+        /// it (0 off, 1 the SDF value) - the model shading, the volumetric lamp
+        /// cones and the marine snow sparkle all follow. Empty when the scene
+        /// carries no lights.
+        [[nodiscard]] std::vector<std::string> lightNames() const;
+
+        /// The current intensity factor of a named lamp (0..1 of its SDF
+        /// ceiling). 1 (the SDF value) for an unknown name.
+        [[nodiscard]] double lightIntensity(const std::string& lightName) const;
+
+        /// Dim a named lamp below its SDF ceiling (0 off, 1 the SDF value;
+        /// anything above is clamped). Unknown names are ignored with a warning.
+        void setLightIntensity(const std::string& lightName, double factor);
 
         /// Add a model to the scene, attached to the named parent model
         /// (empty, or "world", means the world model).
@@ -128,6 +158,11 @@ namespace vsgOcean
         [[nodiscard]] static vsg::ref_ptr<Scene> load(const vsg::Path& filename, vsg::ref_ptr<vsg::Options> options);
 
     protected:
+        /// Record the load-time intensity of every point / spot light under root
+        /// as its CEILING (an SDF <light> intensity is the max; update() scales
+        /// the lights by setLightIntensity below it).
+        void captureLampMaxima(vsg::Node* root, const std::string& modelName);
+
         vsg::ref_ptr<Model> world_;
         vsg::ref_ptr<Environment> environment_;
         vsg::ref_ptr<Sky> sky_;
@@ -136,6 +171,9 @@ namespace vsgOcean
         vsg::ref_ptr<vsg::Switch> surfaceSwitch_;
         vsg::ref_ptr<Underwater> underwater_;
         std::vector<LampLight> lampLights_;
+        // the dimmable scene lamps: the SDF load-time intensity (the ceiling)
+        // and the runtime factor of each, by qualified name
+        std::vector<LampRecord> lamps_;
         // the smoothed sun visibility driving the ocean's sun reflection terms
         float sunVisibility_ = 1.0f;
         std::optional<double> timeOrigin_; // the t of the first update()

@@ -31,7 +31,7 @@ namespace vsgOcean
     public:
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
-        inline static constexpr std::array<Binding, 10> bindings{{
+        inline static constexpr std::array<Binding, 11> bindings{{
             {"mouse left drag", "orbit the view (stable horizon)"},
             {"mouse right drag", "translate the camera"},
             {"mouse wheel", "dolly in / out"},
@@ -40,6 +40,7 @@ namespace vsgOcean
             {"S", "sky widget on / off"},
             {"O", "ocean surface widget on / off"},
             {"U", "underwater widget on / off"},
+            {"L", "lights widget on / off"},
             {"Tab", "cycle the tracked model"},
             {"Esc", "quit"},
         }};
@@ -67,6 +68,11 @@ namespace vsgOcean
         /// Whether the underwater widget is visible (the U key): water optics,
         /// current, marine snow. Hidden by default.
         bool underwaterVisible = false;
+
+        /// Whether the lights widget is visible (the L key): one intensity slider
+        /// per scene lamp (the SDF <light> intensity is each lamp's ceiling).
+        /// Hidden by default.
+        bool lightsVisible = false;
 
         /// Whether a GUI currently captures the input (set by the environment GUI each
         /// frame from the ImGui state). The keyboard controls ignore keys while it is

@@ -125,6 +125,10 @@ namespace vsgOceanExample
         bool showcase = false;
         std::string showcaseKind;
 
+        // per-lamp dimming: an SDF <light> intensity is the ceiling, --light
+        // scales the named lamp below it (qualified "model/light" name)
+        std::vector<std::pair<std::string, double>> lightFactors;
+
         // the scene files, from the remaining positional arguments
         std::vector<vsg::Path> sceneFilenames;
     };
@@ -300,6 +304,14 @@ namespace vsgOceanExample
         settings.videoPattern = arguments.value<vsg::Path>("", "--video");
         settings.showcaseKind = arguments.value<std::string>("", "--showcase");
         settings.showcase = !settings.showcaseKind.empty();
+        {
+            std::string lightName;
+            double lightFactor = 1.0;
+            while (arguments.read("--light", lightName, lightFactor))
+            {
+                settings.lightFactors.emplace_back(lightName, lightFactor);
+            }
+        }
 
         if (arguments.read("--sun", settings.sunElevation, settings.sunAzimuth)) settings.overrideSun = true;
         if (arguments.read("--wind", settings.windSpeed, settings.windDirection)) settings.overrideWind = true;

@@ -26,7 +26,8 @@ namespace vsgOcean
         // the environment tuning lives in the GUI widgets; the keys only toggle the
         // widgets themselves (and must always be able to hide a capturing GUI)
         if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_c
-            && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u)
+            && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u
+            && keyPress.keyBase != vsg::KEY_l)
         {
             return;
         }
@@ -48,6 +49,9 @@ namespace vsgOcean
             break;
         case vsg::KEY_u:
             underwaterVisible = !underwaterVisible;
+            break;
+        case vsg::KEY_l:
+            lightsVisible = !lightsVisible;
             break;
         case vsg::KEY_Tab:
         {
