@@ -493,9 +493,16 @@ namespace vsgOcean
 
             void apply(vsg::Object& object) override
             {
-                // the plain projection update needs no device idle; the default
+                // the plain projection update needs no device idle; the present
+                // pass must learn the new window extent too, or its normalized
+                // sampling saturates at the composite's edge texel past the
+                // original size (the repeated-edge artefact). The default
                 // handler continues to rescale the present view and the overlays
-                if (pipeline && visit(this, 0)) pipeline->camera()->projectionMatrix->changeExtent(previous_extent, new_extent);
+                if (pipeline && visit(this, 0))
+                {
+                    pipeline->camera()->projectionMatrix->changeExtent(previous_extent, new_extent);
+                    if (const auto present = pipeline->presentNode()) present->setWindowExtent(new_extent);
+                }
                 Inherit::apply(object);
             }
         };
