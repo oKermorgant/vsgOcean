@@ -235,32 +235,37 @@ int main(int argc, char** argv)
                     wavefield->setFftDetail(true);
                     wavefield->setModel(vsgOcean::Wavefield::Model::FFT);
                 }
-                const auto build = ease(t / 5.0);
-                environment->setWindSpeed(vsg::mix(4.0, 13.0, build));
+                // the wind: calm at the start, then four 10 s steps up to 13 m/s
+                // (a ~2 s ease at each boundary so the spectrum change reads as a
+                // step, not a pop); the foam follows the top of the range
+                static const double windStops[]{0.0, 13.0 / 3.0, 26.0 / 3.0, 13.0};
+                const auto step = std::min(static_cast<size_t>(t / 10.0), std::size(windStops) - 1);
+                const auto blend = ease(std::fmod(t, 10.0) / 2.0);
+                const auto wind = step == 0 ? windStops[0] : vsg::mix(windStops[step - 1], windStops[step], blend);
+                environment->setWindSpeed(wind);
                 environment->setWindDirection(200.0);
-                wavefield->setFoam(t < 5.0 ? 0.0 : 0.7);
+                wavefield->setFoam(0.7 * std::clamp((wind - 9.0) / 4.0, 0.0, 1.0));
                 environment->setCloudiness(3.0); // broken cloud: softens the glitter without greying the sea out
                 environment->setMarineSnowDensity(0.0);
 
-                // once the wind is up: the water types, ~5 s each - clear open
-                // ocean to the murkiest coastal (the body colour, the sky mirror
-                // and the foam lighting all follow)
-                static const int jerlovStops[]{0, 3, 7, 13};
-                if (t >= 5.0)
+                // once the wind is up: the water types, 5 s each - a monotonic
+                // sweep from the clear open ocean to the murkiest coastal (the
+                // body colour, the sky mirror and the foam lighting all follow)
+                static const int jerlovStops[]{0, 2, 3, 4, 6, 8, 10, 13};
+                if (const auto stop = static_cast<size_t>(t / 5.0); stop < std::size(jerlovStops))
                 {
-                    const auto stop = std::min(static_cast<size_t>((t - 5.0) / 5.0), std::size(jerlovStops) - 1);
                     environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(jerlovStops[stop]));
                 }
 
-                // the camera: over the middle of the bay channel, drifting slowly
-                // away from the islands - the water fills most of the frame, the
-                // shores ride the edges, the hazy far end closes the view. The
-                // sun sits 20 deg left of the view axis (over the channel), so
-                // its glare stays at the frame edge, softened by the clouds
+                // the camera: low over the middle of the bay channel, drifting
+                // slowly away from the islands - the water fills most of the
+                // frame, the shores ride the edges, the sun sits 20 deg left of
+                // the view axis (over the channel) so its glare stays at the
+                // frame edge, softened by the clouds
                 environment->setSunElevation(25.0);
                 environment->setSunAzimuth(80.0);
-                eye = vsg::dvec3{0.0, -120.0 + 8.0 * t, 35.0};
-                center = eye + vsg::dvec3{280.0 * std::cos(vsg::radians(100.0)), 280.0 * std::sin(vsg::radians(100.0)), -35.0};
+                eye = vsg::dvec3{0.0, -80.0 + 8.0 * t, 12.0};
+                center = eye + vsg::dvec3{110.0 * std::cos(vsg::radians(100.0)), 110.0 * std::sin(vsg::radians(100.0)), -12.0};
             }
             else // "underwater" (the tracking shot) and "rov" (its camera)
             {
