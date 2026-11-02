@@ -241,6 +241,7 @@ int main(int argc, char** argv)
                 wavefield->setFoam(t < 5.0 ? 0.0 : 0.7);
                 environment->setSunElevation(25.0);
                 environment->setSunAzimuth(135.0);
+                environment->setCloudiness(3.0); // broken cloud: softens the glitter without greying the sea out
                 environment->setMarineSnowDensity(0.0);
 
                 // once the wind is up: the water types, ~5 s each - clear open
@@ -253,11 +254,13 @@ int main(int argc, char** argv)
                     environment->setJerlovType(static_cast<vsgOcean::Environment::JerlovType>(jerlovStops[stop]));
                 }
 
-                // the camera: high over the water, arcing slowly toward the sun
-                // (the glitter path stays in frame while the foam field reads)
-                const auto a = vsg::radians(160.0 + 1.6 * t);
-                eye = vsg::dvec3{70.0 * std::cos(a), 70.0 * std::sin(a), 38.0};
-                center = eye + vsg::dvec3{90.0 * std::cos(vsg::radians(135.0)), 90.0 * std::sin(vsg::radians(135.0)), -26.0};
+                // the camera: high and far over the water (more sea in frame), the
+                // view aimed 19 deg off the sun so its glare rides the frame EDGE
+                // instead of the middle; a slow arc keeps the foam field moving
+                const auto orbit = vsg::radians(155.0 + 1.2 * t);
+                eye = vsg::dvec3{160.0 * std::cos(orbit), 160.0 * std::sin(orbit), 65.0};
+                const auto view = vsg::radians(135.0 + 19.0);
+                center = eye + vsg::dvec3{240.0 * std::cos(view), 240.0 * std::sin(view), -46.0};
             }
             else // "underwater" (the tracking shot) and "rov" (its camera)
             {
