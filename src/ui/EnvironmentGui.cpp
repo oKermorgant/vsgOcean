@@ -289,7 +289,7 @@ namespace vsgOcean
                 else
                 {
                     auto amplitude = static_cast<float>(wavefield->amplitude());
-                    if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 3.0f)) wavefield->setAmplitude(amplitude);
+                    if (ImGui::SliderFloat("wave amplitude (m)", &amplitude, 0.0f, 2.0f)) wavefield->setAmplitude(amplitude);
                     auto period = static_cast<float>(wavefield->period());
                     if (ImGui::SliderFloat("wave period (s)", &period, 1.0f, 20.0f)) wavefield->setPeriod(period);
                     auto steepness = static_cast<float>(wavefield->steepness());
