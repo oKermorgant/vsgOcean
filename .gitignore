@@ -17,7 +17,6 @@ nogit/
 build*/
 build-debug/
 build_w/
-LLM/
 devel/
 install/
 *.user
