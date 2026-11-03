@@ -3,7 +3,9 @@
      downscaled to 1024): the twin-hull base with one steering engine pod per hull,
      each carrying its propeller. Visuals only - the poses come from outside, and the
      frames animated by the example are left_engine_link / right_engine_link and
-     their propeller children. -->
+     their propeller children. The engine link poses are the upstream VRX /
+     asv_wave_sim values (devel/asv_wave_sim gz-waves-models): the pods sit at
+     the stern, their propellers in the water. -->
 <sdf version="1.9">
   <model name="wamv">
     <link name="wamv/base_link">
@@ -14,7 +16,7 @@
       </visual>
     </link>
     <link name="wamv/left_engine_link">
-      <pose relative_to="wamv/base_link">-1.9 0.95 0.42 0 0 0</pose>
+      <pose relative_to="wamv/base_link">-2.373776 1.027135 0.318237 0 0 0</pose>
       <visual name="wamv/left_engine_visual">
         <geometry>
           <mesh><uri>mesh/engine.glb</uri></mesh>
@@ -22,7 +24,7 @@
       </visual>
     </link>
     <link name="wamv/right_engine_link">
-      <pose relative_to="wamv/base_link">-1.9 -0.95 0.42 0 0 0</pose>
+      <pose relative_to="wamv/base_link">-2.373776 -1.027135 0.318237 0 0 0</pose>
       <visual name="wamv/right_engine_visual">
         <geometry>
           <mesh><uri>mesh/engine.glb</uri></mesh>
