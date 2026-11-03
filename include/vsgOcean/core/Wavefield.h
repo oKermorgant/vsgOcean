@@ -32,19 +32,18 @@ namespace vsgOcean
     /// by vsgOcean and the waves driving a dynamics simulation are the same and can be
     /// synchronised.
     ///
-    /// The field is the sum of a small number of component waves, derived either by
-    /// sampling the Pierson-Moskowitz spectrum around the mean wave period (PMS), or by
-    /// scaling the mean wave by a component wave ratio (CWR). Component wavenumbers follow
-    /// the deep water dispersion relation omega^2 = g k. All parameters use SI units;
-    /// angles and the direction are in radians, as in Gazebo.
+    /// The field is the sum of a small number of component waves, derived by
+    /// scaling the mean wave by a component wave ratio (CWR), or by the inverse
+    /// FFT synthesis of an ECKV spectrum (the FFT model). Component wavenumbers
+    /// follow the deep water dispersion relation omega^2 = g k. All parameters
+    /// use SI units; angles and the direction are in radians, as in Gazebo.
     class VSG_OCEAN_EXPORT Wavefield : public vsg::Inherit<vsg::Object, Wavefield>
     {
     public:
-        /// Component wave model
+        /// Wave model: the Gerstner component sea or the FFT sea
         enum class Model : uint8_t
         {
-            PMS, ///< Pierson-Moskowitz spectrum sampling
-            CWR, ///< component wave ratio
+            CWR, ///< component wave ratio (the Gerstner component sea)
             FFT  ///< ECKV wave spectrum synthesised by inverse FFT (asv_wave_sim linear random FFT model)
         };
 
@@ -82,21 +81,13 @@ namespace vsgOcean
         void setPeriod(double period);
         double period() const { return period_; }
 
-        /// Phase of the mean wave. Default 0.
-        void setPhase(double phase);
-        double phase() const { return phase_; }
-
         /// Mean wave direction in radians, measured from the +X axis (+X East, +Y North). Default 0.
         void setDirection(double direction);
         double direction() const { return direction_; }
 
-        /// Component wave model. Default CWR.
+        /// Wave model. Default CWR (the Gerstner component sea).
         void setModel(Model model);
         Model model() const { return model_; }
-
-        /// Multiplier applied to the component amplitudes (PMS model). Default 1.
-        void setGain(double gain);
-        double gain() const { return gain_; }
 
         /// Wind speed at 10 m in m/s, which drives the FFT model spectrum. Default 5.
         void setWindSpeed(double windSpeed);
@@ -157,13 +148,9 @@ namespace vsgOcean
         double growFactor(double t) const;
 
     protected:
-        /// Pierson-Moskowitz spectrum value at angular frequency omega with peak omegaPeak.
-        double pm(double omega, double omegaPeak) const;
-
         static double deepWaterDispersionToOmega(double wavenumber);
         static double deepWaterDispersionToWavenumber(double omega);
 
-        void recalculatePms();
         void recalculateCwr();
 
         size_t number_{8};
@@ -172,10 +159,8 @@ namespace vsgOcean
         double steepness_{1.0};
         double amplitude_{0.05};
         double period_{5.0};
-        double phase_{0.0};
         double direction_{0.0};
         Model model_ = Model::CWR;
-        double gain_{1.0};
         double tau_{2.0};
         vsg::ref_ptr<FftWaves> fft_;
         vsg::ref_ptr<FftWaves> detailFft_;
@@ -187,7 +172,6 @@ namespace vsgOcean
         std::vector<double> amplitudes_;
         std::vector<double> wavenumbers_;
         std::vector<double> angularFrequencies_;
-        std::vector<double> phases_;
         std::vector<double> steepnesses_;
         std::vector<vsg::dvec2> directions_;
     };

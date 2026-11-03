@@ -18,7 +18,7 @@ layout(std140, set = 0, binding = 0) uniform Ocean
     vec4 sunDirection;    // xyz: unit vector towards the sun, w: cloudiness 0..1
     vec4 fogColorDensity; // rgb: fog color, a: fog density
     vec4 waterColor;      // rgb: water body colour from the Jerlov water type, a: mean vertical attenuation (1/m)
-    vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: assumed water depth [m]
+    vec4 params;          // x: time t [s], y: tau [s], z: number of waves, w: depth of the refracted view's water light [m]
     vec4 seaLevel;        // rgb: per-channel vertical Jerlov attenuation (1/m), w: mean sea level (m)
     vec4 amplitude[8];
     vec4 wavenumber[8];

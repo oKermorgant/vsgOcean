@@ -60,11 +60,6 @@ namespace vsgOcean
         period_ = std::max(period, 0.1);
     }
 
-    void Wavefield::setPhase(double phase)
-    {
-        phase_ = phase;
-    }
-
     void Wavefield::setDirection(double direction)
     {
         direction_ = direction;
@@ -75,21 +70,9 @@ namespace vsgOcean
         model_ = model;
     }
 
-    void Wavefield::setGain(double gain)
-    {
-        gain_ = std::max(gain, 0.0);
-    }
-
     void Wavefield::setTau(double tau)
     {
         tau_ = std::max(tau, 0.01);
-    }
-
-    double Wavefield::pm(double omega, double omegaPeak) const
-    {
-        constexpr double alpha{0.0081};
-        constexpr double g{9.81};
-        return alpha * g * g / std::pow(omega, 5.0) * std::exp(-(5.0 / 4.0) * std::pow(omegaPeak / omega, 4.0));
     }
 
     double Wavefield::deepWaterDispersionToOmega(double wavenumber)
@@ -104,42 +87,6 @@ namespace vsgOcean
         return omega * omega / g;
     }
 
-    void Wavefield::recalculatePms()
-    {
-        // derived mean values
-        const auto omega = 2.0 * vsg::PI / period_;
-
-        // frequency spacing between components, as in asv_wave_sim (defined for 3 components)
-        const double omegaSpacing[] = {
-            omega * (1.0 - 1.0 / scale_),
-            omega * (scale_ - 1.0 / scale_) / 2.0,
-            omega * (scale_ - 1.0)};
-
-        amplitudes_.clear();
-        wavenumbers_.clear();
-        angularFrequencies_.clear();
-        phases_.clear();
-        steepnesses_.clear();
-        directions_.clear();
-
-        for (size_t i = 0; i < number_; ++i)
-        {
-            const auto n = static_cast<int>(i) - 1;
-            const auto scaleFactor = std::pow(scale_, n);
-            const auto omega_i = omega * scaleFactor;
-            const auto a = gain_ * std::sqrt(2.0 * pm(omega_i, omega) * omegaSpacing[std::min(i, size_t(2))]);
-            const auto k = deepWaterDispersionToWavenumber(omega_i);
-            const auto q = (a > 0.0) ? std::min(1.0, steepness_ / (a * k * number_)) : 0.0;
-
-            amplitudes_.push_back(a);
-            angularFrequencies_.push_back(omega_i);
-            phases_.push_back(phase_);
-            steepnesses_.push_back(q);
-            wavenumbers_.push_back(k);
-            directions_.push_back(vsg::dvec2(std::cos(n * angle_ + direction_), std::sin(n * angle_ + direction_)));
-        }
-    }
-
     void Wavefield::recalculateCwr()
     {
         // derived mean values
@@ -149,7 +96,6 @@ namespace vsgOcean
         amplitudes_.clear();
         wavenumbers_.clear();
         angularFrequencies_.clear();
-        phases_.clear();
         steepnesses_.clear();
         directions_.clear();
 
@@ -164,7 +110,6 @@ namespace vsgOcean
 
             amplitudes_.push_back(a);
             angularFrequencies_.push_back(omega_i);
-            phases_.push_back(phase_);
             steepnesses_.push_back(q);
             wavenumbers_.push_back(k);
             directions_.push_back(vsg::dvec2(std::cos(n * angle_ + direction_), std::sin(n * angle_ + direction_)));
@@ -173,14 +118,7 @@ namespace vsgOcean
 
     void Wavefield::recalculate()
     {
-        if (model_ == Model::PMS)
-        {
-            recalculatePms();
-        }
-        else
-        {
-            recalculateCwr();
-        }
+        recalculateCwr();
     }
 
     void Wavefield::setWindSpeed(double windSpeed)
