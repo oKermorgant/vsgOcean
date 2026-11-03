@@ -260,12 +260,16 @@ namespace vsgOcean::Headless
             if (perFrame) perFrame(t, camera.get());
             scene->update(camera.get(), t);
 
-            // the semantic view (the R key in the windowed app): the pass and
-            // its overlay are masked out of the record while off - no cost
+            // the semantic view (the R key in the windowed app): the overlay
+            // culls its triangle while off - no cost. The PASS itself renders
+            // whenever its DATA is wanted too (--semantic captures the ID
+            // image at the end), not only when the view is on: a mode-0 run
+            // with --semantic still needs the IDs
             if (semanticCycleAdvanced(frameIndex, settings.semanticCycleFrames)) semanticMode = (semanticMode + 1) % 3;
-            if (semantic) semantic->setEnabled(semanticMode != 0);
+            const bool semanticRenders = semanticMode != 0 || settings.semantic;
+            if (semantic) semantic->setEnabled(semanticRenders);
             if (semanticOverlay) semanticOverlay->setMode(semanticMode);
-            if (semanticMode != 0 && semantic) semantic->update();
+            if (semanticRenders && semantic) semantic->update();
 
             viewer->recordAndSubmit();
 
