@@ -316,9 +316,11 @@ void main()
         const float depthEnd = max(seaLevel - world.z, 0.0);
         const vec3 diffuseRate = 3.0 * env.attenuation.rgb;
         const vec3 depthStep = diffuseRate * (depthEnd - depthStart);
-        // (1 - exp(-a dz)) / (a dz) -> 1 as a dz -> 0 (a horizontal ray)
-        const vec3 stepMean = mix((vec3(1.0) - exp(-depthStep)) / max(abs(depthStep), vec3(1.0e-6)),
-                                  vec3(1.0), lessThan(abs(depthStep), vec3(1.0e-6)));
+        // (1 - exp(-a dz)) / (a dz) -> 1 as a dz -> 0 (a horizontal ray). The
+        // SIGNED dz keeps ascending segments (looking up through the water)
+        // positive: a negative light would clamp the whole view to black
+        const vec3 stepMean = mix((vec3(1.0) - exp(-depthStep)) / depthStep, vec3(1.0),
+                                  lessThan(abs(depthStep), vec3(1.0e-4)));
         const vec3 light = exp(-diffuseRate * depthStart) * stepMean * max(env.attenuation.w, 0.0);
         // the in-scattered light is the sum of the multiply-scattered ambient
         // (isotropic, the water colour) and the singly-scattered sun light, which

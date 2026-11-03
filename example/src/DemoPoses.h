@@ -67,7 +67,24 @@ namespace vsgOceanExample
                 const double x = 10.0 * std::cos(angle);
                 const double y = 10.0 * std::sin(angle);
                 const double surfaceZ = scene.surfaceHeight(x, y, t);
-                return vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.176)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0);
+
+                // the hull tilts with the local wave slope (the pontoons ride
+                // it): the surface gradient by finite differences over the
+                // hull scale, rotated into the boat's frame - pitch along its
+                // heading, roll across it
+                const double d = 1.0;
+                const double gx = (scene.surfaceHeight(x + d, y, t) - scene.surfaceHeight(x - d, y, t)) / (2.0 * d);
+                const double gy = (scene.surfaceHeight(x, y + d, t) - scene.surfaceHeight(x, y - d, t)) / (2.0 * d);
+                const double yaw = angle + vsg::PI / 2.0;
+                const double gForward = gx * std::cos(yaw) + gy * std::sin(yaw);
+                const double gPort = -gx * std::sin(yaw) + gy * std::cos(yaw);
+                // x-front, y-port, z-up: a positive rotation about +y dips the
+                // nose, about +x lifts the port side
+                const double pitch = -std::atan(gForward);
+                const double roll = std::atan(gPort);
+
+                return vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.176)) * vsg::rotate(yaw, 0.0, 0.0, 1.0)
+                     * vsg::rotate(pitch, 0.0, 1.0, 0.0) * vsg::rotate(roll, 1.0, 0.0, 0.0);
             }
 
             if (model == "bluerov2")
@@ -86,8 +103,8 @@ namespace vsgOceanExample
             {
                 // the floating wind turbine rides the waves at its moored position
                 // (40, -40): the platform's inertia damps the heave, so the wave
-                // height is low-passed with a ~3 s response time - it follows the
-                // swell but skips the chop (a real spar platform is slower still)
+                // height is low-passed with a ~1 s response time - the swell
+                // carries it, the chop is partly skipped
                 const double targetZ = scene.surfaceHeight(40.0, -40.0, t);
                 if (floatgenPrevT_ < 0.0)
                 {
@@ -96,7 +113,7 @@ namespace vsgOceanExample
                 else
                 {
                     const double dt = std::max(0.0, t - floatgenPrevT_);
-                    const double tau = 3.0;
+                    const double tau = 1.0;
                     floatgenZ_ += (targetZ - floatgenZ_) * std::min(1.0, dt / tau);
                 }
                 floatgenPrevT_ = t;

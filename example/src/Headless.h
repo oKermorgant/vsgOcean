@@ -66,7 +66,7 @@ namespace vsgOcean::Headless
                 return {{}, -1};
             }
 
-            vsg::info("vsgOcean headless - device: ", physicalDevice->getProperties().deviceName);
+            vsg::debug("vsgOcean headless - device: ", physicalDevice->getProperties().deviceName);
 
             const vsg::Names validatedNames = vsg::validateInstanceLayerNames(requestedLayers);
             const vsg::QueueSettings queueSettings{{queueFamily, {1}}};

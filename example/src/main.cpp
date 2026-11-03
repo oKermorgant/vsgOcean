@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         if (settings.overrideLatitude) environment->setLatitude(settings.latitude);
         if (settings.overrideLongitude) environment->setLongitude(settings.longitude);
 
-        vsg::info("Environment: sun elevation ", environment->sunElevation(), " deg, azimuth ", environment->sunAzimuth(),
+        vsg::debug("Environment: sun elevation ", environment->sunElevation(), " deg, azimuth ", environment->sunAzimuth(),
                   " deg; wind ", environment->windSpeed(), " m/s from ", environment->windDirection(), " deg; water type ",
                   environment->jerlovName(), "; fog density ", environment->fogDensity(), "; location ", environment->latitude(),
                   " lat, ", environment->longitude(), " lon");
@@ -170,7 +170,7 @@ int main(int argc, char** argv)
         // and the same API a robot driver would use)
         for (const auto& [name, factor] : settings.lightFactors)
         {
-            vsg::info("Dimming light ", name, " to ", factor, " of its SDF intensity");
+            vsg::debug("Dimming light ", name, " to ", factor, " of its SDF intensity");
             vsg_scene->setLightIntensity(name, factor);
         }
 
@@ -180,7 +180,7 @@ int main(int argc, char** argv)
         {
             std::string members;
             for (const auto& lamp : vsg_scene->lightGroupMembers(group)) members += (members.empty() ? "" : ", ") + lamp;
-            vsg::info("Light group ", group, ": ", members);
+            vsg::debug("Light group ", group, ": ", members);
         }
 
         // demo: links animated wrt their parent frame (steering pods of the surface vehicle,

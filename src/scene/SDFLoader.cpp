@@ -362,7 +362,7 @@ namespace vsgOcean
                         auto mesh = visual->Geom()->MeshShape();
                         if (!mesh || mesh->Uri().empty()) continue;
 
-                        vsg::info("Found mesh: ", mesh->Uri());
+                        vsg::debug("Found mesh: ", mesh->Uri());
                         meshPaths.push_back(vsg::Path(mesh->Uri()));
                     }
                 }
@@ -385,7 +385,7 @@ namespace vsgOcean
                     auto mesh = visual->Geom()->MeshShape();
                     if (!mesh || mesh->Uri().empty()) continue;
 
-                    vsg::info("Found mesh: ", mesh->Uri());
+                    vsg::debug("Found mesh: ", mesh->Uri());
                     meshPaths.push_back(vsg::Path(mesh->Uri()));
                 }
             }
