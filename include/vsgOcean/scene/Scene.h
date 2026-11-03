@@ -264,8 +264,13 @@ namespace vsgOcean
     /// The same record graph for an existing main pipeline (e.g. kept by the
     /// application for screenshot capture): the pipeline's scene and composite passes,
     /// then the present pass to the window with the overlays on top.
+    ///
+    /// presentOverlay: an optional node drawn between the composite and the overlays -
+    /// the intended use is a SemanticOverlay (the on-screen semantic annotation view,
+    /// kept sized with the window on resizes).
     [[nodiscard]] VSG_OCEAN_EXPORT vsg::ref_ptr<vsg::CommandGraph> createCommandGraph(vsg::ref_ptr<vsg::Window> window,
                                                                                       vsg::ref_ptr<vsg::Viewer> viewer,
                                                                                       const vsg::ref_ptr<RenderPipeline>& pipeline,
-                                                                                      vsg::ref_ptr<vsg::Node> overlay = {});
+                                                                                      vsg::ref_ptr<vsg::Node> overlay = {},
+                                                                                      vsg::ref_ptr<vsg::Node> presentOverlay = {});
 }

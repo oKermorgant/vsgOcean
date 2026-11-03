@@ -27,7 +27,7 @@ namespace vsgOcean
         // widgets themselves (and must always be able to hide a capturing GUI)
         if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_c
             && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u
-            && keyPress.keyBase != vsg::KEY_l && keyPress.keyBase != vsg::KEY_e)
+            && keyPress.keyBase != vsg::KEY_l && keyPress.keyBase != vsg::KEY_e && keyPress.keyBase != vsg::KEY_r)
         {
             return;
         }
@@ -52,6 +52,11 @@ namespace vsgOcean
             break;
         case vsg::KEY_l:
             lightsVisible = !lightsVisible;
+            break;
+        case vsg::KEY_r:
+            // cycle the semantic annotation view: photo, full annotation, 50%
+            // overlay, back to the photo
+            semanticMode = (semanticMode + 1) % 3;
             break;
         case vsg::KEY_e:
             // export the environment as tuned so far (a structured YAML file,

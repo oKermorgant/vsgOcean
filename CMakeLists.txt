@@ -105,6 +105,8 @@ vsgocean_embed_shader(rain_ring.vert)
 vsgocean_embed_shader(rain.frag)
 vsgocean_embed_shader(semantic.vert)
 vsgocean_embed_shader(semantic.frag)
+vsgocean_embed_shader(semantic_overlay.vert)
+vsgocean_embed_shader(semantic_overlay.frag)
 vsgocean_embed_shader(present.frag)
 
 # vsgOcean library
@@ -126,9 +128,12 @@ set(VSGOCEAN_LIBRARY_SOURCES
     src/scene/MarineSnow.cpp
     src/scene/Rain.cpp
     src/scene/Scene.cpp
-    src/scene/SemanticPass.cpp
     src/scene/Sky.cpp
     src/scene/Underwater.cpp
+    # semantic: the annotation ground truth pass and its display overlay
+    src/semantic/SemanticPalette.cpp
+    src/semantic/SemanticPass.cpp
+    src/semantic/SemanticOverlay.cpp
     # ui: runtime controls, GUI panel, HUD, camera controllers
     src/ui/CameraFrame.cpp
     src/ui/EnvironmentControls.cpp

@@ -31,7 +31,7 @@ namespace vsgOcean
     public:
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
-        inline static constexpr std::array<Binding, 12> bindings{{
+        inline static constexpr std::array<Binding, 13> bindings{{
             {"mouse left drag", "orbit the view (stable horizon)"},
             {"mouse right drag", "translate the camera"},
             {"mouse wheel", "dolly in / out"},
@@ -41,6 +41,7 @@ namespace vsgOcean
             {"O", "ocean surface widget on / off"},
             {"U", "underwater widget on / off"},
             {"L", "lights widget on / off"},
+            {"R", "semantic view: annotation, 50% overlay, photo"},
             {"E", "export the environment (YAML)"},
             {"Tab", "cycle the tracked model"},
             {"Esc", "quit"},
@@ -74,6 +75,12 @@ namespace vsgOcean
         /// per scene lamp (the SDF <light> intensity is each lamp's ceiling).
         /// Hidden by default.
         bool lightsVisible = false;
+
+        /// The semantic annotation view (the R key, cycles): 0 the photo alone,
+        /// 1 the annotation as the full view, 2 the annotation at 50% over the
+        /// photo. The semantic pass renders only when this is not 0 (see the
+        /// example's SemanticPass / SemanticOverlay wiring).
+        int semanticMode = 0;
 
         /// The file the E key exports the environment to (the environment-related
         /// state only - sky and weather, wind, water optics, waves; never the

@@ -121,6 +121,16 @@ namespace vsgOceanExample
         // (combine with numFrames to capture a deterministic frame)
         vsg::Path screenshotPath;
 
+        // start with the semantic annotation view on (the R key cycles the
+        // modes interactively; these flags are the deterministic way to
+        // screenshot or record an annotated view)
+        bool semanticView = false;
+        bool semanticOverlay = false;
+
+        // advance the semantic mode every N frames (photo, annotation, overlay,
+        // photo...): hands-free cycling for recordings and debugging the cycle
+        int semanticCycleFrames = 0;
+
         // the semantic pass: write the per-model ID image next to the
         // screenshot (<screenshot>_ids.png) and print the derived boxes
         bool semantic = false;
@@ -213,6 +223,9 @@ namespace vsgOceanExample
             << "  --screenshot file.png      write the composited view at exit\n"
             << "  --semantic                 also write the per-model ID image (<screenshot>_ids.png)\n"
             << "                             and print the derived bounding boxes\n"
+            << "  --semantic-view            start in the semantic annotation view (the R key cycles)\n"
+            << "  --semantic-overlay         start with the annotation at 50% over the photo\n"
+            << "  --semantic-cycle N         advance the semantic view mode every N frames\n"
             << "  --video pattern            write every headless frame (encode with ffmpeg)\n"
             << "  --showcase kind            a scripted showcase video: surface | underwater | rov\n"
             << "  --fps / --profiler / --debug   frame rate at exit / instrumentation / validation\n"
@@ -376,6 +389,9 @@ namespace vsgOceanExample
         // capture: write the main view to a PNG file when the render loop ends
         settings.screenshotPath = arguments.value<vsg::Path>("", "--screenshot");
         settings.semantic = arguments.read("--semantic");
+        settings.semanticView = arguments.read("--semantic-view");
+        settings.semanticOverlay = arguments.read("--semantic-overlay");
+        settings.semanticCycleFrames = arguments.value(0, "--semantic-cycle");
         settings.videoPattern = arguments.value<vsg::Path>("", "--video");
         settings.showcaseKind = arguments.value<std::string>("", "--showcase");
         settings.showcase = !settings.showcaseKind.empty();

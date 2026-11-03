@@ -39,6 +39,10 @@ namespace vsgOcean
     /// into the shadow), then capture() between frames. Use it with the
     /// simulation time for reproducible datasets.
     ///
+    /// For an on-screen semantic view, render SemanticOverlay on top of the
+    /// presented photo: it samples this pass's color image and paints each
+    /// model with the palette color of its name (see SemanticPalette).
+    ///
     /// Models added to the scene after the pass was created are not rendered
     /// by it (create the pass once the models are loaded). Skinned meshes
     /// render in their bind pose (the semantic pipeline carries no joints).
@@ -75,6 +79,16 @@ namespace vsgOcean
         /// own target; the models only, depth-tested against each other.
         [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> renderGraph() const { return renderGraph_; }
 
+        /// The pass's color image as a sampled view (the ID bytes, UNORM): the
+        /// input of a display overlay such as SemanticOverlay.
+        [[nodiscard]] const vsg::ref_ptr<vsg::ImageView>& colorView() const { return colorView_; }
+
+        /// Enable / disable the pass's rendering: a disabled pass records no
+        /// draw at all (its graph stays in the command graph at no frame cost).
+        /// The pass is enabled by default; capture() still needs an enabled,
+        /// up-to-date pass.
+        void setEnabled(bool enabled);
+
         /// Carry the current pose of the scene's frames into the shadow copy.
         /// Call every frame, next to Scene::update().
         void update();
@@ -95,6 +109,7 @@ namespace vsgOcean
         vsg::ref_ptr<vsg::Device> device_;
         VkExtent2D extent_{};
         vsg::ref_ptr<vsg::Image> colorImage_;
+        vsg::ref_ptr<vsg::ImageView> colorView_;
         vsg::ref_ptr<vsg::RenderPass> renderPass_;
         vsg::ref_ptr<vsg::Framebuffer> framebuffer_;
         vsg::ref_ptr<vsg::RenderGraph> renderGraph_;

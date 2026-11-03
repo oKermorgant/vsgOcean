@@ -10,7 +10,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 </editor-fold> */
 
-#include <vsgOcean/scene/SemanticPass.h>
+#include <vsgOcean/semantic/SemanticPass.h>
 
 #include "semantic_frag.h"
 #include "semantic_vert.h"
@@ -234,8 +234,8 @@ namespace vsgOcean
         }
 
         // --- the offscreen target: a UNORM color attachment (the ID bytes are
-        // exact, no sRGB conversion) readable back, and a depth attachment
-        // for the occlusion between models
+        // exact, no sRGB conversion) readable back and sampled by a display
+        // overlay, and a depth attachment for the occlusion between models
         auto colorImage = vsg::Image::create();
         colorImage->imageType = VK_IMAGE_TYPE_2D;
         colorImage->format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -244,7 +244,7 @@ namespace vsgOcean
         colorImage->arrayLayers = 1;
         colorImage->samples = VK_SAMPLE_COUNT_1_BIT;
         colorImage->tiling = VK_IMAGE_TILING_OPTIMAL;
-        colorImage->usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        colorImage->usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         colorImage->initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         colorImage->compile(device_.get());
         colorImage->allocateAndBindMemory(device_.get());
@@ -267,9 +267,10 @@ namespace vsgOcean
         const auto depthView = vsg::ImageView::create(depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
         colorView->compile(device_.get());
         depthView->compile(device_.get());
+        colorView_ = colorView;
 
         auto colorAttachment = vsg::defaultColorAttachment(VK_FORMAT_R8G8B8A8_UNORM);
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL; // read back after the pass
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // sampled by the display overlay; capture() transitions it for the readback
         auto depthAttachment = vsg::defaultDepthAttachment(VK_FORMAT_D24_UNORM_S8_UINT);
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // never read back
 
@@ -303,6 +304,13 @@ namespace vsgOcean
         {
             shadow->matrix = source->matrix;
         }
+    }
+
+    void SemanticPass::setEnabled(bool enabled)
+    {
+        // a masked-out view records no draw at all: a disabled pass costs
+        // nothing per frame (the pass stays built, ready to be re-enabled)
+        if (view_) view_->mask = enabled ? vsg::MASK_ALL : vsg::MASK_OFF;
     }
 
     bool SemanticPass::capture(Image& image) const
@@ -379,28 +387,45 @@ namespace vsgOcean
         VkCommandBuffer command = VK_NULL_HANDLE;
         vkAllocateCommandBuffers(vkDevice, &commandInfo, &command);
 
-        // the render pass ends with the color in TRANSFER_SRC layout: make the
-        // writes visible to the copy, no layout change
+        // the pass ends with the color in SHADER_READ_ONLY (sampled by the
+        // display overlay): transition to a transfer source, copy, back
         auto beginInfo = VkCommandBufferBeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         vkBeginCommandBuffer(command, &beginInfo);
 
-        auto barrier = VkImageMemoryBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-        barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = vkImage;
-        barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-        vkCmdPipelineBarrier(command, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             0, 0, nullptr, 0, nullptr, 1, &barrier);
+        const auto colorRange = VkImageSubresourceRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+        auto toTransferSrc = VkImageMemoryBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        toTransferSrc.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
+        toTransferSrc.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        toTransferSrc.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        toTransferSrc.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        toTransferSrc.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toTransferSrc.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toTransferSrc.image = vkImage;
+        toTransferSrc.subresourceRange = colorRange;
+        vkCmdPipelineBarrier(command,
+                             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &toTransferSrc);
 
         VkBufferImageCopy region{};
         region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
         region.imageExtent = {width, height, 1};
         vkCmdCopyImageToBuffer(command, vkImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &region);
+
+        auto toShaderRead = VkImageMemoryBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        toShaderRead.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        toShaderRead.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        toShaderRead.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        toShaderRead.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        toShaderRead.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toShaderRead.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        toShaderRead.image = vkImage;
+        toShaderRead.subresourceRange = colorRange;
+        vkCmdPipelineBarrier(command,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                             0, 0, nullptr, 0, nullptr, 1, &toShaderRead);
         vkEndCommandBuffer(command);
 
         auto submitInfo = VkSubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};

@@ -17,6 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/scene/RenderPipeline.h>
 #include <vsgOcean/ui/Hud.h>
 #include <vsgOcean/scene/Underwater.h>
+#include <vsgOcean/semantic/SemanticOverlay.h>
 
 #include <algorithm>
 
@@ -511,6 +512,7 @@ namespace vsgOcean
         {
         public:
             vsg::ref_ptr<RenderPipeline> pipeline;
+            vsg::ref_ptr<SemanticOverlay> semanticOverlay;
 
             void apply(vsg::Object& object) override
             {
@@ -524,6 +526,8 @@ namespace vsgOcean
                     pipeline->camera()->projectionMatrix->changeExtent(previous_extent, new_extent);
                     if (const auto present = pipeline->presentNode()) present->setWindowExtent(new_extent);
                 }
+                // the semantic overlay stretches the same way as the present pass
+                if (semanticOverlay) semanticOverlay->setWindowExtent(new_extent);
                 Inherit::apply(object);
             }
         };
@@ -537,11 +541,12 @@ namespace vsgOcean
         auto pipeline = RenderPipeline::create(scene, window, camera);
         scene->setUnderwater(pipeline->composite());
 
-        return createCommandGraph(window, viewer, pipeline, overlay);
+        return createCommandGraph(window, viewer, pipeline, overlay, {});
     }
 
     vsg::ref_ptr<vsg::CommandGraph> createCommandGraph(vsg::ref_ptr<vsg::Window> window, vsg::ref_ptr<vsg::Viewer> viewer,
-                                                        const vsg::ref_ptr<RenderPipeline>& pipeline, vsg::ref_ptr<vsg::Node> overlay)
+                                                        const vsg::ref_ptr<RenderPipeline>& pipeline, vsg::ref_ptr<vsg::Node> overlay,
+                                                        vsg::ref_ptr<vsg::Node> presentOverlay)
     {
         // the composite is presented to the window, in front of which the HUD and the
         // GUI overlays are drawn, within the same render pass
@@ -555,6 +560,8 @@ namespace vsgOcean
 
         auto windowRenderGraph = vsg::RenderGraph::create(window);
         windowRenderGraph->addChild(presentView);
+        // the semantic annotation view draws between the photo and the HUD / GUI
+        if (presentOverlay) windowRenderGraph->addChild(presentOverlay);
         if (overlay) windowRenderGraph->addChild(overlay);
 
         // resize: the offscreen target keeps its extent; the pipeline camera
@@ -562,6 +569,7 @@ namespace vsgOcean
         // handler rescales the present view and the overlays
         auto resizeHandler = ProjectionFollow::create();
         resizeHandler->pipeline = pipeline;
+        resizeHandler->semanticOverlay = presentOverlay ? presentOverlay.cast<SemanticOverlay>() : nullptr;
         windowRenderGraph->windowResizeHandler = resizeHandler;
 
         auto commandGraph = vsg::CommandGraph::create(window);

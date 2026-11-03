@@ -15,7 +15,8 @@
 
 #include <vsgOcean/scene/Scene.h>
 #include <vsgOcean/scene/RenderPipeline.h>
-#include <vsgOcean/scene/SemanticPass.h>
+#include <vsgOcean/semantic/SemanticPass.h>
+#include <vsgOcean/semantic/SemanticOverlay.h>
 
 #include <vsg/app/CommandGraph.h>
 #include <vsg/app/Camera.h>
@@ -160,6 +161,15 @@ namespace vsgOcean::Headless
             return true;
         }
 
+    namespace
+    {
+        // true at each Nth frame boundary of --semantic-cycle (N = 0: never)
+        inline bool semanticCycleAdvanced(uint32_t frameIndex, int every)
+        {
+            return every > 0 && frameIndex > 0 && frameIndex % static_cast<uint32_t>(every) == 0;
+        }
+    }
+
     inline int run(const vsg::ref_ptr<Scene>& scene, const vsgOceanExample::Options& settings,
                    const std::function<void(double, vsg::Camera*)>& perFrame)
     {
@@ -200,16 +210,35 @@ namespace vsgOcean::Headless
         scene->setUnderwater(pipeline->composite());
 
         // no window pass: the command graph carries the scene and composite
-        // passes, and the semantic pass when requested (--semantic)
+        // passes, and the semantic pass when the annotation is requested (the
+        // --semantic ID image and/or the on-screen semantic view)
         auto commandGraph = vsg::CommandGraph::create(device, queueFamily);
         commandGraph->addChild(pipeline->sceneRenderGraph());
         commandGraph->addChild(pipeline->compositeRenderGraph());
+        const bool wantsSemantic = settings.semantic || settings.semanticView || settings.semanticOverlay
+            || settings.semanticCycleFrames > 0;
         vsg::ref_ptr<vsgOcean::SemanticPass> semantic;
-        if (settings.semantic)
+        vsg::ref_ptr<vsgOcean::SemanticOverlay> semanticOverlay;
+        if (wantsSemantic)
         {
             semantic = vsgOcean::SemanticPass::create(scene, device, camera, extent);
-            commandGraph->addChild(semantic->renderGraph());
+            if (semantic->modelNames().empty()) semantic = {}; // nothing to annotate
         }
+        if (semantic)
+        {
+            // BEFORE the composite: the overlay (drawn inside the composite
+            // pass) samples this pass's image in the same frame
+            commandGraph->children.insert(commandGraph->children.end() - 1, semantic->renderGraph());
+            // the on-screen semantic view, drawn over the composited photo into
+            // the screenshot image - the same draw the windowed path presents
+            semanticOverlay = vsgOcean::SemanticOverlay::create(semantic, extent);
+            pipeline->compositeRenderGraph()->addChild(semanticOverlay);
+        }
+
+        // the display mode of the run: 1 the annotation view, 2 the 50%
+        // overlay; --semantic-cycle advances the mode every N frames (photo,
+        // annotation, overlay, photo...), the same steps as the R key
+        int semanticMode = settings.semanticOverlay ? 2 : (settings.semanticView ? 1 : 0);
 
         auto viewer = vsg::Viewer::create();
         viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
@@ -230,7 +259,13 @@ namespace vsgOcean::Headless
             // the same per-frame work as the windowed loop, minus the presentation
             if (perFrame) perFrame(t, camera.get());
             scene->update(camera.get(), t);
-            if (semantic) semantic->update();
+
+            // the semantic view (the R key in the windowed app): the pass and
+            // its overlay are masked out of the record while off - no cost
+            if (semanticCycleAdvanced(frameIndex, settings.semanticCycleFrames)) semanticMode = (semanticMode + 1) % 3;
+            if (semantic) semantic->setEnabled(semanticMode != 0);
+            if (semanticOverlay) semanticOverlay->setMode(semanticMode);
+            if (semanticMode != 0 && semantic) semantic->update();
 
             viewer->recordAndSubmit();
 

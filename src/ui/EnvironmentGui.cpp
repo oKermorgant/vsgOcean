@@ -473,7 +473,7 @@ namespace vsgOcean
 #else
 
     vsg::ref_ptr<vsg::Node> createEnvironmentGui(vsg::ref_ptr<vsg::Window>, vsg::ref_ptr<vsg::Viewer>, const vsg::ref_ptr<EnvironmentControls>&,
-                                                 const std::vector<std::pair<std::string, vsg::ref_ptr<vsg::ImageView>>>&)
+                                                 const std::vector<std::pair<std::string, vsg::ref_ptr<vsg::ImageView>>&)
     {
         vsg::warn("vsgOcean was not built with GUI support (vsgImGui not found); the environment key bindings still work");
         return {};

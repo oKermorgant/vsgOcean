@@ -13,6 +13,8 @@
 #include <vsgOcean/ui/EnvironmentGui.h>
 #include <vsgOcean/ui/HorizonController.h>
 #include <vsgOcean/scene/Scene.h>
+#include <vsgOcean/semantic/SemanticOverlay.h>
+#include <vsgOcean/semantic/SemanticPalette.h>
 
 /// Resolve a model path (relative to the example models directory) against the source
 /// tree, unless resources are embedded in the build directory.
@@ -485,6 +487,9 @@ int main(int argc, char** argv)
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
         auto cameraAnimation = vsg::CameraAnimationHandler::create(camera, settings.pathFilename, options);
+        // the R key belongs to the semantic annotation view (see the overlay
+        // wiring below); a camera path is recorded through the handler's API
+        cameraAnimation->toggleRecordingKey = vsg::KEY_Undefined;
         viewer->addEventHandler(cameraAnimation);
         if (settings.autoPlay && cameraAnimation->animation)
         {
@@ -500,6 +505,7 @@ int main(int argc, char** argv)
         // capture flag consumed by the camera controller and the GUI
         auto controls = vsgOcean::EnvironmentControls::create(vsg_scene);
         controls->sunCycleEnabled = settings.sunCycle;
+        controls->semanticMode = settings.semanticOverlay ? 2 : (settings.semanticView ? 1 : 0);
         viewer->addEventHandler(controls);
 
         // camera controller: translate (left drag), horizon-level orbit (right drag), dolly (wheel);
@@ -545,6 +551,33 @@ int main(int argc, char** argv)
         if (rovPipeline) cameraViews.emplace_back("ROV camera (underwater)", rovPipeline->outputView());
         if (boatPipeline) cameraViews.emplace_back("boat camera (surface)", boatPipeline->outputView());
 
+        // the semantic annotation pass: the models rendered as per-pixel IDs (the
+        // ground truth for dataset generation - capture() reads it back). Built by
+        // default so the R key can bring up its display at any time; while the
+        // semantic view is off the pass renders nothing (masked out of the record)
+        auto semanticPass = vsgOcean::SemanticPass::create(vsg_scene, device, camera, window->extent2D());
+        if (semanticPass->modelNames().empty()) semanticPass = {}; // nothing to annotate
+        auto semanticOverlay = semanticPass ? vsgOcean::SemanticOverlay::create(semanticPass, window->extent2D()) : nullptr;
+
+        // the sensor cameras carry their own annotation: the same semantic pass
+        // from their camera, drawn over their composited image, so the R key
+        // switches the previews to the semantic view as well
+        std::vector<vsg::ref_ptr<vsgOcean::SemanticPass>> sensorSemantic;
+        std::vector<vsg::ref_ptr<vsgOcean::SemanticOverlay>> sensorSemanticOverlay;
+        for (const auto& pipeline : {rovPipeline, boatPipeline})
+        {
+            auto pass = pipeline ? vsgOcean::SemanticPass::create(vsg_scene, device, pipeline->camera(), sensorExtent) : nullptr;
+            if (pass && pass->modelNames().empty()) pass = {};
+            if (pass)
+            {
+                auto sensorOverlay = vsgOcean::SemanticOverlay::create(pass, sensorExtent);
+                pipeline->compositeRenderGraph()->addChild(sensorOverlay);
+                sensorSemantic.push_back(pass);
+                sensorSemanticOverlay.push_back(sensorOverlay);
+            }
+        }
+
+
         auto overlay = vsg::Group::create();
         if (auto hud = vsgOcean::createEnvironmentHud(controls, options, window->extent2D())) overlay->addChild(hud);
         bool guiBuilt = false;
@@ -555,12 +588,17 @@ int main(int argc, char** argv)
         }
         auto mainPipeline = vsgOcean::RenderPipeline::create(vsg_scene, window, camera);
         vsg_scene->setUnderwater(mainPipeline->composite());
-        auto commandGraph = vsgOcean::createCommandGraph(window, viewer, mainPipeline, overlay);
+        auto commandGraph = vsgOcean::createCommandGraph(window, viewer, mainPipeline, overlay,
+                                                         semanticOverlay ? vsg::ref_ptr<vsg::Node>(semanticOverlay) : nullptr);
+        // the semantic pass renders alongside the scene passes (its draws are
+        // masked out of the record while the semantic view is off)
+        if (semanticPass) commandGraph->children.insert(commandGraph->children.end() - 1, semanticPass->renderGraph());
 
         // the sensor pipelines render into the same command graph, before the window
         // pass (their composited images are sampled by the GUI previews). Their draws
         // are masked out each frame while the previews are off screen (see the loop)
         std::vector<vsg::ref_ptr<vsg::RenderGraph>> sensorGraphs;
+        for (const auto& pass : sensorSemantic) sensorGraphs.push_back(pass->renderGraph());
         for (const auto& pipeline : {rovPipeline, boatPipeline})
         {
             if (!pipeline) continue;
@@ -636,6 +674,7 @@ int main(int argc, char** argv)
         viewer->start_point() = vsg::clock::now();
 
         // rendering main loop
+        uint64_t lastCycleFrame = 0;
         while ((settings.numFrames < 0 || settings.numFrames > 0) &&
                viewer->advanceToNextFrame() &&
                viewer->getFrameStamp()->simulationTime < settings.maxTime)
@@ -673,6 +712,33 @@ int main(int argc, char** argv)
             if (boatPipeline) boatPipeline->setEnabled(previewsVisible);
             if (rovPipeline) rovPipeline->update(vsg_scene, rovPipeline->camera().get());
             if (boatPipeline) boatPipeline->update(vsg_scene, boatPipeline->camera().get());
+
+            // the semantic annotation view (the R key): the pass renders only
+            // while a semantic mode is on, the overlay culls its triangle while
+            // off - no per-frame cost (--semantic-cycle: the same steps
+            // hands-free, for recordings and debugging the mode cycle)
+            if (settings.semanticCycleFrames > 0)
+            {
+                // one advance per N-frame boundary, not one per frame within it
+                const auto frame = viewer->getFrameStamp()->frameCount;
+                if (frame > 0 && frame % settings.semanticCycleFrames == 0 && frame != lastCycleFrame)
+                {
+                    lastCycleFrame = frame;
+                    controls->semanticMode = (controls->semanticMode + 1) % 3;
+                }
+            }
+            if (semanticPass) semanticPass->setEnabled(controls->semanticMode != 0);
+            if (semanticOverlay) semanticOverlay->setMode(controls->semanticMode);
+            if (controls->semanticMode != 0 && semanticPass) semanticPass->update();
+
+            // the sensor cameras' annotation follows the same mode, and renders
+            // only while the previews are on screen (like the sensor pipelines)
+            for (const auto& overlay : sensorSemanticOverlay) overlay->setMode(previewsVisible ? controls->semanticMode : 0);
+            for (const auto& pass : sensorSemantic)
+            {
+                pass->setEnabled(previewsVisible && controls->semanticMode != 0);
+                if (previewsVisible && controls->semanticMode != 0) pass->update();
+            }
 
             viewer->recordAndSubmit();
 
