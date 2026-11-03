@@ -52,6 +52,7 @@ namespace vsgOcean
     ///       current_north_m_s: 0
     ///     waves:
     ///       model: gerstner             # gerstner or fft
+    ///       foam: 0                     # whitecap amount, both wave models
     ///       gerstner:
     ///         amplitude_m: 0.1
     ///         period_s: 5
@@ -65,7 +66,6 @@ namespace vsgOcean
     ///         wave_age: 0.84
     ///         directional_spread: 5
     ///         detail_cascade: false
-    ///         foam: 0
     ///
     /// Every key, group and subgroup is optional on load: absent entries leave
     /// their parameter untouched, so hand-written files can be partial.

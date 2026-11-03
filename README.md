@@ -34,7 +34,7 @@ The water is described either by a **Jerlov water type** (the classical marine-o
 
 ### Waves
 
-The default sea is a **Gerstner component wave field**, a wave model inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin): it follows its component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea. The mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters, and the field can also be evaluated on the CPU (`Wavefield::height`), not only rendered.
+The default sea is a **Gerstner component wave field**, a wave model inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin): it follows its component spreading (8 octave-spaced components at 36°), giving an irregular, short-crested sea. The mean component (amplitude, period, steepness), the spreading (count, scale, angle) and the wind are all runtime parameters, and the field can also be evaluated on the CPU (`Wavefield::height`), not only rendered. With `--foam` the component sea grows **Jacobian whitecaps** too: the component field never truly folds, so the crest compression is remapped by a cubic wind factor — the coverage rises steeply with the wind, from nothing at Beaufort 2–3 to broad whitecap streaks near gale.
 
 The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional spectrum by inverse FFT, after the linear random FFT model of asv_wave_sim, with a choppiness parameter (horizontal displacement whose folds produce **Jacobian whitecap foam** with `--foam`), a wave-age parameter and an optional second, finer cascade (`--fft-detail`) that kills tile repetition and adds detail.
 
@@ -86,8 +86,7 @@ sky:
   rain_rate: 0.8
 waves:
   model: fft
-  fft:
-    foam: 0.6
+  foam: 0.6
 ```
 
 ```bash

@@ -109,6 +109,7 @@ namespace vsgOcean
         out << YAML::Key << "waves" << YAML::BeginMap;
         // the model selects which parameter set the surface uses
         out << YAML::Key << "model" << (waves.model() == Wavefield::Model::FFT ? "fft" : "gerstner");
+        out << YAML::Key << "foam" << waves.foam();
         out << YAML::Key << "gerstner" << YAML::BeginMap;
         out << YAML::Key << "amplitude_m" << waves.amplitude();
         out << YAML::Key << "period_s" << waves.period();
@@ -123,7 +124,6 @@ namespace vsgOcean
         out << YAML::Key << "wave_age" << fft.capOmegaC;
         out << YAML::Key << "directional_spread" << fft.spread;
         out << YAML::Key << "detail_cascade" << waves.fftDetail();
-        out << YAML::Key << "foam" << waves.foam();
         out << YAML::EndMap;
         out << YAML::EndMap;
 
@@ -250,7 +250,10 @@ namespace vsgOcean
         });
         if (changed) waves.setFftParameters(fft);
         readBool(fftNode, "detail_cascade", [&waves](bool v) { waves.setFftDetail(v); });
-        readNumber(fftNode, "foam", [&waves](double v) { waves.setFoam(v); });
+        readNumber(wavesNode, "foam", [&waves](double v) { waves.setFoam(v); });
+        // the legacy location of the foam key (it rode the FFT map before the
+        // Gerstner sea grew whitecaps of its own)
+        readNumber(wavesNode["fft"], "foam", [&waves](double v) { waves.setFoam(v); });
 
         vsg::info("vsgOcean: loaded the environment from '", path, "'");
         return true;
