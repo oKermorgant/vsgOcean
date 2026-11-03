@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <vsgOcean/semantic/SemanticPalette.h>
 
 #include <cmath>
+#include <string>
 
 namespace vsgOcean
 {
@@ -42,6 +43,15 @@ namespace vsgOcean
             return {static_cast<float>(toLinear(r)), static_cast<float>(toLinear(g)), static_cast<float>(toLinear(b))};
         }
 
+        std::string toHex(double channel)
+        {
+            const auto byte = static_cast<unsigned>(std::lround(channel * 255.0));
+            auto digits = "0123456789abcdef";
+            std::string hex;
+            hex += digits[(byte >> 4) & 0xf];
+            hex += digits[byte & 0xf];
+            return hex;
+        }
     }
 
     std::uint32_t nameHash(std::string_view name)
@@ -53,6 +63,21 @@ namespace vsgOcean
             hash *= 16777619u; // the FNV-1a prime, mod 2^32
         }
         return hash;
+    }
+
+    std::string hexColor(std::string_view name)
+    {
+        // steps 2-3 of the rule (SemanticPalette.h): golden-angle hue from the
+        // hash, fixed pastel saturation / value - the hex of the sRGB bytes
+        const auto hue = static_cast<double>(nameHash(name)) * 137.507764;
+        const auto color = hsvToLinearRgb(hue, 0.55, 0.92);
+
+        // hex works on the sRGB bytes: linear was only needed for the shader
+        const auto toSrgbByte = [](float linear) {
+            const auto srgb = linear <= 0.0031308 ? linear * 12.92 : 1.055 * std::pow(linear, 1.0 / 2.4) - 0.055;
+            return static_cast<double>(srgb);
+        };
+        return "#" + toHex(toSrgbByte(color.r)) + toHex(toSrgbByte(color.g)) + toHex(toSrgbByte(color.b));
     }
 
     vsg::vec3 displayColor(std::string_view name)
