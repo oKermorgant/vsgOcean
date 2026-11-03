@@ -50,6 +50,8 @@ The alternative **FFT sea** (`--fft`) synthesises an ECKV unified directional sp
 
 ## The example
 
+A second, minimal binary lives next to it: **`vsgOcean_tutorial`** (`example/src/tutorial.cpp`) - the smallest complete marine scene in one readable `main`, no command line, no widgets: a window, an SDF scene, a few environment setters, a camera, the render loop, and a boat placed on the waves through `Scene::surfaceHeight` + `setPose` - the seam a simulator plugs into. Start there when you want to use vsgOcean from C++.
+
 The example application renders an islands scene with a surface vehicle (a WAM-V), an ROV (BlueROV2) circling a ship wreck with its dive lamps, and a floating wind turbine — animated in real time on the waves, with the environment fully tunable at runtime. Two sensor cameras (the ROV's nose camera and a boat camera) render to texture and preview in the panel.
 
 ```bash

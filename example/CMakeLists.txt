@@ -28,3 +28,15 @@ else ()
     target_compile_definitions(vsgOcean_example PRIVATE
         VSGOCEAN_EXAMPLE_MODELS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/models")
 endif ()
+
+# The tutorial: the smallest complete marine scene (see src/tutorial.cpp)
+add_executable(vsgOcean_tutorial src/tutorial.cpp)
+target_compile_definitions(vsgOcean_tutorial PRIVATE vsgXchange_FOUND)
+target_link_libraries(vsgOcean_tutorial PRIVATE
+  vsgOcean::vsgOcean
+    vsgXchange::vsgXchange
+)
+if (NOT VSGOCEAN_EMBED_RESOURCES)
+    target_compile_definitions(vsgOcean_tutorial PRIVATE
+        VSGOCEAN_EXAMPLE_MODELS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/models")
+endif ()

@@ -134,7 +134,11 @@ namespace vsgOcean
     double Scene::surfaceHeight(double x, double y, double t) const
     {
         // the wave field above the mean water level, plus the environment's sea
-        // level offset - the height a floating body rides at
+        // level offset - the height a floating body rides at. The caller passes
+        // the SAME raw time update() received: the waves animate at (t - origin)
+        // - the single-precision shaders cannot hold a large absolute time - and
+        // the CPU wave field must sample the same shifted clock as the GPU
+        if (timeOrigin_) t -= *timeOrigin_;
         const auto waves = surfaceEnabled() ? surface_->wavefield()->height(x, y, t) : 0.0;
         return waves + environment_->seaLevel();
     }

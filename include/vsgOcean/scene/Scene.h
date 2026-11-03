@@ -164,10 +164,11 @@ namespace vsgOcean
 
         /// The world-space z of the ocean surface at (x, y) at time t: the wave
         /// height (Wavefield::height - the same field the renderer displaces)
-        /// plus the environment's sea level. The height a floating body rides
-        /// at; t is the SAME shifted time the update() calls carry (t - timeOrigin()).
-        /// The renderer fades the FFT displacement beyond ~2 tile sizes from the
-        /// camera (an anti-aliasing LOD); this is the true, unfaded field everywhere.
+        /// plus the environment's sea level. The height a floating body rides at
+        /// (buoyancy); pass the SAME raw time update() received - the origin
+        /// shift is applied here. The renderer fades the FFT displacement beyond
+        /// ~2 tile sizes from the camera (an anti-aliasing LOD); this is the
+        /// true, unfaded field everywhere.
         [[nodiscard]] double surfaceHeight(double x, double y, double t) const;
 
         /// The underwater composite pass, applied to the scene when the camera is below
