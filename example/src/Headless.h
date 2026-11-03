@@ -171,7 +171,7 @@ namespace vsgOcean::Headless
     }
 
     inline int run(const vsg::ref_ptr<Scene>& scene, const vsgOceanExample::Options& settings,
-                   const std::function<void(double, vsg::Camera*)>& perFrame)
+                   const std::function<int(double, vsg::Camera*)>& perFrame)
     {
         const auto [device, queueFamily] = createDevice(settings.windowTraits->debugLayer);
         if (!device) return 1;
@@ -257,7 +257,12 @@ namespace vsgOcean::Headless
             const auto t = viewer->getFrameStamp()->simulationTime;
 
             // the same per-frame work as the windowed loop, minus the presentation
-            if (perFrame) perFrame(t, camera.get());
+            // the per-frame callback may script the semantic display mode
+            // (the "semantic" showcase tour): negative leaves the flag mode
+            if (perFrame)
+            {
+                if (const int scripted = perFrame(t, camera.get()); scripted >= 0) semanticMode = scripted;
+            }
             scene->update(camera.get(), t);
 
             // the semantic view (the R key in the windowed app): the overlay

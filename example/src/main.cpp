@@ -251,12 +251,88 @@ int main(int argc, char** argv)
         // the ROV's own nose camera over the same underwater script - render it
         // alongside "underwater" and overlay it as a picture-in-picture. The demo
         // animation runs on the SAME showcase clock, so the two runs match.
-        const auto showcaseFrame = [&environment, &wavefield, &demoPoses, &settings, &vsg_scene](double t, vsg::Camera* camera)
+        // "semantic": the annotation tour - a travelling approach to the WAM-V,
+        // the semantic view, the descent to the ROV at the wreck, then the
+        // semantic view tracking it (the [R] cycle as a scripted shot).
+        const auto showcaseFrame = [&environment, &wavefield, &demoPoses, &settings, &vsg_scene](double t, vsg::Camera* camera) -> int
         {
             const auto ease = [](double u) { u = std::clamp(u, 0.0, 1.0); return u * u * (3.0 - 2.0 * u); };
             vsg::dvec3 eye{0.0, -30.0, 5.0}, center{0.0, 0.0, 0.0};
+            int semanticMode = -1; // -1: the tour does not script the semantic view
 
-            if (settings.showcaseKind == "surface")
+            if (settings.showcaseKind == "semantic")
+            {
+                // the annotation tour: a photo travelling to the WAM-V, the
+                // semantic view at the boat, a photo travel down to the ROV
+                // (crossing the surface), then the semantic view tracking the
+                // ROV at the wreck - the [R] cycle as a scripted shot
+                environment->setSunElevation(35.0);
+                environment->setSunAzimuth(135.0);
+                environment->setCloudiness(2.0);
+                environment->setMarineSnowDensity(10.0);
+                // the ROV's dive lamps at a quarter of their ceiling (as the
+                // underwater tour: full power cuts the murk and reads "blind")
+                if (t < 1.0 / 60.0)
+                {
+                    for (const auto& group : vsg_scene->lightGroupNames())
+                    {
+                        if (group.rfind("bluerov2/", 0) == 0) vsg_scene->setLightGroupIntensity(group, 0.25);
+                    }
+                }
+
+                vsg::dvec3 rovEye{0.0, 0.0, -35.0}, rovCenter{0.0, 0.0, -37.0};
+                if (const auto pose = demoPoses.getPose("bluerov2", *wavefield, t))
+                {
+                    const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);
+                    const vsg::dvec3 forward = vsg::normalize((*pose) * vsg::dvec3(1.0, 0.0, 0.0) - position);
+                    // behind the vehicle at 45 deg, as the underwater tour
+                    const auto c = std::cos(vsg::radians(225.0)), s = std::sin(vsg::radians(225.0));
+                    const vsg::dvec3 behind45 = vsg::normalize(vsg::dvec3(forward.x * c - forward.y * s,
+                                                                          forward.x * s + forward.y * c, 0.0));
+                    rovEye = position + behind45 * vsg::mix(25.0, 12.0, ease((t - 8.5) / 3.5)) + vsg::dvec3(0.0, 0.0, 2.0);
+                    rovCenter = position + vsg::dvec3(0.0, 0.0, -1.0);
+                }
+
+                vsg::dvec3 boatEye{0.0, -30.0, 8.0}, boatCenter{0.0, 0.0, 0.5};
+                if (const auto pose = demoPoses.getPose("wamv", *wavefield, t))
+                {
+                    boatCenter = (*pose) * vsg::dvec3(0.0, 0.0, 0.5);
+                    boatEye = boatCenter + vsg::dvec3(0.0, 0.0, 1.5);
+                }
+
+                if (t < 4.0)
+                {
+                    // the approach: closing from 45 m to 14 m south of the boat
+                    semanticMode = 0;
+                    eye = boatEye + vsg::dvec3(0.0, -31.0 * (1.0 - ease(t / 4.0)) - 14.0, 4.0);
+                    center = boatCenter;
+                }
+                else if (t < 6.0)
+                {
+                    // the annotation of the surface vehicle, still closing gently
+                    semanticMode = 1;
+                    eye = boatEye + vsg::dvec3(0.0, -14.0 + 4.0 * ease((t - 4.0) / 2.0), 3.0);
+                    center = boatCenter;
+                }
+                else if (t < 8.5)
+                {
+                    // the descent to the ROV: the eye arcs down from the boat
+                    // to the trailing viewpoint behind the vehicle, crossing
+                    // the surface (the composite turns underwater on its own)
+                    semanticMode = 0;
+                    const auto u = ease((t - 6.0) / 2.5);
+                    eye = vsg::mix(boatEye + vsg::dvec3(0.0, -10.0, 3.0), rovEye, u);
+                    center = vsg::mix(boatCenter, rovCenter, ease((t - 6.0) / 1.5));
+                }
+                else
+                {
+                    // the annotation of the underwater vehicle, the tracking shot
+                    semanticMode = 1;
+                    eye = rovEye;
+                    center = rovCenter;
+                }
+            }
+            else if (settings.showcaseKind == "surface")
             {
                 // the sea: the wind builds over the first 5 s to a whitecapped FFT
                 // sea (choppiness 1.2 folds the crests, the Jacobian foam shows)
@@ -366,6 +442,7 @@ int main(int argc, char** argv)
             lookAt->eye = eye;
             lookAt->center = center;
             lookAt->up = vsg::dvec3(0.0, 0.0, 1.0);
+            return semanticMode;
         };
 
         // headless: render offscreen (a hardware GPU when the render group allows it,
@@ -380,18 +457,17 @@ int main(int argc, char** argv)
             // "underwater" and "rov" runs (rendered as two videos) match exactly
             double showcaseT = 0.0;
             return vsgOcean::Headless::run(vsg_scene, settings,
-                                           [&](double t, vsg::Camera* camera)
+                                           [&](double t, vsg::Camera* camera) -> int
                                            {
                                                if (settings.showcase)
                                                {
                                                    demoFrame(showcaseT);
-                                                   showcaseFrame(showcaseT, camera);
+                                                   const auto mode = showcaseFrame(showcaseT, camera);
                                                    showcaseT += 1.0 / 60.0;
+                                                   return mode;
                                                }
-                                               else
-                                               {
-                                                   demoFrame(t);
-                                               }
+                                               demoFrame(t);
+                                               return -1; // the semantic view follows the flags / the R key
                                            });
         }
 

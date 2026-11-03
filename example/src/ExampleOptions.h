@@ -395,6 +395,9 @@ namespace vsgOceanExample
         settings.videoPattern = arguments.value<vsg::Path>("", "--video");
         settings.showcaseKind = arguments.value<std::string>("", "--showcase");
         settings.showcase = !settings.showcaseKind.empty();
+        // the semantic tour scripts the annotation modes: the pass and its
+        // overlay must exist even without --semantic / --semantic-view
+        if (settings.showcaseKind == "semantic") settings.semanticView = true;
         {
             std::string lightName;
             double lightFactor = 1.0;
