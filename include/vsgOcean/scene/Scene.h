@@ -162,6 +162,14 @@ namespace vsgOcean
         /// height scale of the surface waves in metres, 0 when the surface is disabled
         [[nodiscard]] double waveHeightScale() const;
 
+        /// The world-space z of the ocean surface at (x, y) at time t: the wave
+        /// height (Wavefield::height - the same field the renderer displaces)
+        /// plus the environment's sea level. The height a floating body rides
+        /// at; t is the SAME shifted time the update() calls carry (t - timeOrigin()).
+        /// The renderer fades the FFT displacement beyond ~2 tile sizes from the
+        /// camera (an anti-aliasing LOD); this is the true, unfaded field everywhere.
+        [[nodiscard]] double surfaceHeight(double x, double y, double t) const;
+
         /// The underwater composite pass, applied to the scene when the camera is below
         /// the surface. Created by createCommandGraph together with the render target.
         [[nodiscard]] vsg::ref_ptr<Underwater> underwater() const { return underwater_; }

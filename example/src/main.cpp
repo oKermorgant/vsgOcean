@@ -206,7 +206,7 @@ int main(int argc, char** argv)
             {
                 if (vsg_scene->model(model))
                 {
-                    if (auto pose = demoPoses.getPose(model, *wavefield, t)) vsg_scene->setPose(model, *pose);
+                    if (auto pose = demoPoses.getPose(model, *vsg_scene, t)) vsg_scene->setPose(model, *pose);
                 }
             }
 
@@ -216,7 +216,7 @@ int main(int argc, char** argv)
             // along the direction of travel: the vehicle's +X is its heading
             if (boatPipeline && vsg_scene->model("wamv"))
             {
-                if (auto pose = demoPoses.getPose("wamv", *wavefield, t))
+                if (auto pose = demoPoses.getPose("wamv", *vsg_scene, t))
                 {
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);
@@ -230,7 +230,7 @@ int main(int argc, char** argv)
             // the wreck it circles, without the vehicle in view
             if (rovPipeline && vsg_scene->model("bluerov2"))
             {
-                if (auto pose = demoPoses.getPose("bluerov2", *wavefield, t))
+                if (auto pose = demoPoses.getPose("bluerov2", *vsg_scene, t))
                 {
                     auto attitude = *pose;
                     attitude[3] = vsg::dvec4(0.0, 0.0, 0.0, 1.0); // strip the translation: the rotation only
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
                 }
 
                 vsg::dvec3 rovEye{0.0, 0.0, -35.0}, rovCenter{0.0, 0.0, -37.0};
-                if (const auto pose = demoPoses.getPose("bluerov2", *wavefield, t))
+                if (const auto pose = demoPoses.getPose("bluerov2", *vsg_scene, t))
                 {
                     const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);
                     const vsg::dvec3 forward = vsg::normalize((*pose) * vsg::dvec3(1.0, 0.0, 0.0) - position);
@@ -298,7 +298,7 @@ int main(int argc, char** argv)
                 }
 
                 vsg::dvec3 boatEye{0.0, -30.0, 8.0}, boatCenter{0.0, 0.0, 0.5};
-                if (const auto pose = demoPoses.getPose("wamv", *wavefield, t))
+                if (const auto pose = demoPoses.getPose("wamv", *vsg_scene, t))
                 {
                     boatCenter = (*pose) * vsg::dvec3(0.0, 0.0, 0.5);
                     boatEye = boatCenter + vsg::dvec3(0.0, 0.0, 1.5);
@@ -413,7 +413,7 @@ int main(int argc, char** argv)
                 // the vehicle's nose (the sensor view); the tracking camera makes
                 // its approach from 45 deg behind the ROV, closing from ~32 to
                 // ~18 m, so the vehicle and the wreck beyond it share the frame
-                const auto pose = demoPoses.getPose("bluerov2", *wavefield, t);
+                const auto pose = demoPoses.getPose("bluerov2", *vsg_scene, t);
                 if (pose)
                 {
                     const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);

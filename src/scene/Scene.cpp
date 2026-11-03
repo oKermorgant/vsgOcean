@@ -131,6 +131,14 @@ namespace vsgOcean
         return surfaceEnabled() ? surface_->wavefield()->heightScale() : 0.0;
     }
 
+    double Scene::surfaceHeight(double x, double y, double t) const
+    {
+        // the wave field above the mean water level, plus the environment's sea
+        // level offset - the height a floating body rides at
+        const auto waves = surfaceEnabled() ? surface_->wavefield()->height(x, y, t) : 0.0;
+        return waves + environment_->seaLevel();
+    }
+
     bool Scene::surfaceEnabled() const
     {
         return !surfaceSwitch_->children.empty() && surfaceSwitch_->children[0].mask != 0;

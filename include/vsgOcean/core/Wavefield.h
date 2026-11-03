@@ -140,9 +140,13 @@ namespace vsgOcean
         const std::vector<double>& steepnesses() const { return steepnesses_; }
         const std::vector<vsg::dvec2>& directions() const { return directions_; }
 
-        /// Mean water level at (x, y) at time t in seconds: the sum of the component waves,
-        /// including the exponential grow-in from t = 0. The FFT model returns the field of
-        /// the last updateFft() (all the cascades), without horizontal displacement.
+        /// Water level above the mean level at (x, y) at time t in seconds: the sum of the
+        /// component waves, including the exponential grow-in from t = 0. The FFT model
+        /// inverts the horizontal (choppy) displacement by fixed-point iteration, as the
+        /// vertex stage moves the point, and returns the field of the last updateFft()
+        /// (all the cascades). The sea level offset is NOT included (the renderer adds it;
+        /// Scene::surfaceHeight composes both), and the renderer fades the FFT displacement
+        /// beyond ~2 tile sizes from the camera - this is the true field everywhere.
         double height(double x, double y, double t) const;
 
         /// The height scale of the waves in metres: the sum of the component amplitudes, or

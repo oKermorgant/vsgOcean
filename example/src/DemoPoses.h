@@ -4,7 +4,7 @@
 // functions return - the trajectories themselves live here, the seam where a
 // dynamics simulator will plug in later.
 //
-// getPose(model, surface, t): the WORLD pose of an animated model riding the
+// getPose(model, scene, t): the WORLD pose of an animated model riding the
 //     wave surface at time t; nullopt for a model the demo does not animate
 //     (keep the loaded SDF pose).
 // getJoint(model, joint, t): the pose of an internal frame wrt its parent
@@ -14,7 +14,7 @@
 #pragma once
 
 #include <vsgOcean/core/Frame.h>
-#include <vsgOcean/core/Wavefield.h>
+#include <vsgOcean/scene/Scene.h>
 #include <vsgOcean/scene/Scene.h>
 
 #include <cmath>
@@ -55,7 +55,7 @@ namespace vsgOceanExample
 
         /// The WORLD pose of an animated model at time t, riding the wave surface;
         /// nullopt for a model the demo does not animate.
-        std::optional<vsg::dmat4> getPose(const std::string& model, const vsgOcean::Wavefield& surface, double t)
+        std::optional<vsg::dmat4> getPose(const std::string& model, const vsgOcean::Scene& scene, double t)
         {
             if (model == "wamv")
             {
@@ -66,7 +66,7 @@ namespace vsgOceanExample
                 const auto angle = 2.0 * vsg::PI * t / 60.0;
                 const double x = 10.0 * std::cos(angle);
                 const double y = 10.0 * std::sin(angle);
-                const double surfaceZ = surface.height(x, y, t);
+                const double surfaceZ = scene.surfaceHeight(x, y, t);
                 return vsg::translate(vsg::dvec3(x, y, surfaceZ - 0.176)) * vsg::rotate(angle + vsg::PI / 2.0, 0.0, 0.0, 1.0);
             }
 
@@ -88,7 +88,7 @@ namespace vsgOceanExample
                 // (40, -40): the platform's inertia damps the heave, so the wave
                 // height is low-passed with a ~3 s response time - it follows the
                 // swell but skips the chop (a real spar platform is slower still)
-                const double targetZ = surface.height(40.0, -40.0, t);
+                const double targetZ = scene.surfaceHeight(40.0, -40.0, t);
                 if (floatgenPrevT_ < 0.0)
                 {
                     floatgenZ_ = targetZ;
