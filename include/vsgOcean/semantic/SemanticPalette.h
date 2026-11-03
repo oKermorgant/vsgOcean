@@ -55,17 +55,9 @@ namespace vsgOcean
     /// Step 1: the FNV-1a 32-bit hash of the name's UTF-8 bytes.
     [[nodiscard]] VSG_OCEAN_EXPORT std::uint32_t nameHash(std::string_view name);
 
-    /// The display color of a model name as "#rrggbb" (lowercase hex, the sRGB
-    /// bytes of step 3) - the form to print, log or store next to a dataset.
-    [[nodiscard]] VSG_OCEAN_EXPORT std::string hexColor(std::string_view name);
-
     /// The display color of a model name as linear RGB floats (the sRGB bytes
     /// of step 3 decoded to linear, so an sRGB framebuffer reproduces the bytes
-    /// exactly) - the form to feed a shader uniform.
+    /// exactly) - the form to feed a shader uniform. The palette above shows
+    /// the same colors as hex for offline checking.
     [[nodiscard]] VSG_OCEAN_EXPORT vsg::vec3 displayColor(std::string_view name);
-
-    /// The display color of a model name as sRGB floats (the bytes of step 3
-    /// over 255) - the form a GUI colour swatch expects (ImGui colours are
-    /// sRGB-space floats).
-    [[nodiscard]] VSG_OCEAN_EXPORT vsg::vec3 srgbColor(std::string_view name);
 }
