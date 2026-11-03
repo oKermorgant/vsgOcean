@@ -3,7 +3,12 @@
      downscaled to 1024): the twin-hull base with one steering engine pod per hull,
      each carrying its propeller. Visuals only - the poses come from outside, and the
      frames animated by the example are left_engine_link / right_engine_link and
-     their propeller children. -->
+     their propeller children.
+     The engine.glb mesh has a 180 deg yaw baked in (about the pod's vertical axis,
+     footprint preserved - the pod center is offset from the link origin, so the
+     frame itself cannot be yawed without displacing the assembly): the VRX pod
+     faces fore in vsgOcean's x-front convention. Re-importing the upstream engine
+     mesh needs the same fix (meshconv --rpy 0 180 0 --xyz -0.38 0 0). -->
 <sdf version="1.9">
   <model name="wamv">
     <link name="wamv/base_link">
