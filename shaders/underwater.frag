@@ -244,8 +244,15 @@ void main()
     }
 
     // atmospheric fog over the air segment of the ray: the density is the air's
-    // extinction coefficient (Beer-Lambert): haze = 1 - exp(-density * distance)
-    const float haze = 1.0 - exp(-env.fog.a * (dist - waterPath));
+    // extinction coefficient (Beer-Lambert): haze = 1 - exp(-density * distance).
+    // The sea-surface pixels (within the wave band around the mean sea level)
+    // take a REDUCED haze: the surface already carries its own sky mirror and
+    // water body colour, and the full-strength haze washes the entire far field
+    // into one white fog band; the islands, masts and hulls above the band keep
+    // the full aerial perspective. The band only spans the wave heights - the
+    // storm sea overshoots it, but then the crests are foam-grey anyway
+    const float surfaceBand = smoothstep(1.2, 0.3, abs(world.z - seaLevel));
+    const float haze = (1.0 - exp(-env.fog.a * (dist - waterPath))) * (1.0 - 0.45 * surfaceBand);
     color = mix(color, env.fog.rgb, haze);
 
     // the underwater depth of field (as osgOcean's underwater DOF): the water's
