@@ -250,9 +250,14 @@ void main()
     // water body colour, and the full-strength haze washes the entire far field
     // into one white fog band; the islands, masts and hulls above the band keep
     // the full aerial perspective. The band only spans the wave heights - the
-    // storm sea overshoots it, but then the crests are foam-grey anyway
+    // storm sea overshoots it, but then the crests are foam-grey anyway.
+    // The reduction TAPERS OFF at grazing view angles: the sea right below the
+    // horizon takes the full haze again, so it meets the fully hazed sky
+    // seamlessly (without the taper the darker far sea reads as a dark line
+    // against the fog-white horizon)
     const float surfaceBand = smoothstep(1.2, 0.3, abs(world.z - seaLevel));
-    const float haze = (1.0 - exp(-env.fog.a * (dist - waterPath))) * (1.0 - 0.45 * surfaceBand);
+    const float grazing = 1.0 - smoothstep(0.0, 0.06, abs(world.z - env.eye.z) / dist);
+    const float haze = (1.0 - exp(-env.fog.a * (dist - waterPath))) * (1.0 - 0.45 * surfaceBand * (1.0 - grazing));
     color = mix(color, env.fog.rgb, haze);
 
     // the underwater depth of field (as osgOcean's underwater DOF): the water's
