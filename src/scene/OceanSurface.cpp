@@ -101,7 +101,9 @@ namespace vsgOcean
         // a transparent pass: blended over the scene beneath the surface, drawn after the
         // opaque scene so nothing renders after it. It writes depth (reversed-Z, like the
         // rest of the scene): the composite pass then attenuates and fogs it by its true
-        // view distance, like every other scene object - also seen from below
+        // view distance, like every other scene object - also seen from below. What the
+        // water lets through to the surface's own alpha (the scene beneath it) is the
+        // assumed water column of ocean.frag, a deep-column default
         auto depthStencil = vsg::DepthStencilState::create();
         depthStencil->depthTestEnable = VK_TRUE;
         depthStencil->depthWriteEnable = VK_TRUE;

@@ -292,14 +292,34 @@ void main()
     // the in-scattered water light filling in. No ambient floor: the water light
     // is sun-driven only, so a deep night scene attenuates to black
     {
+        // the light ON the viewed geometry is filtered by the geometry's own
+        // depth below the wave troughs: the models are shaded by the air sun and
+        // ambient (the standard vsg material shaders), so the composite applies
+        // the vertical diffuse descent exp(-3 Kd z) to the light their pixels
+        // carry. A 48 m wreck is no longer air-lit, whichever side the camera is
+        // on; the surface pixels sit at the troughs (depth 0) and are untouched
+        const float objectDepth = max(seaLevel - env.surface.x - world.z, 0.0);
+        color *= exp(-env.attenuation.rgb * 3.0 * objectDepth);
+
         const vec3 transmit = exp(-env.attenuation.rgb * waterPath);
-        // the sun light surviving to the depth of the viewed water, PER CHANNEL
+        // the sun light surviving along the submerged segment, PER CHANNEL
         // (the beam attenuation is the vertical diffuse Kd over 3): red is
         // absorbed first, so the deep background keeps its blue-green instead of
         // dimming with the RGB-mean attenuation, which darkens like red water.
-        // The depth is the camera's submersion when below, the surface from above
-        const float depth = max(env.eye.w, 0.0);
-        const vec3 light = exp(-env.attenuation.rgb * 3.0 * max(depth, 0.5)) * max(env.attenuation.w, 0.0);
+        // The vertical diffuse light exp(-3 Kd z) is INTEGRATED over the segment
+        // (straight, so z is linear in the path length) and divided by it: the
+        // veil reflects the water the ray actually crosses, not the water at
+        // the camera - a deep wreck seen from above is no longer washed out by
+        // surface-bright scatter, a mid-descent view no longer veiled by the
+        // dark water around the camera
+        const float depthStart = env.eye.w > 0.0 ? env.eye.w : 0.0;
+        const float depthEnd = max(seaLevel - world.z, 0.0);
+        const vec3 diffuseRate = 3.0 * env.attenuation.rgb;
+        const vec3 depthStep = diffuseRate * (depthEnd - depthStart);
+        // (1 - exp(-a dz)) / (a dz) -> 1 as a dz -> 0 (a horizontal ray)
+        const vec3 stepMean = mix((vec3(1.0) - exp(-depthStep)) / max(abs(depthStep), vec3(1.0e-6)),
+                                  vec3(1.0), lessThan(abs(depthStep), vec3(1.0e-6)));
+        const vec3 light = exp(-diffuseRate * depthStart) * stepMean * max(env.attenuation.w, 0.0);
         // the in-scattered light is the sum of the multiply-scattered ambient
         // (isotropic, the water colour) and the singly-scattered sun light, which
         // follows the Henyey-Greenstein phase (g = 0.924, strongly forward-peaked -

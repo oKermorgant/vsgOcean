@@ -321,9 +321,17 @@ void main()
         color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0) * ocean.amplitude[0].y * (1.0 - foam);
         color = mix(color, foamColor, foam);
 
-        // transparency towards the scene behind the surface: more mirror-like at
-        // grazing angles, more transparent looking straight down
-        const float clarity = exp(-ocean.waterColor.a * ocean.params.w);
+        // transparency towards the scene behind the surface: the assumed water
+        // column of the through-view, a DEEP default (15 m two-way at the mean
+        // attenuation): a deep wreck does not shine through the coastal murk -
+        // from above the sea reads as its own body colour there - while the
+        // clearest oceanic types keep some see-through (the shallows are seen
+        // from above through the terrain pixels that rise above the surface,
+        // which the composite transports by their true depth). The honest fix -
+        // the alpha following the TRUE depth of whatever is behind, per pixel -
+        // needs the pre-surface depth sampled in this pass (a depth copy between
+        // two render passes; see the LLM notes)
+        const float clarity = exp(-ocean.waterColor.a * 15.0);
         alpha = mix(fresnel + (1.0 - fresnel) * (1.0 - clarity), 1.0, foam);
     }
     else
