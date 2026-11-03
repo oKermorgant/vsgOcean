@@ -296,8 +296,6 @@ namespace vsgOcean
                     changed |= ImGui::SliderFloat("directional spread", &spread, 1.0f, 30.0f);
                     auto detail = wavefield->fftDetail();
                     if (ImGui::Checkbox("fine detail cascade", &detail)) wavefield->setFftDetail(detail);
-                    auto foam = static_cast<float>(wavefield->foam());
-                    if (ImGui::SliderFloat("foam", &foam, 0.0f, 1.0f)) wavefield->setFoam(foam);
                     if (changed)
                     {
                         fft.tileSize = tile;
@@ -322,6 +320,11 @@ namespace vsgOcean
                     auto angle = static_cast<float>(vsg::degrees(wavefield->angle()));
                     if (ImGui::SliderFloat("wave angle (deg)", &angle, 0.0f, 90.0f)) wavefield->setAngle(vsg::radians(static_cast<double>(angle)));
                 }
+
+                // whitecap foam rides either wave model (the Jacobian criterion
+                // applies to the FFT folds and the Gerstner crests alike)
+                auto foam = static_cast<float>(wavefield->foam());
+                if (ImGui::SliderFloat("foam", &foam, 0.0f, 1.0f)) wavefield->setFoam(foam);
             }
 
             ImGui::PopItemWidth();
