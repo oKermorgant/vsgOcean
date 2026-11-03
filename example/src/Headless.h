@@ -79,8 +79,10 @@ namespace vsgOcean::Headless
     /// Render the scene offscreen for the configured number of frames and write the
     /// screenshot. The fallback camera is built here (the bounds framing, matching the
     /// windowed path); perFrame runs the demo animation (model poses, link poses) for
-    /// each frame's simulation time, and receives the camera so a scripted tour can
-    /// drive it (the --showcase maritime video). With --video, every frame is written
+    /// each frame's simulation time - which it may override by reference (the
+    /// showcases drive the sea and the poses on their own deterministic clock) - and
+    /// receives the camera so a scripted tour can drive it (the --showcase maritime
+    /// video). With --video, every frame is written
     /// as a PNG (the pattern's %05d is the frame index) instead of a single end
     /// screenshot. Returns the process exit code.
         // a PNG chunk with its CRC (zlib)
@@ -171,7 +173,7 @@ namespace vsgOcean::Headless
     }
 
     inline int run(const vsg::ref_ptr<Scene>& scene, const vsgOceanExample::Options& settings,
-                   const std::function<int(double, vsg::Camera*)>& perFrame)
+                   const std::function<int(double&, vsg::Camera*)>& perFrame)
     {
         const auto [device, queueFamily] = createDevice(settings.windowTraits->debugLayer);
         if (!device) return 1;
@@ -258,11 +260,15 @@ namespace vsgOcean::Headless
                && viewer->getFrameStamp()->simulationTime < settings.maxTime)
         {
             --frames;
-            const auto t = viewer->getFrameStamp()->simulationTime;
+            double t = viewer->getFrameStamp()->simulationTime;
 
             // the same per-frame work as the windowed loop, minus the presentation
             // the per-frame callback may script the semantic display mode
-            // (the "semantic" showcase tour): negative leaves the flag mode
+            // (the "semantic" showcase tour): negative leaves the flag mode.
+            // It may also OVERRIDE the time (by reference): the showcases run on
+            // their own deterministic clock, and the sea must develop on the
+            // SAME clock as the demo poses riding it - a wall-clock sea under a
+            // tour-clock boat is a boat that does not follow the surface
             if (perFrame)
             {
                 if (const int scripted = perFrame(t, camera.get()); scripted >= 0) semanticMode = scripted;

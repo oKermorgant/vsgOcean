@@ -457,16 +457,19 @@ int main(int argc, char** argv)
             // the showcase runs on its own deterministic clock (60 frames per tour
             // second), NOT the viewer's simulationTime: headless frames render much
             // faster than real time, and the wall-clock t compresses the whole tour
-            // into the first seconds. The DEMO POSES run on the same clock, so the
-            // "underwater" and "rov" runs (rendered as two videos) match exactly
+            // into the first seconds. The DEMO POSES and the SEA run on the same
+            // clock (the callback overrides the frame time by reference), so the
+            // poses always ride the rendered surface - and the tour renders
+            // frame-identical on every run
             double showcaseT = 0.0;
             return vsgOcean::Headless::run(vsg_scene, settings,
-                                           [&](double t, vsg::Camera* camera) -> int
+                                           [&](double& t, vsg::Camera* camera) -> int
                                            {
                                                if (settings.showcase)
                                                {
                                                    demoFrame(showcaseT);
                                                    const auto mode = showcaseFrame(showcaseT, camera);
+                                                   t = showcaseT;
                                                    showcaseT += 1.0 / 60.0;
                                                    return mode;
                                                }
@@ -766,9 +769,11 @@ int main(int argc, char** argv)
 
             viewer->update();
 
-            // demo: update the model poses and the link poses for this frame
+            // demo: this frame's simulation time. The demo poses are applied AFTER the
+            // scene update: the FFT sea is sampled from the displacement textures the
+            // update just refreshed, so a boat riding the surface reads the same water
+            // the renderer draws this frame
             const auto t = viewer->getFrameStamp()->simulationTime;
-            demoFrame(t);
 
             // demo: the sun moves slowly through the sky, 1 simulated hour per second
             if (controls->sunCycleEnabled)
@@ -780,6 +785,9 @@ int main(int argc, char** argv)
             // refresh the sky, sun-driven lighting and ocean surface from the
             // environment, camera and simulation time
             vsg_scene->update(camera, t);
+
+            // demo: update the model poses and the link poses for this frame
+            demoFrame(t);
 
             // refresh the sensor pipelines with their own cameras (each computes its
             // own submersion, so the ROV camera renders underwater). The refresh is

@@ -74,7 +74,8 @@ namespace vsgOcean
         }
 
         // uniform block: [0] sun direction, [1] fog color + density, [2] water color,
-        // [3] params (t, tau, number, water depth), [4] per-channel attenuation + sea
+        // [3] params (t, tau, number, water depth; the component count is 0 on the
+        // FFT sea - it replaces the component waves), [4] per-channel attenuation + sea
         // level, [5..44] component wave arrays, [45] FFT sea (enabled, tile size, detail tile size, foam)
         uniform_ = vsg::vec4Array::create(6 + 5 * Wavefield::maxWaves);
         uniform_->properties.dataVariance = vsg::DYNAMIC_DATA;
@@ -168,8 +169,17 @@ namespace vsgOcean
         (*uniform_)[0] = vsg::vec4(static_cast<float>(sun.x), static_cast<float>(sun.y), static_cast<float>(sun.z), static_cast<float>(environment.cloudiness() / 8.0));
         (*uniform_)[1] = vsg::vec4(environment.fogColor(), static_cast<float>(environment.fogExtinction()));
         (*uniform_)[2] = vsg::vec4(environment.underwaterColor(), meanAttenuation);
+        // the FFT sea REPLACES the component waves (the ECKV spectrum already
+        // carries the full wind sea - adding the components on top would double
+        // it, and Wavefield::height computes the FFT displacement only, so the
+        // CPU and GPU surfaces must agree): the vertex stage loops over
+        // ocean.params.z components, so 0 in that mode leaves the displacement
+        // to the FFT tile alone
+        const auto componentCount = wavefield_->model() == Wavefield::Model::FFT
+                                        ? size_t{0}
+                                        : wavefield_->amplitudes().size();
         (*uniform_)[3] = vsg::vec4(static_cast<float>(t), static_cast<float>(wavefield_->tau()),
-                                  static_cast<float>(wavefield_->amplitudes().size()), 5.0f); // 5 m assumed water depth
+                                  static_cast<float>(componentCount), 5.0f); // 5 m assumed water depth
         (*uniform_)[4] = vsg::vec4(attenuation, static_cast<float>(environment.seaLevel()));
 
         // component wave arrays: amplitude, wavenumber, omega, steepness, direction
