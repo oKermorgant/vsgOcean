@@ -35,7 +35,7 @@ layout(std140, set = 0, binding = 0) uniform Ocean
 layout(location = 0) in vec3 worldPosition;
 layout(location = 1) in vec3 worldNormal;
 layout(location = 2) in vec3 cameraEye; // world position of the camera of this view
-layout(location = 3) in vec3 fftCoord;  // undisplaced xy [m] and FFT fade (see ocean.vert)
+layout(location = 3) in vec4 fftCoord;  // undisplaced xy [m], the FFT fade, the Gerstner Jacobian (see ocean.vert)
 layout(set = 0, binding = 2) uniform sampler2D fftSlopes;     // (dh/dx, dh/dy, jacobian) of the FFT tile
 layout(set = 0, binding = 4) uniform sampler2D detailSlopes;  // the same for the detail cascade
 layout(location = 0) out vec4 fragColor;
@@ -146,11 +146,34 @@ float rippleNoise(vec2 p)
 float foamCoverage()
 {
     const float amount = ocean.fft.w;
-    if (ocean.fft.x < 0.5 || amount <= 0.0) return 0.0;
+    if (amount <= 0.0) return 0.0;
 
-    float jacobian = texture(fftSlopes, fftCoord.xy / ocean.fft.y).z;
-    if (ocean.fft.z > 0.0) jacobian += texture(detailSlopes, fftCoord.xy / ocean.fft.z).z - 1.0;
-    jacobian = 1.0 + (jacobian - 1.0) * fftCoord.z;
+    float jacobian;
+    if (ocean.fft.x > 0.5)
+    {
+        jacobian = texture(fftSlopes, fftCoord.xy / ocean.fft.y).z;
+        if (ocean.fft.z > 0.0) jacobian += texture(detailSlopes, fftCoord.xy / ocean.fft.z).z - 1.0;
+        jacobian = 1.0 + (jacobian - 1.0) * fftCoord.z;
+    }
+    else
+    {
+        // the component (Gerstner) sea: the analytic Jacobian accumulated in
+        // the vertex stage - the SAME 1/J criterion, thresholds and grain as
+        // the FFT sea. The component sea never truly folds though (the
+        // normalized steepness q = steepness/(a k N) caps the horizontal
+        // compression at ~1%, and the components share one phase so they never
+        // align): the raw Jacobian sits near 0.99 everywhere. The compression
+        // is amplified by a fixed gain and scaled by the wind speed (the
+        // whitecap coverage grows with the wind; direction[0].z is the wind in
+        // m/s, as the capillary band uses it; the vertex's Jacobian already
+        // carries the sea's grow factor - do not multiply it again) - the crest
+        // sharpening localizes the foam on the crest tops, and the wind makes it
+        // spread - CUBICALLY (the whitecap coverage rises steeply with the wind:
+        // none at 4 m/s, crests at 8, broad at 14) - while the same --foam
+        // threshold curve tunes it
+        const float wind = pow(clamp(ocean.direction[0].z / 5.0, 0.0, 3.0), 3.0);
+        jacobian = 1.0 - (1.0 - fftCoord.w) * 3.5 * wind;
+    }
 
     const float threshold = mix(0.35, 0.95, amount);
     const float folded = 1.0 - smoothstep(threshold - 0.4, threshold, jacobian);

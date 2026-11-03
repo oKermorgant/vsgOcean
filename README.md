@@ -13,7 +13,7 @@ In short:
 - **Ocean surface**: Gerstner component waves and an ECKV FFT sea, both wave models inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin), with a detail cascade and Jacobian whitecap foam; wind-driven ripple detail; sky reflection, glitter and glare above, the Snell window below.
 - **Underwater rendering**: per-pixel, per-channel Jerlov attenuation over the true submerged view segment, Henyey-Greenstein in-scatter, an underwater sky, volumetric lamp cones, marine snow and a turbidity-driven depth-of-field blur.
 - **Dimmable lights**: an SDF `<light>` intensity is each lamp's ceiling; lamps cluster by aim direction into per-robot light groups (one face, one control) — shading, cones and snow sparkle all follow.
-- **Annotation ground truth**: a semantic pass renders the models with each pixel carrying its model's ID (read back per pixel, `--semantic` in the example writes the ID image and prints the derived boxes) - the base for training-data generation.
+- **Annotation ground truth**: a semantic pass renders the models with each pixel carrying its model's ID (read back per pixel, `--semantic` in the example writes the ID image and prints the derived boxes) - the base for training-data generation. At runtime the **R** key switches the view between the photo, the annotation and a 50% overlay; the display colour of a model follows its name, deterministically.
 - **Render pipelines**: the scene renders from any number of cameras (sensor cameras to texture, ready for image readback); `--headless` renders offscreen without a window, for servers, CI and non-presenting GPUs.
 
 ## Videos
@@ -75,7 +75,7 @@ The example application renders an islands scene with a surface vehicle (a WAM-V
 
 ### Saving and reloading an environment
 
-An environment tuned in the widgets is worth keeping: **E** exports the current environment to a YAML file — sky and weather, wind, water optics and waves, everything the widgets tune (never the lights or the camera). **`--env`** loads it back at startup, and every group and key is optional, so hand-written files can be partial:
+An environment tuned in the widgets is worth keeping: **E** exports the current environment to a YAML file — sky and weather, wind, water optics and wave. **`--env`** loads it back at startup, and every group and key is optional, so hand-written files can be partial:
 
 ```yaml
 # storm.yaml, by someone in a hurry
@@ -109,6 +109,7 @@ The environment is tuned at runtime through the keyboard and widgets (`vsgOcean:
 | O | ocean surface widget on / off (wind, waves) |
 | U | underwater widget on / off (water optics, current, snow, DOF blur) |
 | L | lights widget on / off (one intensity slider per light group) |
+| R | semantic view: photo, the annotation (each model in the colour of its name), the annotation at 50% over the photo |
 | E | export the environment (a flat YAML file) |
 | Tab | cycle the tracked model (camera follows) |
 | Esc | quit |

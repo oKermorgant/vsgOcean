@@ -133,6 +133,11 @@ int main(int argc, char** argv)
             wavefield->setScale(settings.waveScale);
             wavefield->setAngle(vsg::radians(settings.waveAngle));
         }
+        // the Jacobian foam amount applies to BOTH sea models (the component
+        // sea's foam reads the analytic Jacobian, see ocean.frag) - it used to
+        // ride the --fft block only, silently disabling --foam on the default
+        // component sea
+        wavefield->setFoam(settings.foam);
         if (settings.fft)
         {
             auto fft = wavefield->fftParameters();
@@ -142,7 +147,6 @@ int main(int argc, char** argv)
             wavefield->setFftParameters(fft);
             wavefield->setModel(vsgOcean::Wavefield::Model::FFT);
             wavefield->setFftDetail(settings.fftDetail);
-            wavefield->setFoam(settings.foam);
         }
 
         // geolocation of the scene: taken from the SDF world when available,

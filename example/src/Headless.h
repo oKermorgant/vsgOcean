@@ -251,7 +251,11 @@ namespace vsgOcean::Headless
         viewer->start_point() = vsg::clock::now();
         auto frames = settings.numFrames < 0 ? 20 : settings.numFrames;
         uint32_t frameIndex = 0;
-        while (frames > 0 && viewer->advanceToNextFrame())
+        // --max-time gates the headless run too (the wall-clock simulationTime is
+        // what develops the sea and the demo poses): with a large -f it renders
+        // until the simulated time, not the whole frame budget
+        while (frames > 0 && viewer->advanceToNextFrame()
+               && viewer->getFrameStamp()->simulationTime < settings.maxTime)
         {
             --frames;
             const auto t = viewer->getFrameStamp()->simulationTime;

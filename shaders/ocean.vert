@@ -39,7 +39,8 @@ layout(location = 0) in vec3 position; // grid point on the mean water level (z 
 layout(location = 0) out vec3 worldPosition;
 layout(location = 1) out vec3 worldNormal;
 layout(location = 2) out vec3 cameraEye; // world position of the camera of this view
-layout(location = 3) out vec3 fftCoord;  // undisplaced xy of the point [m], and the FFT fade (see below)
+layout(location = 3) out vec4 fftCoord;  // undisplaced xy of the point [m], the FFT fade (see below),
+                                        // and the analytic Gerstner Jacobian (the foam of the component sea)
 
 void main()
 {
@@ -91,7 +92,13 @@ void main()
         N += vec3(d.x * kas, d.y * kas, -qkac);
     }
 
-    fftCoord = vec3(p.xy, 0.0);
+    // the analytic Jacobian of the horizontal displacement, for free: T and B
+    // are exactly its columns - J = (1 + dDx/dx)(1 + dDy/dy) - (dDx/dy)^2 - so
+    // the component (Gerstner) sea's folding measure needs no texture: it rides
+    // this varying, and foamCoverage reads it when the FFT sea is off
+    const float jacobian = T.x * B.y - T.y * T.y;
+
+    fftCoord = vec4(p.xy, 0.0, jacobian);
     if (ocean.fft.x > 0.5)
     {
         // the FFT sea replaces the component waves: the periodic tile is looked up at the
@@ -107,7 +114,7 @@ void main()
             d += textureLod(detailDisplacement, uvDetail, 0.0).xyz;
             slope += textureLod(detailSlopes, uvDetail, 0.0).xy;
         }
-        fftCoord = vec3(p.xy, fade);
+        fftCoord = vec4(p.xy, fade, jacobian);
         p += fade * vec3(d.xy, d.z);
         N = normalize(vec3(-fade * slope, 1.0));
     }
