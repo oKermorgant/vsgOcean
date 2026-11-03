@@ -121,6 +121,10 @@ namespace vsgOceanExample
         // (combine with numFrames to capture a deterministic frame)
         vsg::Path screenshotPath;
 
+        // the semantic pass: write the per-model ID image next to the
+        // screenshot (<screenshot>_ids.png) and print the derived boxes
+        bool semantic = false;
+
         // headless video: write EVERY frame as a PNG (printf pattern, %05d is the
         // frame index) - e.g. `--video frames/f%05d.png` then encode with ffmpeg
         vsg::Path videoPattern;
@@ -207,6 +211,8 @@ namespace vsgOceanExample
             << "  --headless --extent W H    render offscreen, no window (servers, CI)\n"
             << "  -f N                       render N frames then exit\n"
             << "  --screenshot file.png      write the composited view at exit\n"
+            << "  --semantic                 also write the per-model ID image (<screenshot>_ids.png)\n"
+            << "                             and print the derived bounding boxes\n"
             << "  --video pattern            write every headless frame (encode with ffmpeg)\n"
             << "  --showcase kind            a scripted showcase video: surface | underwater | rov\n"
             << "  --fps / --profiler / --debug   frame rate at exit / instrumentation / validation\n"
@@ -369,6 +375,7 @@ namespace vsgOceanExample
 
         // capture: write the main view to a PNG file when the render loop ends
         settings.screenshotPath = arguments.value<vsg::Path>("", "--screenshot");
+        settings.semantic = arguments.read("--semantic");
         settings.videoPattern = arguments.value<vsg::Path>("", "--video");
         settings.showcaseKind = arguments.value<std::string>("", "--showcase");
         settings.showcase = !settings.showcaseKind.empty();

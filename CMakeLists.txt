@@ -103,6 +103,8 @@ vsgocean_embed_shader(snow.frag)
 vsgocean_embed_shader(rain.vert)
 vsgocean_embed_shader(rain_ring.vert)
 vsgocean_embed_shader(rain.frag)
+vsgocean_embed_shader(semantic.vert)
+vsgocean_embed_shader(semantic.frag)
 vsgocean_embed_shader(present.frag)
 
 # vsgOcean library
@@ -124,6 +126,7 @@ set(VSGOCEAN_LIBRARY_SOURCES
     src/scene/MarineSnow.cpp
     src/scene/Rain.cpp
     src/scene/Scene.cpp
+    src/scene/SemanticPass.cpp
     src/scene/Sky.cpp
     src/scene/Underwater.cpp
     # ui: runtime controls, GUI panel, HUD, camera controllers

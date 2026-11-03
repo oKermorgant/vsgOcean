@@ -6,7 +6,10 @@ add_executable(vsgOcean_example src/main.cpp)
 target_compile_definitions(vsgOcean_example PRIVATE vsgXchange_FOUND)
 
 # Link libraries - using target-based linking; the GUI, when built, comes with vsgOcean
+# the semantic image export uses zlib's PNG writer
+find_package(ZLIB REQUIRED)
 target_link_libraries(vsgOcean_example PRIVATE
+  ZLIB::ZLIB
     vsgOcean::vsgOcean
     vsgXchange::vsgXchange
 )

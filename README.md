@@ -13,6 +13,7 @@ In short:
 - **Ocean surface**: Gerstner component waves and an ECKV FFT sea, both wave models inspired by [asv_wave_sim](https://github.com/srmainwering/asv_wave_sim) (a Gazebo wave plugin), with a detail cascade and Jacobian whitecap foam; wind-driven ripple detail; sky reflection, glitter and glare above, the Snell window below.
 - **Underwater rendering**: per-pixel, per-channel Jerlov attenuation over the true submerged view segment, Henyey-Greenstein in-scatter, an underwater sky, volumetric lamp cones, marine snow and a turbidity-driven depth-of-field blur.
 - **Dimmable lights**: an SDF `<light>` intensity is each lamp's ceiling; lamps cluster by aim direction into per-robot light groups (one face, one control) — shading, cones and snow sparkle all follow.
+- **Annotation ground truth**: a semantic pass renders the models with each pixel carrying its model's ID (read back per pixel, `--semantic` in the example writes the ID image and prints the derived boxes) - the base for training-data generation.
 - **Render pipelines**: the scene renders from any number of cameras (sensor cameras to texture, ready for image readback); `--headless` renders offscreen without a window, for servers, CI and non-presenting GPUs.
 
 ## Videos
@@ -64,6 +65,9 @@ The example application renders an islands scene with a surface vehicle (a WAM-V
 
 # headless: render offscreen (no window; for servers, CI, non-presenting GPUs) and write a PNG
 ./vsgOcean_example --headless --extent 1920 1080 -f 60 --screenshot shot.png
+
+# the semantic ID image + the derived bounding boxes (training-data ground truth)
+./vsgOcean_example --headless --extent 1280 720 -f 60 --screenshot shot.png --semantic
 
 # custom scenes: pass SDF files as positional arguments
 ./vsgOcean_example my_world.sdf
