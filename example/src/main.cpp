@@ -210,10 +210,11 @@ int main(int argc, char** argv)
                 }
             }
 
-            // the boat camera rides at the bow of the surface vehicle, above the
-            // roofline of the central pod (the pod's front edge reaches ~2.2 m - a
-            // lower camera sees the roof in the lower half of the frame), looking
-            // along the direction of travel: the vehicle's +X is its heading
+            // the boat camera rides at the bow of the surface vehicle, at the
+            // top of the central pod's mast (~3 m: the camera used to sit lower
+            // and dipped below the wave crests in a rough sea - the hull roll
+            // and pitch do not lift it enough), looking along the direction of
+            // travel: the vehicle's +X is its heading
             if (boatPipeline && vsg_scene->model("wamv"))
             {
                 if (auto pose = demoPoses.getPose("wamv", *vsg_scene, t))
@@ -221,7 +222,7 @@ int main(int argc, char** argv)
                     const auto lookAt = boatPipeline->camera()->viewMatrix.cast<vsg::LookAt>();
                     const vsg::dvec3 position = (*pose) * vsg::dvec3(0.0, 0.0, 0.0);
                     const vsg::dvec3 travel = vsg::normalize((*pose) * vsg::dvec3(1.0, 0.0, 0.0) - position);
-                    lookAt->eye = position + travel * 2.1 + vsg::dvec3(0.0, 0.0, 2.4);
+                    lookAt->eye = position + travel * 2.1 + vsg::dvec3(0.0, 0.0, 3.0);
                     lookAt->center = lookAt->eye + travel * 8.0 + vsg::dvec3(0.0, 0.0, -0.5);
                 }
             }
