@@ -27,6 +27,20 @@ inline std::string modelFile(const std::string& path)
 #endif
 }
 
+/// The camera path player of the -p flag. The stock vsg handler takes
+/// keyModified == KEY_Undefined as "key disabled", but unmapped key presses
+/// (Shift, Caps Lock) arrive as keyModified == KEY_Undefined and toggle a
+/// recording session - one that spams the console per frame and overwrites
+/// saved_animation.vsgt. The keys are removed entirely here: playback follows
+/// the -p flag / autoPlay, recording is not part of the example.
+struct CameraPathHandler : vsg::Inherit<vsg::CameraAnimationHandler, CameraPathHandler>
+{
+    explicit CameraPathHandler(vsg::ref_ptr<vsg::Object> object, const vsg::Path& filename = {}, vsg::ref_ptr<vsg::Options> options = {}) :
+        vsg::Inherit<vsg::CameraAnimationHandler, CameraPathHandler>(object, filename, options) {}
+
+    void apply(vsg::KeyPressEvent&) override {}
+};
+
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -570,10 +584,7 @@ int main(int argc, char** argv)
         // add close handler to respond to the close window button and pressing escape
         viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 
-        auto cameraAnimation = vsg::CameraAnimationHandler::create(camera, settings.pathFilename, options);
-        // the R key belongs to the semantic annotation view (see the overlay
-        // wiring below); a camera path is recorded through the handler's API
-        cameraAnimation->toggleRecordingKey = vsg::KEY_Undefined;
+        auto cameraAnimation = CameraPathHandler::create(camera, settings.pathFilename, options);
         viewer->addEventHandler(cameraAnimation);
         if (settings.autoPlay && cameraAnimation->animation)
         {
