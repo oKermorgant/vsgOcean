@@ -32,19 +32,19 @@ namespace vsgOcean
         /// key / action pairs of the bindings, rendered by the GUI panel
         using Binding = std::pair<std::string_view, std::string_view>;
         inline static constexpr std::array<Binding, 13> bindings{{
-            {"mouse left drag", "orbit the view (stable horizon)"},
-            {"mouse right drag", "translate the camera"},
-            {"mouse wheel", "dolly in / out"},
-            {"H", "help + common controls"},
-            {"C", "camera previews on / off"},
-            {"S", "sky widget on / off"},
-            {"O", "ocean surface widget on / off"},
-            {"U", "underwater widget on / off"},
-            {"L", "lights widget on / off"},
-            {"R", "semantic view: annotation, 50% overlay, photo"},
-            {"E", "export the environment (YAML)"},
-            {"Tab", "cycle the tracked model"},
-            {"Esc", "quit"},
+            {"mouse left drag", "Translate the camera"},
+            {"mouse right drag", "Orbit the view (stable horizon)"},
+            {"mouse wheel", "Dolly in / out"},
+            {"H", "Help window on / off"},
+            {"C", "Camera previews on / off"},
+            {"S", "Sky widget on / off"},
+            {"O", "Ocean surface widget on / off"},
+            {"U", "Underwater widget on / off"},
+            {"L", "Lights widget on / off"},
+            {"R", "Rendering view: photo, annotation, 50% overlay"},
+            {"E", "Export the environment (the YAML target is picked in the help window)"},
+            {"Tab", "Cycle the tracked model"},
+            {"Esc", "Quit"},
         }};
 
         explicit EnvironmentControls(const vsg::ref_ptr<Scene>& scene);

@@ -23,6 +23,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #ifdef VSGOCEAN_WITH_GUI
 #    include <vsgImGui/RenderImGui.h>
 #    include <vsgImGui/SendEventsToImGui.h>
+#    include <vsgImGui/imgui_stdlib.h>
 #endif
 
 namespace vsgOcean
@@ -157,6 +158,68 @@ namespace vsgOcean
             }
         };
 
+        // the export file menu: the yaml files of one directory, with the
+        // sub-directories to walk down and ".." to walk up, so the E key's
+        // target is picked rather than typed (the input still allows new names)
+        struct ExportMenuEntry
+        {
+            vsg::Path name;
+            bool directory;
+        };
+        vsg::Path exportMenuDirectory{"."};
+        std::vector<ExportMenuEntry> exportMenuEntries;
+
+        void loadExportMenuEntries()
+        {
+            exportMenuEntries.clear();
+            for (const auto& entry : vsg::getDirectoryContents(exportMenuDirectory))
+            {
+                if (entry == "." || entry == "..") continue;
+                // an openable "directory listing" marks a directory: files fail it
+                exportMenuEntries.push_back({entry, !vsg::getDirectoryContents(exportMenuDirectory / entry).empty()});
+            }
+            std::sort(exportMenuEntries.begin(), exportMenuEntries.end(), [](const auto& lhs, const auto& rhs) {
+                return lhs.directory != rhs.directory ? lhs.directory : lhs.name < rhs.name;
+            });
+        }
+
+        void drawExportFileMenu(vsg::Path& exportPath)
+        {
+            if (ImGui::Button("pick file"))
+            {
+                const auto dir = vsg::filePath(exportPath);
+                exportMenuDirectory = dir.empty() ? vsg::Path{"."} : dir;
+                loadExportMenuEntries();
+                ImGui::OpenPopup("export file");
+            }
+            if (!ImGui::BeginPopup("export file")) return;
+
+            if (ImGui::Selectable(".."))
+            {
+                // filePath of a bare name is empty: append ".." instead, so
+                // "." and ".." walk up the same way
+                const auto parent = vsg::filePath(exportMenuDirectory);
+                exportMenuDirectory = parent.empty() ? exportMenuDirectory / ".." : parent;
+                loadExportMenuEntries();
+            }
+            for (const auto& [name, directory] : exportMenuEntries)
+            {
+                const auto label = name.string() + (directory ? "/" : "");
+                if (!ImGui::Selectable(label.c_str())) continue;
+                if (directory)
+                {
+                    exportMenuDirectory = exportMenuDirectory / name;
+                    loadExportMenuEntries();
+                }
+                else
+                {
+                    exportPath = exportMenuDirectory / name;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            ImGui::EndPopup();
+        }
+
         bool drawHelp(const vsg::ref_ptr<EnvironmentControls>& controls, const vsg::ref_ptr<Scene>& scene,
                       const std::string& deviceName)
         {
@@ -175,7 +238,22 @@ namespace vsgOcean
             ImGui::Separator();
 
             // export the environment as tuned so far: a structured YAML file,
-            // reloadable with the example's --env flag (same as the E key)
+            // reloadable with the example's --env flag (the E key exports to
+            // the same target); the target is typed in the input or picked
+            // from the file menu
+            std::string exportPath{controls->environmentExportPath};
+            ImGui::SetNextItemWidth(220.0f);
+            // out of ImGui's tab chain: Tab is the model tracking key, not a
+            // focus step between the widgets (ImGui 1.92 tabs through inputs)
+            ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
+            if (ImGui::InputText("##export target", &exportPath))
+            {
+                controls->environmentExportPath = vsg::Path{exportPath};
+            }
+            ImGui::PopItemFlag();
+            ImGui::SameLine();
+            drawExportFileMenu(controls->environmentExportPath);
+            ImGui::SameLine();
             if (ImGui::Button("export environment"))
             {
                 if (!scene->saveEnvironment(controls->environmentExportPath))
@@ -183,8 +261,6 @@ namespace vsgOcean
                     ImGui::OpenPopup("export failed");
                 }
             }
-            ImGui::SameLine();
-            ImGui::TextUnformatted(std::string(controls->environmentExportPath).c_str());
             if (ImGui::BeginPopup("export failed"))
             {
                 ImGui::TextUnformatted("could not export (built without yaml-cpp?)");

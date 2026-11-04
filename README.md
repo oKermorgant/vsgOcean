@@ -77,7 +77,7 @@ The example application renders an islands scene with a surface vehicle (a WAM-V
 
 ### Saving and reloading an environment
 
-An environment tuned in the widgets is worth keeping: **E** exports the current environment to a YAML file — sky and weather, wind, water optics and wave. **`--env`** loads it back at startup, and every group and key is optional, so hand-written files can be partial:
+An environment tuned in the widgets is worth keeping: **E** exports the current environment to a YAML file — sky and weather, wind, water optics and wave. The target file is typed or picked in the help window (a small file menu, defaulting to `vsgOcean-environment.yaml`), and without the GUI the default path is written. **`--env`** loads it back at startup, and every group and key is optional, so hand-written files can be partial:
 
 ```yaml
 # storm.yaml, by someone in a hurry
@@ -103,23 +103,62 @@ The environment is tuned at runtime through the keyboard and widgets (`vsgOcean:
 
 | input | action |
 | --- | --- |
-| left drag / right drag / wheel | translate / orbit (stable horizon) / dolly |
-| H | help window on / off (the bindings, the model tracking, the live stats) |
-| C | camera previews on / off (hidden by default; says so when no camera is rendering) |
-| S | sky widget on / off (sun, day cycle, fog, cloud cover, rain) |
-| O | ocean surface widget on / off (wind, waves) |
-| U | underwater widget on / off (water optics, current, snow, DOF blur) |
-| L | lights widget on / off (one intensity slider per light group) |
-| R | semantic view: photo, the annotation (each model in the colour of its name), the annotation at 50% over the photo |
-| E | export the environment (a flat YAML file) |
-| Tab | cycle the tracked model (camera follows) |
-| Esc | quit |
+| Left drag / right drag / wheel | Translate / orbit (stable horizon) / dolly |
+| L | Lights widget on / off (one intensity slider per light group) |
+| O | Ocean surface widget on / off (wind, waves) |
+| C | Camera previews on / off (hidden by default; says so when no camera is rendering) |
+| H | Help window on / off (the bindings, the model tracking, the live stats) |
+| U | Underwater widget on / off (water optics, current, snow, DOF blur) |
+| S | Sky widget on / off (sun, day cycle, fog, cloud cover, rain) |
+| E | Export the environment (the YAML target is typed or picked in the help window) |
+| R | Rendering view: photo, the annotation (each model in the colour of its name), the annotation at 50% over the photo |
+| Tab | Cycle the tracked model (camera follows) |
+| Esc | Quit |
 
 The bindings are always visible in a small HUD in a corner of the window. When vsgOcean is built with vsgImGui, each widget is its own window: the widgets read the environment every frame and write only on change — an update from outside (a topic, the code) is reflected immediately, and changing a widget takes over from any preset. The underwater widget carries the **depth-of-field blur** (off by default): the water's turbidity blurs the view with the water path length, following the Jerlov beam attenuation.
 
 ## The rest of the command line
 
 The few flags shown above cover the common looks; the example has many more (capture, diagnostics, every wave and water parameter). Run it with `--help` for the full list of the vsgOcean flags — and the standard vsg viewer flags (`--window`, `--gpu`, `--mt`, `--log-level`, …) also apply.
+
+## How vsgOcean sits on its dependencies
+
+Everything vsgOcean builds — the wave surfaces, the sky, the underwater passes — is a plain [VulkanSceneGraph](https://github.com/vsg-dev/VulkanSceneGraph) scene graph, and its public API speaks vsg types (`vsg::ref_ptr`, `vsg::dvec3` poses, `vsg::Options`), so **vsg is the one dependency a consumer links and sees**. The scene description side is [sdformat](https://github.com/gazebosim/sdformat): when it is found at build time, `SDFLoader` turns SDF worlds and models into vsg graphs, but the link is private — an application that loads SDF files never sees an sdformat header. Mesh and texture files referenced by a scene load through [vsgXchange](https://github.com/vsg-dev/vsgXchange) readers, which the application registers in `vsg::Options`; vsgOcean calls them, it does not link them.
+
+```
+      ┌────────────────────────────────────────────────────────────┐
+      │                    the application                        │
+      │           (the example, the tutorial, a simulator)         │
+      │    drives poses, lights and the environment through the    │
+      │    C++ API, and links vsgOcean + vsgXchange                │
+      └────────────────────────────┬───────────────────────────────┘
+                                   │
+      ┌────────────────────────────┴─────────────┐   ┌──────────────────────┐
+      │                 vsgOcean                  │   │      vsgXchange      │
+      │  core      Environment, Wavefield,       │   │  readers for mesh,   │
+      │            FftWaves, WaterOptics         │   │  texture and image   │
+      │  scene     Models, Scene,                │──▶│  files (glTF, OBJ,   │
+      │            RenderPipeline, Sky, Rain,    │   │  PNG, …) — shared    │
+      │            MarineSnow, Underwater,       │   │  through vsg::Options│
+      │            SDFLoader                      │   └──────────────────────┘
+      │  semantic  the ID pass and its palette    │
+      │  ui        controls, widgets, HUD         │
+      └──────┬───────────┬───────────┬───────────┘
+             │           │           │
+             ▼           ▼           ▼
+   ┌─────────────┐ ┌───────────┐ ┌──────────────────────────────┐
+   │     vsg     │ │ sdformat  │ │ vsgImGui  yaml-cpp  ZLIB    │
+   │ required,   │ │ optional, │ │ optional, private: widgets,  │
+   │ public:     │ │ private:  │ │ YAML environment files, PNG   │
+   │ scene graph,│ │ SDF       │ │ screenshots — each built     │
+   │ Vulkan      │ │ worlds    │ │ only when found at configure  │
+   └──────┬──────┘ └───────────┘ └──────────────────────────────┘
+          │
+          ▼
+       Vulkan (a Vulkan-capable GPU and driver)
+```
+
+The option flags of the build section map to this: `-DVSGOCEAN_WITH_SDF=OFF` removes the sdformat arrow, `-DVSGOCEAN_WITH_GUI=OFF` the vsgImGui one, `-DVSGOCEAN_WITH_ENV_FILE=OFF` the yaml-cpp one.
 
 ## Building
 
