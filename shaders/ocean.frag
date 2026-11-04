@@ -92,7 +92,7 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
-    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 2.0) * ocean.amplitude[0].y;
+    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 3.0) * ocean.amplitude[0].y;
 
     // haze towards the fog color at the horizon (Beer-Lambert, effective 400 m
     // path); the band follows the same clamped elevation as the gradient
@@ -318,7 +318,10 @@ void main()
         const float foamLight = 0.45 + 0.55 * mix(max(dot(n, sunDirection), 0.0), 0.7, ocean.sunDirection.w);
         const vec3 foamColor = vec3(0.92, 0.95, 0.97) * foamLight * day;
 
-        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 2.0) * ocean.amplitude[0].y * (1.0 - foam);
+        // the cloud cover cubed on the sun path: the glitter survives a light
+        // cover but is properly gone by 6-7 oktas (keep in sync with the sky's
+        // own disc and glow)
+        color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 3.0) * ocean.amplitude[0].y * (1.0 - foam);
         color = mix(color, foamColor, foam);
 
         // transparency towards the scene behind the surface: the assumed water

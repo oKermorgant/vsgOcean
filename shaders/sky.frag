@@ -81,8 +81,10 @@ vec3 skyColor(vec3 direction, vec3 sunDirection, float pixelAngle)
     const float glow = exp(-sunAngle / 0.15) * 0.22 + exp(-sunAngle / 0.7) * 0.08;
     const vec3 sunColor = mix(vec3(1.0, 0.55, 0.25), vec3(1.0, 0.97, 0.90), day);
     const float sunFade = clamp(sunHeight * 10.0 + 0.5, 0.0, 1.0);
-    // the clouds hide the sun: the disc and its glow fade out with the cover
-    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 2.0);
+    // the clouds hide the sun: the disc and its glow fade out with the cover,
+    // cubed - a half-covered sky still reads half-sunny, but the sun is
+    // properly gone by 6-7 oktas
+    sky += (sunDisc * 5.0 + glow) * sunColor * sunFade * pow(1.0 - clouds, 3.0);
 
     // the constellations of the night sky, visible when the sun is below the horizon
     // and the sky is clear (the clouds hide the stars)
