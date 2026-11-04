@@ -354,8 +354,11 @@ void main()
         }
         color = through;
 
-        // the light from above survives the viewer's submersion depth, per channel
-        color *= exp(-ocean.seaLevel.rgb * submersion);
+        // the transport to the submerged camera (Beer-Lambert over the TRUE view
+        // path, with the in-scattered water light filling in) is the composite's
+        // job: this pass must not pre-attenuate by the submersion depth on top
+        // of it, or the surface from below is dimmed twice - the Snell window
+        // sank to a flat veil, its ripples invisible past a few metres
         alpha = 1.0;
     }
 
