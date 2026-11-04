@@ -183,6 +183,20 @@ namespace vsgOcean
             });
         }
 
+        // the parent directory for the ".." row. vsg::filePath returns a
+        // ".."-terminated path unchanged and is empty for a bare name, so the
+        // relative chain is appended instead ("." -> ".." -> "../.."); "/" is
+        // the root and stays put
+        vsg::Path parentDirectory(const vsg::Path& directory)
+        {
+            const auto name = directory.string();
+            if (name == ".") return "..";
+            if (name == ".." || (name.size() >= 3 && name.compare(name.size() - 3, 3, "/..") == 0)) return directory / "..";
+            if (name == "/") return directory;
+            const auto parent = vsg::filePath(directory);
+            return parent.empty() ? vsg::Path{"."} : parent;
+        }
+
         void drawExportFileMenu(vsg::Path& exportPath)
         {
             if (ImGui::Button("pick file"))
@@ -196,10 +210,7 @@ namespace vsgOcean
 
             if (ImGui::Selectable(".."))
             {
-                // filePath of a bare name is empty: append ".." instead, so
-                // "." and ".." walk up the same way
-                const auto parent = vsg::filePath(exportMenuDirectory);
-                exportMenuDirectory = parent.empty() ? exportMenuDirectory / ".." : parent;
+                exportMenuDirectory = parentDirectory(exportMenuDirectory);
                 loadExportMenuEntries();
             }
             for (const auto& [name, directory] : exportMenuEntries)
