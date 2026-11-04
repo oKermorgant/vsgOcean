@@ -281,14 +281,18 @@ int main(int argc, char** argv)
 
             if (settings.showcaseKind == "semantic")
             {
-                // the annotation tour: a photo travelling to the WAM-V, the
-                // semantic view at the boat, a photo travel down to the ROV
-                // (crossing the surface), then the semantic view tracking the
-                // ROV at the wreck - the [R] cycle as a scripted shot
+                // the annotation tour: a photo travelling to the WAM-V riding
+                // a moderate wind sea, the semantic view at the boat, a photo
+                // travel down to the ROV (crossing the surface), then the
+                // semantic view tracking the ROV at the wreck - the [R] cycle
+                // as a scripted shot
                 environment->setSunElevation(35.0);
                 environment->setSunAzimuth(135.0);
-                environment->setCloudiness(2.0);
+                environment->setCloudiness(3.0); // broken cloud
                 environment->setMarineSnowDensity(10.0);
+                environment->setRainRate(0.2); // light rain streaks + splash rings
+                environment->setWindSpeed(8.0); // waves the WAM-V visibly rides
+                environment->setWindDirection(200.0);
                 // the ROV's dive lamps at a quarter of their ceiling (as the
                 // underwater tour: full power cuts the murk and reads "blind")
                 if (t < 1.0 / 60.0)
@@ -297,6 +301,15 @@ int main(int argc, char** argv)
                     {
                         if (group.rfind("bluerov2/", 0) == 0) vsg_scene->setLightGroupIntensity(group, 0.25);
                     }
+                    // the sea the boat rides: the FFT cascade under the wind
+                    // above, with a detail cascade so the tile repetition is
+                    // invisible; the foam crests follow the compression
+                    auto fft = wavefield->fftParameters();
+                    fft.choppiness = 1.1;
+                    wavefield->setFftParameters(fft);
+                    wavefield->setFftDetail(true);
+                    wavefield->setModel(vsgOcean::Wavefield::Model::FFT);
+                    wavefield->setFoam(0.35);
                 }
 
                 vsg::dvec3 rovEye{0.0, 0.0, -35.0}, rovCenter{0.0, 0.0, -37.0};
