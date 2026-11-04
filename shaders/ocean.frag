@@ -307,11 +307,15 @@ void main()
 
         // the refracted view into the water: the near-surface volume back-scatters the
         // sunlight in the Jerlov colour over a shallow effective depth (~1.5 m, the
-        // reason the sea reads bright blue from a boat while the deep is dark); the
-        // scene behind still shows through the alpha
+        // reason the sea reads bright blue from a boat while the deep is dark), and
+        // the deep assumed column closes the open-water look. Where actual GEOMETRY
+        // sits behind the surface, the pipeline's composite replaces this term with
+        // the honest per-pixel transport of that geometry (the skin blends by its
+        // reflectance); over open water this colour is what shows through
         const vec3 intoWater = refract(-toEye, n, 1.0 / 1.33);
         const float scatter = exp(-ocean.waterColor.a * 1.5) * max(sunDirection.z, 0.0) * (1.0 - ocean.sunDirection.w);
-        const vec3 throughWater = ocean.waterColor.rgb * scatter + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
+        const vec3 throughWater = ocean.waterColor.rgb * scatter
+                                 + underwaterColor(intoWater, sunDirection, ocean.params.w) * 0.5;
 
         // the whitecaps: diffusely lit, so neither the sky mirror nor the sun glitter shows through
         const float foam = foamCoverage();
@@ -324,16 +328,14 @@ void main()
         color = mix(throughWater, reflectedSky, fresnel * skyWeight) + (glitter + glare) * sunColor * sunFade * pow(1.0 - ocean.sunDirection.w, 3.0) * ocean.amplitude[0].y * (1.0 - foam);
         color = mix(color, foamColor, foam);
 
-        // transparency towards the scene behind the surface: the assumed water
-        // column of the through-view, a DEEP default (15 m two-way at the mean
-        // attenuation): a deep wreck does not shine through the coastal murk -
-        // from above the sea reads as its own body colour there - while the
-        // clearest oceanic types keep some see-through (the shallows are seen
-        // from above through the terrain pixels that rise above the surface,
-        // which the composite transports by their true depth). The honest fix -
-        // the alpha following the TRUE depth of whatever is behind, per pixel -
-        // needs the pre-surface depth sampled in this pass (a depth copy between
-        // two render passes; see the LLM notes)
+        // alpha is the water column's opacity towards the scene behind the
+        // surface: a DEEP default (15 m two-way at the mean attenuation), so a
+        // deep wreck does not shine through the coastal murk while the
+        // clearest oceanic types keep some see-through. In the pipeline the
+        // composite blends the skin by this weight against the PRE-SURFACE
+        // content transported through the true water column (the honest
+        // through-view: the shallow shore reads through attenuated, a deep
+        // wreck goes dark); standalone the surface renders opaquely
         const float clarity = exp(-ocean.waterColor.a * 15.0);
         alpha = mix(fresnel + (1.0 - fresnel) * (1.0 - clarity), 1.0, foam);
     }

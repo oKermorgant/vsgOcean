@@ -52,7 +52,9 @@ namespace vsgOcean
             {0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
             {1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
             {2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
-            {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}};
+            {3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+            {4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr},
+            {5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT, nullptr}};
         auto underwaterLayout = vsg::DescriptorSetLayout::create(underwaterBindings);
 
         vsg::VertexInputState::Bindings vertexBindings{{0, sizeof(vsg::vec3), VK_VERTEX_INPUT_RATE_VERTEX}};
@@ -86,7 +88,15 @@ namespace vsgOcean
         auto lampsDescriptor = vsg::DescriptorBuffer::create(vsg::DataList{lamps_}, 3, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         colorDescriptor_ = vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, color, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         depthDescriptor_ = vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        descriptorSet_ = vsg::DescriptorSet::create(underwaterLayout, vsg::Descriptors{uniformDescriptor, colorDescriptor_, depthDescriptor_, lampsDescriptor});
+        // the surface-only pass (the ocean skin + its per-pixel reflectance) and its
+        // depth, blended by the composite against the pre-surface content. Bound to
+        // the scene views until the pipeline wires the real ones (a null view would
+        // break the descriptor write)
+        surfaceColorDescriptor_ = vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, color, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 4, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        surfaceDepthDescriptor_ = vsg::DescriptorImage::create(vsg::ImageInfo::create(sampler, depth, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL), 5, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        descriptorSet_ = vsg::DescriptorSet::create(underwaterLayout,
+                                                    vsg::Descriptors{uniformDescriptor, colorDescriptor_, depthDescriptor_, lampsDescriptor,
+                                                                     surfaceColorDescriptor_, surfaceDepthDescriptor_});
 
         auto stateGroup = vsg::StateGroup::create();
         stateGroup->add(vsg::BindGraphicsPipeline::create(pipeline));
@@ -106,6 +116,21 @@ namespace vsgOcean
 
         colorDescriptor_->imageInfoList[0]->imageView = std::move(color);
         depthDescriptor_->imageInfoList[0]->imageView = std::move(depth);
+
+        // force the next compile (vsg::CompileManager) to rebind the new views
+        descriptorSet_->release();
+    }
+
+    void Underwater::setSurfaceTextures(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth)
+    {
+        if (!surfaceColorDescriptor_ || !surfaceDepthDescriptor_ || surfaceColorDescriptor_->imageInfoList.empty()
+            || surfaceDepthDescriptor_->imageInfoList.empty() || !color || !depth)
+        {
+            return;
+        }
+
+        surfaceColorDescriptor_->imageInfoList[0]->imageView = std::move(color);
+        surfaceDepthDescriptor_->imageInfoList[0]->imageView = std::move(depth);
 
         // force the next compile (vsg::CompileManager) to rebind the new views
         descriptorSet_->release();

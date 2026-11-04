@@ -119,6 +119,17 @@ namespace vsgOcean
         // transparent, also never writing depth, and only ever above the water
         addChild(marineSnow_);
         addChild(rain_);
+
+        // the same scene WITHOUT the ocean surface, for the pipeline's pre-surface
+        // pass: the underwater composite transports this content through the true
+        // water path where the surface covers it (the honest per-pixel through-view)
+        sceneWithoutSurface_ = vsg::Group::create();
+        sceneWithoutSurface_->addChild(sky_);
+        sceneWithoutSurface_->addChild(ambientLight_);
+        sceneWithoutSurface_->addChild(sunLight_);
+        sceneWithoutSurface_->addChild(world_);
+        sceneWithoutSurface_->addChild(marineSnow_);
+        sceneWithoutSurface_->addChild(rain_);
     }
 
     void Scene::setSurfaceEnabled(bool enabled)
@@ -586,6 +597,7 @@ namespace vsgOcean
 
         auto commandGraph = vsg::CommandGraph::create(window);
         commandGraph->addChild(pipeline->sceneRenderGraph());
+        commandGraph->addChild(pipeline->surfaceRenderGraph());
         commandGraph->addChild(pipeline->compositeRenderGraph());
         commandGraph->addChild(windowRenderGraph);
 

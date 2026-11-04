@@ -134,6 +134,17 @@ namespace vsgOcean
         /// The ocean surface and its wave field (the Gazebo wave model).
         vsg::ref_ptr<OceanSurface> surface() const { return surface_; }
 
+        /// The ocean surface behind its enable switch (see setSurfaceEnabled):
+        /// the pipeline's surface-only pass renders this node, so a disabled
+        /// surface masks itself out of that pass too.
+        [[nodiscard]] vsg::ref_ptr<vsg::Node> surfaceNode() const { return surfaceSwitch_; }
+
+        /// The scene without the ocean surface (the same sky, lighting, models,
+        /// marine snow and rain nodes, shared): the pipeline's pre-surface pass
+        /// renders it, and the underwater composite transports this content
+        /// through the true water path wherever the surface covers it.
+        [[nodiscard]] vsg::ref_ptr<vsg::Group> sceneWithoutSurface() const { return sceneWithoutSurface_; }
+
         /// The marine snow field of the water column (density and current live in
         /// the Environment).
         vsg::ref_ptr<MarineSnow> marineSnow() const { return marineSnow_; }
@@ -233,6 +244,7 @@ namespace vsgOcean
         vsg::ref_ptr<MarineSnow> marineSnow_;
         vsg::ref_ptr<Rain> rain_;
         vsg::ref_ptr<vsg::Switch> surfaceSwitch_;
+        vsg::ref_ptr<vsg::Group> sceneWithoutSurface_;
         vsg::ref_ptr<Underwater> underwater_;
         std::vector<LampLight> lampLights_;
         // the dimmable scene lamps: the SDF load-time intensity (the ceiling)

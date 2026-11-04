@@ -698,6 +698,7 @@ int main(int argc, char** argv)
         {
             if (!pipeline) continue;
             sensorGraphs.push_back(pipeline->sceneRenderGraph());
+            sensorGraphs.push_back(pipeline->surfaceRenderGraph());
             sensorGraphs.push_back(pipeline->compositeRenderGraph());
         }
         commandGraph->children.insert(commandGraph->children.end() - 1, sensorGraphs.begin(), sensorGraphs.end());

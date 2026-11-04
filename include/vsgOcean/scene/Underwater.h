@@ -45,6 +45,12 @@ namespace vsgOcean
         /// compile (vsg::CompileManager) rebinds them.
         void setSceneTextures(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth);
 
+        /// Point the pass at the surface-only pass's attachments (the ocean skin in
+        /// rgb, its per-pixel reflectance in alpha, and the surface depth). No-op
+        /// before the pipeline wires them: the honest through-view simply falls
+        /// back to the pre-surface content alone.
+        void setSurfaceTextures(vsg::ref_ptr<vsg::ImageView> color, vsg::ref_ptr<vsg::ImageView> depth);
+
         /// Refresh the pass from the environment (Jerlov water type, fog), the camera
         /// (eye, inverse view projection, render extent) and this camera's submersion
         /// depth below the surface (each pipeline computes its own). lamps are the
@@ -70,6 +76,8 @@ namespace vsgOcean
 
         vsg::ref_ptr<vsg::DescriptorImage> colorDescriptor_;
         vsg::ref_ptr<vsg::DescriptorImage> depthDescriptor_;
+        vsg::ref_ptr<vsg::DescriptorImage> surfaceColorDescriptor_;
+        vsg::ref_ptr<vsg::DescriptorImage> surfaceDepthDescriptor_;
         vsg::ref_ptr<vsg::DescriptorSet> descriptorSet_;
     };
 }

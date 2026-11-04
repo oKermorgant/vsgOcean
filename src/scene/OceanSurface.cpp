@@ -98,19 +98,22 @@ namespace vsgOcean
         auto rasterization = vsg::RasterizationState::create();
         rasterization->cullMode = VK_CULL_MODE_NONE;
 
-        // a transparent pass: blended over the scene beneath the surface, drawn after the
-        // opaque scene so nothing renders after it. It writes depth (reversed-Z, like the
-        // rest of the scene): the composite pass then attenuates and fogs it by its true
-        // view distance, like every other scene object - also seen from below. What the
-        // water lets through to the surface's own alpha (the scene beneath it) is the
-        // assumed water column of ocean.frag, a deep-column default
+        // an OPAQUE pass: in the pipeline the surface renders alone into its own
+        // target (rgb: its skin - reflection, glitter, foam, the assumed water
+        // column; a: the composite's blend weight), so blending would
+        // premultiply the skin by its own reflectance and leave a black sea. It
+        // writes depth (reversed-Z, like the rest of the scene): the composite
+        // blends it by depth against the pre-surface content. Standalone (a
+        // plain view, no pipeline) the surface draws its assumed-column colour
+        // opaquely too - no see-through outside the pipeline, where there is no
+        // honest transport to see through WITH
         auto depthStencil = vsg::DepthStencilState::create();
         depthStencil->depthTestEnable = VK_TRUE;
         depthStencil->depthWriteEnable = VK_TRUE;
         depthStencil->depthCompareOp = VK_COMPARE_OP_GREATER; // vsg's reversed depth convention
 
         auto blend = vsg::ColorBlendState::create();
-        blend->configureAttachments(true);
+        blend->configureAttachments(false);
 
         vsg::GraphicsPipelineStates pipelineStates{
             vsg::VertexInputState::create(vertexBindings, vertexAttributes),

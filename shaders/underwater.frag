@@ -1,7 +1,9 @@
 // vsgOcean scene composite: fullscreen fragment stage
 //
-// The scene (sky, lighting, models, ocean surface) is rendered into an offscreen
-// color+depth target; this pass draws it to the pipeline's output image, applying:
+// The scene renders in TWO offscreen color+depth targets: the pre-surface pass
+// (sky, lighting, models, marine snow, rain) and the surface-only pass (the
+// ocean skin with its per-pixel reflectance in alpha). This pass composites
+// them to the pipeline's output image, applying:
 //
 // - atmospheric fog by view distance, on every pixel with scene geometry (the models
 //   use the standard vsg shaders, which have no fog of their own), blended towards
@@ -10,8 +12,11 @@
 //   scene depth buffer, so attenuation follows the view distance to each object,
 //   and the transmittance is per channel (red is absorbed first), with the
 //   in-scattered water light replacing what was absorbed
+// - where the surface covers the pixel, the HONEST through-view: the pre-surface
+//   content behind it travels through the true refracted water column and blends
+//   against the skin by its per-pixel reflectance (the Fresnel of the wave normal)
 //
-// The world position of each pixel is reconstructed from the scene depth buffer and
+// The world position of each pixel is reconstructed from the depth buffers and
 // this camera's inverse view projection (uploaded per frame by the pass). The ray is
 // split at the water surface: the atmospheric fog applies to the air segment, the
 // underwater transport to the submerged segment.
@@ -33,6 +38,12 @@ layout(std140, set = 0, binding = 0) uniform Composite
 
 layout(set = 0, binding = 1) uniform sampler2D sceneColor;
 layout(set = 0, binding = 2) uniform sampler2D sceneDepth;
+
+// the surface-only pass's attachments: the ocean skin (rgb) with its
+// per-pixel REFLECTANCE (a) and the surface depth (a cleared depth = no
+// surface at this pixel)
+layout(set = 0, binding = 4) uniform sampler2D surfaceColor;
+layout(set = 0, binding = 5) uniform sampler2D surfaceDepth;
 
 // the scene's point and spot lights (collected in world space each frame): the
 // underwater composite ray-marches them as volumetric light cones over the
@@ -177,46 +188,23 @@ vec3 lampMarch(vec3 viewDir, float tStart, float tEnd)
     return inscatter;
 }
 
-void main()
+// unproject a window depth (reversed: 1 near, 0 cleared / background) to its world
+// position. Vulkan NDC z in [0,1]: the window depth is the NDC z as is
+vec3 unproject(const float depthValue)
 {
-    const vec2 uv = gl_FragCoord.xy / env.extent.xy;
-    // reversed depth (vsg convention): 1 near, 0 cleared / background
-    const float depth = texture(sceneDepth, uv).r;
-    // the anti-aliased scene colour: only geometry edges alias (the background
-    // sky and open-water gradients are smooth), so the FXAA's extra taps are
-    // paid only where there is scene geometry
-    vec3 color = depth > 0.0 ? fxaa(uv, 1.0 / env.extent.xy) : texture(sceneColor, uv).rgb;
+    const vec4 worldH = env.inverseViewProjection * vec4(ndc, depthValue, 1.0);
+    return worldH.xyz / worldH.w;
+}
 
-    // the light path through the water: from a submerged camera up to the surface
-    // haze and underwater background - keep the scene color as is, but a submerged
-    // camera still sees the volumetric lamp cones against the open water: march the
-    // ray out to the surface crossing when looking up, or the fog-out distance
-    // (beyond it the lamps' inverse-square falloff makes the contribution negligible)
-    if (depth <= 0.0)
-    {
-        if (env.eye.w > 0.0)
-        {
-            // the view ray through a background pixel: unprojected at the far plane
-            const vec4 backgroundH = env.inverseViewProjection * vec4(ndc, 1.0, 1.0);
-            const vec3 backgroundDir = normalize(backgroundH.xyz / backgroundH.w - env.eye.xyz);
-            float backgroundEnd;
-            if (backgroundDir.z > 1.0e-4) backgroundEnd = (env.extent.w - env.eye.z) / backgroundDir.z;
-            else backgroundEnd = 150.0;
-            color += lampMarch(backgroundDir, 0.0, backgroundEnd);
-        }
-        fragColor = vec4(color, 1.0);
-        return;
-    }
-
-    // fragment world position and view distance, reconstructed from the depth buffer
-    // (reversed depth, Vulkan NDC z in [0,1]: the window depth is the NDC z as is)
-    const vec4 worldH = env.inverseViewProjection * vec4(ndc, depth, 1.0);
-    const vec3 world = worldH.xyz / worldH.w;
-    const float dist = length(world - env.eye.xyz);
-
-    // the submerged segment of the view ray: the water path runs between the
-    // camera and the geometry, split at the mean sea level plane - from below the
-    // surface it ends at the crossing, from above it starts there
+// the submerged segment of a view ray to a scene point, split at the mean sea
+// level plane - from below it ends at the crossing, from above the ray
+// refracts into the water so the path is the depth over the REFRACTED angle
+// (at most ~1.5x the depth; the straight ray past the crossing would be
+// hundreds of metres at a grazing angle and turn a shoreline's submerged
+// terrain, or the surface in a wave trough, into solid water colour). The
+// depth is counted from the wave troughs: the surface itself lies above them
+float waterPathOf(const vec3 world, const float dist)
+{
     const float seaLevel = env.extent.w;
     float waterPath = 0.0;
     if (env.eye.w > 0.0)
@@ -229,12 +217,6 @@ void main()
     }
     else
     {
-        // geometry below the waves, seen from above: the ray refracts into the water, so
-        // the path is the depth over the cosine of the REFRACTED angle (at most ~1.5x the
-        // depth). The straight view ray past the crossing would be hundreds of metres long
-        // at a grazing angle and turn a shoreline's submerged terrain, or the surface in a
-        // wave trough, into solid water colour (the cyan bands along the horizon). The
-        // depth is counted from the wave troughs: the surface itself lies above them
         const float depthBelow = seaLevel - env.surface.x - world.z;
         if (depthBelow > 0.0)
         {
@@ -242,23 +224,38 @@ void main()
             waterPath = depthBelow / sqrt(max(1.0 - sinView2 / (1.33 * 1.33), 0.05));
         }
     }
+    return waterPath;
+}
 
-    // atmospheric fog over the air segment of the ray: the density is the air's
-    // extinction coefficient (Beer-Lambert): haze = 1 - exp(-density * distance).
-    // The sea-surface pixels (within the wave band around the mean sea level)
-    // take a REDUCED haze: the surface already carries its own sky mirror and
-    // water body colour, and the full-strength haze washes the entire far field
-    // into one white fog band; the islands, masts and hulls above the band keep
-    // the full aerial perspective. The band only spans the wave heights - the
-    // storm sea overshoots it, but then the crests are foam-grey anyway.
-    // The reduction TAPERS OFF at grazing view angles: the sea right below the
-    // horizon takes the full haze again, so it meets the fully hazed sky
-    // seamlessly (without the taper the darker far sea reads as a dark line
-    // against the fog-white horizon)
+// the atmospheric haze over the air segment of the ray: the density is the
+// air's extinction coefficient (Beer-Lambert), and the sea-surface pixels
+// (within the wave band around the mean sea level) take a REDUCED haze: the
+// surface already carries its own sky mirror and water body colour, and the
+// full-strength haze washes the entire far field into one white fog band; the
+// islands, masts and hulls above the band keep the full aerial perspective.
+// The band only spans the wave heights. The reduction TAPERS OFF at grazing
+// view angles: the sea right below the horizon takes the full haze again, so
+// it meets the fully hazed sky seamlessly (without the taper the darker far
+// sea reads as a dark line against the fog-white horizon)
+vec3 fogged(vec3 color, const vec3 world, const float dist, const float airPath)
+{
+    const float seaLevel = env.extent.w;
     const float surfaceBand = smoothstep(1.2, 0.3, abs(world.z - seaLevel));
     const float grazing = 1.0 - smoothstep(0.0, 0.06, abs(world.z - env.eye.z) / dist);
-    const float haze = (1.0 - exp(-env.fog.a * (dist - waterPath))) * (1.0 - 0.45 * surfaceBand * (1.0 - grazing));
-    color = mix(color, env.fog.rgb, haze);
+    const float haze = (1.0 - exp(-env.fog.a * airPath)) * (1.0 - 0.45 * surfaceBand * (1.0 - grazing));
+    return mix(color, env.fog.rgb, haze);
+}
+
+// the full transport of one pre-surface scene point (or, from below, of the
+// surface skin itself): the air haze, the underwater depth of field, and the
+// underwater light transport - per-channel Beer-Lambert over the true
+// submerged segment, the geometry's own depth filtering the light it carries,
+// the in-scattered water light integrated along the segment, the volumetric
+// lamp cones
+vec3 transported(vec3 color, const vec3 world, const float dist, const vec2 uv)
+{
+    const float waterPath = waterPathOf(world, dist);
+    color = fogged(color, world, dist, dist - waterPath);
 
     // the underwater depth of field (as osgOcean's underwater DOF): the water's
     // turbidity blurs the view with the water path - near objects stay sharp,
@@ -292,6 +289,8 @@ void main()
     // the in-scattered water light filling in. No ambient floor: the water light
     // is sun-driven only, so a deep night scene attenuates to black
     {
+        const float seaLevel = env.extent.w;
+
         // the light ON the viewed geometry is filtered by the geometry's own
         // depth below the wave troughs: the models are shaded by the air sun and
         // ambient (the standard vsg material shaders), so the composite applies
@@ -353,6 +352,95 @@ void main()
         const float inWater = env.eye.w > 0.0 ? smoothstep(0.0, 0.05, env.eye.w) : 1.0;
         color = mix(color, underwater, inWater);
     }
+    return color;
+}
+
+void main()
+{
+    const vec2 uv = gl_FragCoord.xy / env.extent.xy;
+    // reversed depth (vsg convention): 1 near, 0 cleared / background
+    const float depth = texture(sceneDepth, uv).r;
+    // the surface-only pass: the ocean skin (rgb) with its per-pixel
+    // REFLECTANCE (a) and its own depth; a cleared depth means no surface
+    const float surfaceDepth = texture(surfaceDepth, uv).r;
+    const vec4 skin = texture(surfaceColor, uv);
+    // the anti-aliased scene colour: only geometry edges alias (the background
+    // sky and open-water gradients are smooth), so the FXAA's extra taps are
+    // paid only where there is scene geometry
+    vec3 color = depth > 0.0 ? fxaa(uv, 1.0 / env.extent.xy) : texture(sceneColor, uv).rgb;
+
+    // the ocean surface covers this pixel and sits in front of the pre-surface
+    // content: the honest through-view. Above water the skin blends, by its
+    // reflectance, against the content behind transported through the true
+    // water column - a deep wreck no longer leaks through the assumed column.
+    // Below water the underside skin is plain scene geometry, transported like
+    // any other point
+    if (surfaceDepth > 0.0)
+    {
+        const vec3 surfaceWorld = unproject(surfaceDepth);
+        const float surfaceDist = length(surfaceWorld - env.eye.xyz);
+        const float sceneDist = depth > 0.0 ? length(unproject(depth) - env.eye.xyz) : 1.0e9;
+        if (surfaceDist < sceneDist)
+        {
+            if (env.eye.w > 0.0)
+            {
+                color = transported(skin.rgb, surfaceWorld, surfaceDist, uv);
+            }
+            else
+            {
+                // the content behind the surface: the pre-surface pass's
+                // geometry travels through the true refracted water column
+                // (the honest transport that closes the deep-wreck leak - a
+                // shallow shore reads through, a deep wreck goes dark); over
+                // OPEN water the skin's own through-view colour (its body and
+                // assumed column, ocean.frag) shows through unchanged - the
+                // sea's classic look, a design term rather than content
+                vec3 through;
+                if (depth > 0.0)
+                {
+                    const vec3 behindWorld = unproject(depth);
+                    const float behindDist = sceneDist;
+                    through = transported(color, behindWorld, behindDist, uv);
+                }
+                else
+                {
+                    through = skin.rgb;
+                }
+                // the skin's own air segment: the same reduced surface-band haze
+                // as any scene pixel at the water line, over the full distance
+                const vec3 skinFogged = fogged(skin.rgb, surfaceWorld, surfaceDist, surfaceDist);
+                color = mix(through, skinFogged, skin.a);
+            }
+            fragColor = vec4(color, 1.0);
+            return;
+        }
+    }
+
+    // the pre-surface content alone (no surface in front): the open-water
+    // background keeps its colour, but a submerged camera still sees the
+    // volumetric lamp cones against it - the ray is marched out to the surface
+    // crossing when looking up, or the fog-out distance (beyond it the lamps'
+    // inverse-square falloff makes the contribution negligible)
+    if (depth <= 0.0)
+    {
+        if (env.eye.w > 0.0)
+        {
+            // the view ray through a background pixel: unprojected at the far plane
+            const vec4 backgroundH = env.inverseViewProjection * vec4(ndc, 1.0, 1.0);
+            const vec3 backgroundDir = normalize(backgroundH.xyz / backgroundH.w - env.eye.xyz);
+            float backgroundEnd;
+            if (backgroundDir.z > 1.0e-4) backgroundEnd = (env.extent.w - env.eye.z) / backgroundDir.z;
+            else backgroundEnd = 150.0;
+            color += lampMarch(backgroundDir, 0.0, backgroundEnd);
+        }
+        fragColor = vec4(color, 1.0);
+        return;
+    }
+
+    // the pre-surface geometry pixel: the full transport
+    const vec3 world = unproject(depth);
+    const float dist = length(world - env.eye.xyz);
+    color = transported(color, world, dist, uv);
 
     fragColor = vec4(color, 1.0);
 }

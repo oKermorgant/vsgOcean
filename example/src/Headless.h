@@ -216,6 +216,7 @@ namespace vsgOcean::Headless
         // --semantic ID image and/or the on-screen semantic view)
         auto commandGraph = vsg::CommandGraph::create(device, queueFamily);
         commandGraph->addChild(pipeline->sceneRenderGraph());
+        commandGraph->addChild(pipeline->surfaceRenderGraph());
         commandGraph->addChild(pipeline->compositeRenderGraph());
         const bool wantsSemantic = settings.semantic || settings.semanticView || settings.semanticOverlay
             || settings.semanticCycleFrames > 0;

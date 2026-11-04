@@ -44,6 +44,11 @@ namespace vsgOcean
         /// The scene pass, rendering into the offscreen target: add to the command graph.
         [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph() const { return sceneRenderGraph_; }
 
+        /// The surface-only pass (the ocean surface, in its composite mode): add to
+        /// the command graph, after sceneRenderGraph() and before the composite -
+        /// the composite blends it by depth against the pre-surface content.
+        [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> surfaceRenderGraph() const { return surfaceRenderGraph_; }
+
         /// The composite pass, rendering into the pipeline's composited image:
         /// add to the command graph (for every pipeline).
         [[nodiscard]] vsg::ref_ptr<vsg::RenderGraph> compositeRenderGraph() const { return compositeRenderGraph_; }
@@ -114,9 +119,12 @@ namespace vsgOcean
         VkFormat depthFormat_ = VK_FORMAT_UNDEFINED;
 
         vsg::ref_ptr<RenderTarget> target_;
+        vsg::ref_ptr<RenderTarget> surfaceTarget_;
         vsg::ref_ptr<vsg::RenderGraph> sceneRenderGraph_;
+        vsg::ref_ptr<vsg::RenderGraph> surfaceRenderGraph_;
         vsg::ref_ptr<vsg::RenderGraph> compositeRenderGraph_;
         vsg::ref_ptr<vsg::View> sceneView_;
+        vsg::ref_ptr<vsg::View> surfaceView_;
         vsg::ref_ptr<vsg::View> compositeView_;
         vsg::ref_ptr<vsg::Image> outputImage_;
         vsg::ref_ptr<vsg::ImageView> outputView_;

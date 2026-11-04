@@ -109,10 +109,12 @@ namespace vsgOcean
 
     void RenderPipeline::buildScenePass(const vsg::vec4& clearColor)
     {
-        // the scene pass: sky, lighting, models and ocean surface into the offscreen target
+        // the pre-surface pass: sky, lighting, models, marine snow and rain - the
+        // scene WITHOUT the ocean surface. The composite transports this content
+        // through the true water path wherever the surface covers it (the honest
+        // per-pixel through-view; the surface itself renders in the next pass)
         sceneView_ = vsg::View::create(camera_);
-        sceneView_->addChild(scene_);
-        scene_ = {}; // the view holds the reference from here on
+        sceneView_->addChild(scene_->sceneWithoutSurface());
 
         sceneRenderGraph_ = vsg::RenderGraph::create();
         sceneRenderGraph_->renderPass = target_->renderPass();
@@ -124,6 +126,28 @@ namespace vsgOcean
         sceneRenderGraph_->clearValues[1].depthStencil = {0.0f, 0}; // reversed depth: 0 is far
         sceneRenderGraph_->windowResizeHandler = {};                 // the pipeline handles its own resize
         sceneRenderGraph_->addChild(sceneView_);
+
+        // the surface-only pass: the same camera over the surface node alone. The
+        // surface renders opaquely into its own target - its skin (rgb) and the
+        // composite's blend weight (a) - and the composite blends it by depth
+        // against the pre-surface content, so terrain in front of the water
+        // masks the surface without any depth copy between the two passes
+        surfaceTarget_ = RenderTarget::create(device_, extent_, colorFormat_, depthFormat_);
+        surfaceView_ = vsg::View::create(camera_);
+        surfaceView_->addChild(scene_->surfaceNode());
+
+        surfaceRenderGraph_ = vsg::RenderGraph::create();
+        surfaceRenderGraph_->renderPass = surfaceTarget_->renderPass();
+        surfaceRenderGraph_->framebuffer = surfaceTarget_->framebuffer();
+        surfaceRenderGraph_->renderArea = VkRect2D{{0, 0}, surfaceTarget_->extent()};
+        surfaceRenderGraph_->viewportState = vsg::ViewportState::create(0, 0, surfaceTarget_->extent().width, surfaceTarget_->extent().height);
+        surfaceRenderGraph_->clearValues.resize(2);
+        surfaceRenderGraph_->clearValues[0].color = {0.0f, 0.0f, 0.0f, 0.0f}; // alpha 0: no surface, no reflectance
+        surfaceRenderGraph_->clearValues[1].depthStencil = {0.0f, 0};         // reversed depth: 0 is far
+        surfaceRenderGraph_->windowResizeHandler = {};
+        surfaceRenderGraph_->addChild(surfaceView_);
+
+        scene_ = {}; // the views hold the references from here on
     }
 
     void RenderPipeline::createOutputImage(VkExtent2D extent)
@@ -148,9 +172,11 @@ namespace vsgOcean
 
     void RenderPipeline::buildCompositePass()
     {
-        // the composite of this pipeline, sampling the target; wrapped in a view, so it
-        // compiles reliably alongside other graph content
+        // the composite of this pipeline, sampling the pre-surface target and the
+        // surface-only target; wrapped in a view, so it compiles reliably
+        // alongside other graph content
         composite_ = Underwater::create(target_->colorView(), target_->depthView());
+        composite_->setSurfaceTextures(surfaceTarget_->colorView(), surfaceTarget_->depthView());
 
         // the composite renders into the pipeline's output image (a colour attachment
         // with no depth, ending in a sampled layout)
@@ -214,6 +240,7 @@ namespace vsgOcean
     {
         const auto mask = enabled ? vsg::MASK_ALL : vsg::MASK_OFF;
         if (sceneView_) sceneView_->mask = mask;
+        if (surfaceView_) surfaceView_->mask = mask;
         if (compositeView_) compositeView_->mask = mask;
     }
 
