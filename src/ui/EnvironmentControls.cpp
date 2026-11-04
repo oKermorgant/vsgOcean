@@ -24,10 +24,12 @@ namespace vsgOcean
     void EnvironmentControls::apply(vsg::KeyPressEvent& keyPress)
     {
         // the environment tuning lives in the GUI widgets; the keys only toggle the
-        // widgets themselves (and must always be able to hide a capturing GUI)
+        // widgets themselves (and must always be able to hide a capturing GUI), and
+        // the export / view / tracking keys work through a capture as well
         if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_c
             && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u
-            && keyPress.keyBase != vsg::KEY_l && keyPress.keyBase != vsg::KEY_e && keyPress.keyBase != vsg::KEY_r)
+            && keyPress.keyBase != vsg::KEY_l && keyPress.keyBase != vsg::KEY_e && keyPress.keyBase != vsg::KEY_r
+            && keyPress.keyBase != vsg::KEY_Tab)
         {
             return;
         }
