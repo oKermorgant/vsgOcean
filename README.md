@@ -55,23 +55,14 @@ A second, minimal binary lives next to it: **`vsgOcean_tutorial`** (`example/src
 The example application renders an islands scene with a surface vehicle (a WAM-V), an ROV (BlueROV2) circling a ship wreck with its dive lamps, and a floating wind turbine — animated in real time on the waves, with the environment fully tunable at runtime. Two sensor cameras (the ROV's nose camera and a boat camera) render to texture and preview in the panel.
 
 ```bash
-# default: islands + wamv + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth) and waves
+# every flag is one --help away: capture, diagnostics, every wave and water parameter
+# (the standard vsg viewer flags apply as well)
+./vsgOcean_example --help
+
+# the default scene: islands + wamv + bluerov2 + wreck, static sun (35 deg, 135 deg azimuth)
 ./vsgOcean_example
 
-# a few looks
-./vsgOcean_example --sun-cycle                                # animate the sun (1 simulated hour per second; Space pauses)
-./vsgOcean_example --fft --fft-detail --foam 0.7 --wind 14 45 # a wind-built, foam-capped FFT sea
-./vsgOcean_example --clouds 7 --rain 0.8                     # a downpour: streaks, splash rings, a roughened sea
-./vsgOcean_example --light bluerov2/lights1 0.25              # the ROV's dive lamps to 25% of their SDF intensity
-./vsgOcean_example --latitude -35 --longitude 18             # the southern hemisphere: Crux replaces the Dipper
-
-# headless: render offscreen (no window; for servers, CI, non-presenting GPUs) and write a PNG
-./vsgOcean_example --headless --extent 1920 1080 -f 60 --screenshot shot.png
-
-# the semantic ID image + the derived bounding boxes (training-data ground truth)
-./vsgOcean_example --headless --extent 1280 720 -f 60 --screenshot shot.png --semantic
-
-# custom scenes: pass SDF files as positional arguments
+# custom scenes: SDF files passed as positional arguments
 ./vsgOcean_example my_world.sdf
 ```
 
@@ -116,10 +107,6 @@ The environment is tuned at runtime through the keyboard and widgets (`vsgOcean:
 | Esc | Quit |
 
 The bindings are always visible in a small HUD in a corner of the window. When vsgOcean is built with vsgImGui, each widget is its own window: the widgets read the environment every frame and write only on change — an update from outside (a topic, the code) is reflected immediately, and changing a widget takes over from any preset. The underwater widget carries the **depth-of-field blur** (off by default): the water's turbidity blurs the view with the water path length, following the Jerlov beam attenuation.
-
-## The rest of the command line
-
-The few flags shown above cover the common looks; the example has many more (capture, diagnostics, every wave and water parameter). Run it with `--help` for the full list of the vsgOcean flags — and the standard vsg viewer flags (`--window`, `--gpu`, `--mt`, `--log-level`, …) also apply.
 
 ## How vsgOcean sits on its dependencies
 
