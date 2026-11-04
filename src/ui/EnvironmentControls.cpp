@@ -29,7 +29,7 @@ namespace vsgOcean
         if (guiCapturesInput && keyPress.keyBase != vsg::KEY_h && keyPress.keyBase != vsg::KEY_c
             && keyPress.keyBase != vsg::KEY_s && keyPress.keyBase != vsg::KEY_o && keyPress.keyBase != vsg::KEY_u
             && keyPress.keyBase != vsg::KEY_l && keyPress.keyBase != vsg::KEY_e && keyPress.keyBase != vsg::KEY_r
-            && keyPress.keyBase != vsg::KEY_Tab)
+            && keyPress.keyBase != vsg::KEY_m)
         {
             return;
         }
@@ -68,7 +68,7 @@ namespace vsgOcean
                 vsg::warn("vsgOcean: could not export the environment (built without environment file support?)");
             }
             break;
-        case vsg::KEY_Tab:
+        case vsg::KEY_m:
         {
             // cycle the camera tracking through the models of the scene: none, then
             // each model in turn, then none again

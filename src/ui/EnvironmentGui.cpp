@@ -243,14 +243,10 @@ namespace vsgOcean
             // from the file menu
             std::string exportPath{controls->environmentExportPath};
             ImGui::SetNextItemWidth(220.0f);
-            // out of ImGui's tab chain: Tab is the model tracking key, not a
-            // focus step between the widgets (ImGui 1.92 tabs through inputs)
-            ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
             if (ImGui::InputText("##export target", &exportPath))
             {
                 controls->environmentExportPath = vsg::Path{exportPath};
             }
-            ImGui::PopItemFlag();
             ImGui::SameLine();
             drawExportFileMenu(controls->environmentExportPath);
             ImGui::SameLine();
@@ -531,12 +527,18 @@ namespace vsgOcean
                                                      // input while the GUI captures it
                                                      controls->guiCapturesInput = ImGui::GetIO().WantCaptureMouse || ImGui::GetIO().WantCaptureKeyboard;
 
+                                                     // no widget joins ImGui's tab chain: a focused widget
+                                                     // becomes keyboard-editable, stealing the keys from the
+                                                     // scene controls (the M tracking key, the arrow keys)
+                                                     ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
                                                      drawCameraWidget(controls, cameras);
                                                      drawHelp(controls, scene, deviceName);
                                                      drawSkyWidget(controls, environment);
                                                      drawSurfaceWidget(controls, scene, environment, wavefield);
                                                      drawLightsWidget(controls, scene);
-                                                     return drawUnderwaterWidget(controls, environment);
+                                                     const auto visible = drawUnderwaterWidget(controls, environment);
+                                                     ImGui::PopItemFlag();
+                                                     return visible;
                                                  });
         if (auto group = gui.cast<vsg::Group>())
         {

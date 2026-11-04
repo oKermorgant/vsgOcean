@@ -43,7 +43,7 @@ namespace vsgOcean
             {"L", "Lights widget on / off"},
             {"R", "Rendering view: photo, annotation, 50% overlay"},
             {"E", "Export the environment (the YAML target is picked in the help window)"},
-            {"Tab", "Cycle the tracked model"},
+            {"M", "Model tracking: cycle the followed model"},
             {"Esc", "Quit"},
         }};
 

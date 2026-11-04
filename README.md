@@ -104,15 +104,15 @@ The environment is tuned at runtime through the keyboard and widgets (`vsgOcean:
 | input | action |
 | --- | --- |
 | Left drag / right drag / wheel | Translate / orbit (stable horizon) / dolly |
-| L | Lights widget on / off (one intensity slider per light group) |
-| O | Ocean surface widget on / off (wind, waves) |
 | C | Camera previews on / off (hidden by default; says so when no camera is rendering) |
 | H | Help window on / off (the bindings, the model tracking, the live stats) |
-| U | Underwater widget on / off (water optics, current, snow, DOF blur) |
-| S | Sky widget on / off (sun, day cycle, fog, cloud cover, rain) |
-| E | Export the environment (the YAML target is typed or picked in the help window) |
 | R | Rendering view: photo, the annotation (each model in the colour of its name), the annotation at 50% over the photo |
-| Tab | Cycle the tracked model (camera follows) |
+| O | Ocean surface widget on / off (wind, waves) |
+| M | Model tracking: cycle the model the camera follows |
+| U | Underwater widget on / off (water optics, current, snow, DOF blur) |
+| L | Lights widget on / off (one intensity slider per light group) |
+| E | Export the environment (the YAML target is typed or picked in the help window) |
+| S | Sky widget on / off (sun, day cycle, fog, cloud cover, rain) |
 | Esc | Quit |
 
 The bindings are always visible in a small HUD in a corner of the window. When vsgOcean is built with vsgImGui, each widget is its own window: the widgets read the environment every frame and write only on change — an update from outside (a topic, the code) is reflected immediately, and changing a widget takes over from any preset. The underwater widget carries the **depth-of-field blur** (off by default): the water's turbidity blurs the view with the water path length, following the Jerlov beam attenuation.
