@@ -1,5 +1,9 @@
 <?xml version="1.0"?>
 <!--
+  BlueROV2: geometry derived from the official Blue Robotics BlueROV2 CAD
+  (https://bluerobotics.com/store/rov/bluerov2/, including the Ping360 sonar),
+  © Blue Robotics, all rights reserved - redistributed for research
+  visualisation with attribution (see the README notice).
   Converted by urdfbase. The following could not be carried across:
   - 4 link(s) have no mass in the source (bluerov2/mpu, bluerov2/lsm, bluerov2/camera_optical, …). SDF would weigh each at 1 kg by default, so they are written with a negligible one instead — 0.001 kg
   - read back and compared with the source — 4 thing(s) were added:

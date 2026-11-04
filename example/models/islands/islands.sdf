@@ -1,4 +1,6 @@
 <?xml version="1.0" ?>
+<!-- islands.glb: the island terrain of the osgOcean example resources
+     (https://github.com/kbale/osgOcean, LGPL-3), converted to glTF. -->
 <sdf version="1.9">
   <world name="islands">
 

@@ -181,10 +181,22 @@ vsgOcean is MIT-licensed. The following third-party work is included or derived,
 - **[UUV Simulator](https://github.com/uuvsimulator/uuv_simulator)** (© 2016 The UUV Simulator Authors, [Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0)): the Gerstner surface displacement and normal formulation in `shaders/ocean.vert` is derived from its wave shaders, with modifications.
 - **[VulkanSceneGraph](https://github.com/vsg-dev/VulkanSceneGraph)**, **[vsgXchange](https://github.com/vsg-dev/vsgXchange)** (© Robert Osfield, MIT) and **[sdformat](https://github.com/gazebosim/sdformat)** (© Open Source Robotics Foundation, Apache-2.0): the rendering and scene description stack vsgOcean builds on.
 - The interleaved gradient noise dithering used in the shaders follows the technique of Jorge Jimenez, *"Next Generation Post Processing in Call of Duty: Advanced Warfare"* (2014).
-- Example models: **[VRX / WAM-V](https://github.com/osrf/vrx)** (© OSRF, Apache-2.0) for the aquabot, **[bluerov2_description](https://github.com/bluerov2_description)** (MIT) for the BlueROV2, and the M/S Herkules ship wreck from **[UUV Simulator](https://github.com/uuvsimulator/uuv_simulator)** (© 2016 Bosch / The UUV Simulator Authors, Apache-2.0).
+### Example model assets
+
+The example scene ships third-party models, each with its own origin and license; they are example data, not part of the library. Per-model attribution also travels with the model files.
+
+| Model | Origin | License |
+|---|---|---|
+| `wamv` | the WAM-V of [VRX](https://github.com/osrf/vrx) (© Open Source Robotics Foundation), taken through [asv_wave_sim](https://github.com/srmainwaring/asv_wave_sim)'s gz-waves-models, textures downscaled to 1024 | [Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0) |
+| `bluerov2` | geometry derived from the official Blue Robotics [BlueROV2](https://bluerobotics.com/store/rov/bluerov2/) CAD (including the Ping360 sonar) | © Blue Robotics, all rights reserved. Not covered by vsgOcean's MIT license; redistributed for research visualisation with attribution |
+| `herkules_ship_wreck` | the M/S Herkules wreck of [UUV Simulator](https://github.com/uuvsimulator/uuv_simulator) (© 2016 Robert Bosch GmbH) | [Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0) |
+| `islands` | the island terrain of the [osgOcean](https://github.com/kbale/osgocean) example resources | [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.html) |
+| `floatgen` | modelled in-house after the FLOATGEN demonstrator (Ideol "Damping Pool" foundation, Vestas V80-2.0MW turbine) from its published dimensions; the marine growth on the caisson is procedural | MIT, as vsgOcean |
+
+The `attenuation` model is built from plain SDF primitives and carries no third-party content.
 
 A large part of the development was carried out with agentic AI coding assistants: **[GitHub Copilot](https://github.com/features/copilot)** and **[Mistral Vibe](https://mistral.ai)** (Mistral AI's agentic CLI coding agent).
 
-Projects consulted as rendering references but **not** included: [osgOcean](https://github.com/kbale/osgOcean) (LGPL-3), [Stonefish](https://github.com/patrykcieslak/stonefish) (GPL-3), [Vulkan-Spectral-Ocean](https://github.com/micaalle/Vulkan-Spectral-Ocean) (MIT).
+Projects consulted as rendering references but **not** included: [Stonefish](https://github.com/patrykcieslak/stonefish) (GPL-3), [Vulkan-Spectral-Ocean](https://github.com/micaalle/Vulkan-Spectral-Ocean) (MIT). [osgOcean](https://github.com/kbale/osgOcean) is listed above: its island data is included as example assets.
 
 Per-file attribution is kept in the headers of the derived sources (`src/core/Wavefield.cpp`, `shaders/ocean.vert`).

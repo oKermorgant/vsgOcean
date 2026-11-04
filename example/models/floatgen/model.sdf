@@ -1,10 +1,17 @@
 <?xml version="1.0"?>
-<!-- vsgOcean floatgen: a floating wind turbine, converted from the floatgen
-     xacro (URDF macro, floating variant). The meshes are the original COLLADA
-     converted to glTF with assimp's PreTransformVertices baked in (the
-     COLLADA Z-up -> glTF Y-up root rotation folds into the vertices), so the
-     glbs need no extra rotation; the COLLADA loader path would ignore the
-     scene lights, hence the glTF conversion.
+<!-- vsgOcean floatgen: a floating wind turbine built from the FLOATGEN
+     demonstrator's published dimensions (Ideol "Damping Pool" concrete
+     foundation, Vestas V80-2.0MW turbine): square concrete foundation 36 m
+     per side with cut corners, overall breadth 40.2 m (the deck rim), depth
+     9.5 m, draught 7.0-7.5 m (7.25 in the model), hub height 60 m, rotor
+     diameter 80 m. The Ideol layout follows the earlier vsgOcean model:
+     chamfered corners (legs 24% of the half side) and the central damping
+     pool (59% of the hull side, open through the structure). The caisson
+     carries a procedural albedo: a uniform mussel carpet over the concrete
+     with a dark waterline band; the underwater part is a separate mesh
+     (base_water) so the two can diverge.
+     Modelled in-house from those dimensions; the generator scripts are kept
+     in LLM/tmp (make_floatgen.py, make_growth.py).
      The rotor joint "floatgen" (axis X) is spun by the demo animation. -->
 <sdf version="1.9">
   <model name="floatgen">
@@ -34,11 +41,11 @@
       </visual>
     </link>
 
-    <!-- the tower: the xacro's floating variant offsets it aft of the platform
-         (in SDF the CHILD LINK's pose places it - unlike URDF, the joint pose
-         does not) -->
+    <!-- the tower stands aft of the damping pool, its base fully on the
+         concrete deck (tangent to the pool wall at -10.58: the tower base
+         radius 1.75 puts the pole centre at -12.5) -->
     <link name="floatgen/pole">
-      <pose relative_to="floatgen/base_link">-9 0 0 0 0 0</pose>
+      <pose relative_to="floatgen/base_link">-12.5 0 0 0 0 0</pose>
       <inertial>
         <mass>10</mass>
         <inertia>
@@ -59,10 +66,11 @@
       <child>floatgen/pole</child>
     </joint>
 
-    <!-- the rotor: continuous joint about X, spun by the demo animation; the
-         blades sit at the tower top (the xacro's joint origin) -->
+    <!-- the rotor: continuous joint about X, spun by the demo animation;
+         the hub sits at the tower top, 60 m above the waterline (the
+         V80-2.0MW hub height), rotor diameter 80 m -->
     <link name="floatgen/blades">
-      <pose relative_to="floatgen/pole">0.71 0 16.864 0 0 0</pose>
+      <pose relative_to="floatgen/pole">0.71 0 60 0 0 0</pose>
       <inertial>
         <mass>10</mass>
         <inertia>
