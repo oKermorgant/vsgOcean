@@ -41,8 +41,9 @@ namespace vsgOcean
         }
 
         // Gazebo model paths, giving <path>/<model>/<relativePath>
-        for (const auto& root : vsg::getEnvPaths("GAZEBO_MODEL_PATH"))
+        for(const auto &gz_env: {"GAZEBO_MODEL_PATH", "GZ_SIM_RESOURCE_PATH"})
         {
+            for (const auto& root : vsg::getEnvPaths(gz_env))
             modelRoots_.push_back(root);
         }
     }

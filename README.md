@@ -177,6 +177,7 @@ cmake --build build -j
     - god rays
     - wave-field caustics on geometry
 - Surface refinements: planar reflection / refraction passes of the actual scene; foam persistence; subsurface scattering; screen-space reflections; exposure / tone mapping; sun shadow map on the water
+- More SDF compat: GZ env variables, nested models
 - Middleware integration is kept out of this library on purpose — poses and environment updates come from the outside, through the C++ API
 
 ## Acknowledgments and third-party notices

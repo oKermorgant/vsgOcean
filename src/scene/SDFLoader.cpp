@@ -32,436 +32,434 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 namespace vsgOcean
 {
-    namespace
-    {
-        // gz::math pose to a vsg column-convention matrix (vsg: M * v).
-        // Standard quaternion rotation matrix written per component: vsg's
-        // matrix[col][row] indexing means the w-terms change sign between the
-        // (i,j) and (j,i) positions - verified numerically against
-        // vsg::rotate(quat) (a rod yawed 90 deg must map X to +Y, not -Y).
-        vsg::dmat4 toVsgMatrix(const gz::math::Pose3d& pose)
-        {
-            const auto& pos = pose.Pos();
-            const auto& rot = pose.Rot();
+	namespace
+	{
+	// gz::math pose to a vsg column-convention matrix (vsg: M * v).
+	// Standard quaternion rotation matrix written per component: vsg's
+	// matrix[col][row] indexing means the w-terms change sign between the
+	// (i,j) and (j,i) positions - verified numerically against
+	// vsg::rotate(quat) (a rod yawed 90 deg must map X to +Y, not -Y).
+	vsg::dmat4 toVsgMatrix(const gz::math::Pose3d& pose)
+	{
+	  const auto& pos = pose.Pos();
+	  const auto& rot = pose.Rot();
 
-            const auto x = rot.X(), y = rot.Y(), z = rot.Z(), w = rot.W();
+	  const auto x = rot.X(), y = rot.Y(), z = rot.Z(), w = rot.W();
 
-            vsg::dmat4 matrix;
-            matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);
-            matrix[1][0] = 2.0 * (x * y - z * w);
-            matrix[2][0] = 2.0 * (x * z + y * w);
-            matrix[0][1] = 2.0 * (x * y + z * w);
-            matrix[1][1] = 1.0 - 2.0 * (x * x + z * z);
-            matrix[2][1] = 2.0 * (y * z - x * w);
-            matrix[0][2] = 2.0 * (x * z - y * w);
-            matrix[1][2] = 2.0 * (y * z + x * w);
-            matrix[2][2] = 1.0 - 2.0 * (x * x + y * y);
-            matrix[3][0] = pos.X();
-            matrix[3][1] = pos.Y();
-            matrix[3][2] = pos.Z();
-            return matrix;
-        }
+	  vsg::dmat4 matrix;
+	  matrix[0][0] = 1.0 - 2.0 * (y * y + z * z);
+	  matrix[1][0] = 2.0 * (x * y - z * w);
+	  matrix[2][0] = 2.0 * (x * z + y * w);
+	  matrix[0][1] = 2.0 * (x * y + z * w);
+	  matrix[1][1] = 1.0 - 2.0 * (x * x + z * z);
+	  matrix[2][1] = 2.0 * (y * z - x * w);
+	  matrix[0][2] = 2.0 * (x * z - y * w);
+	  matrix[1][2] = 2.0 * (y * z + x * w);
+	  matrix[2][2] = 1.0 - 2.0 * (x * x + y * y);
+	  matrix[3][0] = pos.X();
+	  matrix[3][1] = pos.Y();
+	  matrix[3][2] = pos.Z();
+	  return matrix;
+	}
 
-        // pose of an SDF element relative to its parent frame (SDF semantic pose resolution:
-        // relative_to and joint frames are taken into account)
-        vsg::dmat4 resolvedPose(const sdf::SemanticPose& semanticPose, const std::string& what)
-        {
-            gz::math::Pose3d pose;
-            const auto errors = semanticPose.Resolve(pose);
-            if (!errors.empty())
-            {
-                for (const auto& error : errors)
-                {
-                    vsg::warn("vsgOcean::SDFLoader - ", what, ": ", error.Message());
-                }
-                return {};
-            }
-            return toVsgMatrix(pose);
-        }
+	// pose of an SDF element relative to its parent frame (SDF semantic pose resolution:
+	// relative_to and joint frames are taken into account)
+	vsg::dmat4 resolvedPose(const sdf::SemanticPose& semanticPose, const std::string& what)
+	{
+	  gz::math::Pose3d pose;
+	  const auto errors = semanticPose.Resolve(pose);
+	  if (!errors.empty())
+	  {
+		for (const auto& error : errors)
+		{
+		  vsg::warn("vsgOcean::SDFLoader - ", what, ": ", error.Message());
+		}
+		return {};
+	  }
+	  return toVsgMatrix(pose);
+	}
 
-        // resolve a mesh URI to an absolute filesystem path and load it;
-        // vsgXchange then handles resources referenced inside the mesh file
-        vsg::ref_ptr<vsg::Node> loadMeshNode(const std::string& uri, const vsg::Path& baseDir,
-                                             const UriResolver& resolver, vsg::ref_ptr<vsg::Options> options)
-        {
-            const auto filename = resolver.resolve(uri, baseDir);
-            if (filename.empty()) return {};
+	// resolve a mesh URI to an absolute filesystem path and load it;
+	// vsgXchange then handles resources referenced inside the mesh file
+	vsg::ref_ptr<vsg::Node> loadMeshNode(const std::string& uri, const vsg::Path& baseDir,
+										 const UriResolver& resolver, vsg::ref_ptr<vsg::Options> options)
+	{
+	  const auto filename = resolver.resolve(uri, baseDir);
+	  if (filename.empty()) return {};
 
-            auto object = vsg::read(filename, options);
-            if (auto node = object.cast<vsg::Node>()) return node;
+	  auto object = vsg::read(filename, options);
+	  if (auto node = object.cast<vsg::Node>()) return node;
 
-            if (object) vsg::warn("Unable to view object of type ", object->className());
-            else vsg::warn("Unable to load mesh ", filename);
+	  if (object) vsg::warn("Unable to view object of type ", object->className());
+	  else vsg::warn("Unable to load mesh ", filename);
 
-            return {};
-        }
+	  return {};
+	}
 
-        // a primitive SDF geometry (sphere, box, cylinder, capsule, cone), built with
-        // vsg::Builder in the visual's material diffuse colour - handy for test
-        // scenes (e.g. coloured spheres showing the wavelength-dependent absorption)
-        vsg::ref_ptr<vsg::Node> buildPrimitive(const sdf::Visual* visual, vsg::ref_ptr<vsg::Options> options)
-        {
-            const sdf::Geometry* geom = visual->Geom();
+	// a primitive SDF geometry (sphere, box, cylinder, capsule, cone), built with
+	// vsg::Builder in the visual's material diffuse colour - handy for test
+	// scenes (e.g. coloured spheres showing the wavelength-dependent absorption)
+	vsg::ref_ptr<vsg::Node> buildPrimitive(const sdf::Visual* visual, vsg::ref_ptr<vsg::Options> options)
+	{
+	  const sdf::Geometry* geom = visual->Geom();
 
-            vsg::GeometryInfo info;
-            switch (geom->Type())
-            {
-            case sdf::GeometryType::SPHERE:
-            {
-                const auto* sphere = geom->SphereShape();
-                if (!sphere) return {};
-                const auto diameter = static_cast<float>(2.0 * sphere->Radius());
-                info.dx.set(diameter, 0.0f, 0.0f);
-                info.dy.set(0.0f, diameter, 0.0f);
-                info.dz.set(0.0f, 0.0f, diameter);
-                break;
-            }
-            case sdf::GeometryType::BOX:
-            {
-                const auto* box = geom->BoxShape();
-                if (!box) return {};
-                const auto& size = box->Size();
-                info.dx.set(static_cast<float>(size.X()), 0.0f, 0.0f);
-                info.dy.set(0.0f, static_cast<float>(size.Y()), 0.0f);
-                info.dz.set(0.0f, 0.0f, static_cast<float>(size.Z()));
-                break;
-            }
-            case sdf::GeometryType::CYLINDER: // the SDF cylinder axis is z
-            {
-                const auto* cylinder = geom->CylinderShape();
-                if (!cylinder) return {};
-                const auto diameter = static_cast<float>(2.0 * cylinder->Radius());
-                info.dx.set(diameter, 0.0f, 0.0f);
-                info.dy.set(0.0f, diameter, 0.0f);
-                info.dz.set(0.0f, 0.0f, static_cast<float>(cylinder->Length()));
-                break;
-            }
-            case sdf::GeometryType::CAPSULE:
-            {
-                const auto* capsule = geom->CapsuleShape();
-                if (!capsule) return {};
-                const auto diameter = static_cast<float>(2.0 * capsule->Radius());
-                info.dx.set(diameter, 0.0f, 0.0f);
-                info.dy.set(0.0f, diameter, 0.0f);
-                info.dz.set(0.0f, 0.0f, static_cast<float>(capsule->Length()));
-                break;
-            }
-            case sdf::GeometryType::CONE:
-            {
-                const auto* cone = geom->ConeShape();
-                if (!cone) return {};
-                const auto diameter = static_cast<float>(2.0 * cone->Radius());
-                info.dx.set(diameter, 0.0f, 0.0f);
-                info.dy.set(0.0f, diameter, 0.0f);
-                info.dz.set(0.0f, 0.0f, static_cast<float>(cone->Length()));
-                break;
-            }
-            default:
-                return {};
-            }
+	  vsg::GeometryInfo info;
+	  switch (geom->Type())
+	  {
+		case sdf::GeometryType::SPHERE:
+		  {
+			const auto* sphere = geom->SphereShape();
+			if (!sphere) return {};
+			const auto diameter = static_cast<float>(2.0 * sphere->Radius());
+			info.dx.set(diameter, 0.0f, 0.0f);
+			info.dy.set(0.0f, diameter, 0.0f);
+			info.dz.set(0.0f, 0.0f, diameter);
+			break;
+		  }
+		case sdf::GeometryType::BOX:
+		  {
+			const auto* box = geom->BoxShape();
+			if (!box) return {};
+			const auto& size = box->Size();
+			info.dx.set(static_cast<float>(size.X()), 0.0f, 0.0f);
+			info.dy.set(0.0f, static_cast<float>(size.Y()), 0.0f);
+			info.dz.set(0.0f, 0.0f, static_cast<float>(size.Z()));
+			break;
+		  }
+		case sdf::GeometryType::CYLINDER: // the SDF cylinder axis is z
+		  {
+			const auto* cylinder = geom->CylinderShape();
+			if (!cylinder) return {};
+			const auto diameter = static_cast<float>(2.0 * cylinder->Radius());
+			info.dx.set(diameter, 0.0f, 0.0f);
+			info.dy.set(0.0f, diameter, 0.0f);
+			info.dz.set(0.0f, 0.0f, static_cast<float>(cylinder->Length()));
+			break;
+		  }
+		case sdf::GeometryType::CAPSULE:
+		  {
+			const auto* capsule = geom->CapsuleShape();
+			if (!capsule) return {};
+			const auto diameter = static_cast<float>(2.0 * capsule->Radius());
+			info.dx.set(diameter, 0.0f, 0.0f);
+			info.dy.set(0.0f, diameter, 0.0f);
+			info.dz.set(0.0f, 0.0f, static_cast<float>(capsule->Length()));
+			break;
+		  }
+		case sdf::GeometryType::CONE:
+		  {
+			const auto* cone = geom->ConeShape();
+			if (!cone) return {};
+			const auto diameter = static_cast<float>(2.0 * cone->Radius());
+			info.dx.set(diameter, 0.0f, 0.0f);
+			info.dy.set(0.0f, diameter, 0.0f);
+			info.dz.set(0.0f, 0.0f, static_cast<float>(cone->Length()));
+			break;
+		  }
+		default:
+		  return {};
+	  }
 
-            // the visual's material diffuse colour, white when unspecified
-            if (const auto* material = visual->Material())
-            {
-                const auto& diffuse = material->Diffuse();
-                info.color.set(static_cast<float>(diffuse.R()), static_cast<float>(diffuse.G()),
-                               static_cast<float>(diffuse.B()), static_cast<float>(diffuse.A()));
-            }
+	  // the visual's material diffuse colour, white when unspecified
+	  if (const auto* material = visual->Material())
+	  {
+		const auto& diffuse = material->Diffuse();
+		info.color.set(static_cast<float>(diffuse.R()), static_cast<float>(diffuse.G()),
+					   static_cast<float>(diffuse.B()), static_cast<float>(diffuse.A()));
+	  }
 
-            auto builder = vsg::Builder::create();
-            builder->options = options;
+	  auto builder = vsg::Builder::create();
+	  builder->options = options;
 
-            const vsg::StateInfo state; // lit, opaque
-            switch (geom->Type())
-            {
-            case sdf::GeometryType::SPHERE: return builder->createSphere(info, state);
-            case sdf::GeometryType::BOX: return builder->createBox(info, state);
-            case sdf::GeometryType::CYLINDER: return builder->createCylinder(info, state);
-            case sdf::GeometryType::CAPSULE: return builder->createCapsule(info, state);
-            case sdf::GeometryType::CONE: return builder->createCone(info, state);
-            default: return {};
-            }
-        }
+	  const vsg::StateInfo state; // lit, opaque
+	  switch (geom->Type())
+	  {
+		case sdf::GeometryType::SPHERE: return builder->createSphere(info, state);
+		case sdf::GeometryType::BOX: return builder->createBox(info, state);
+		case sdf::GeometryType::CYLINDER: return builder->createCylinder(info, state);
+		case sdf::GeometryType::CAPSULE: return builder->createCapsule(info, state);
+		case sdf::GeometryType::CONE: return builder->createCone(info, state);
+		default: return {};
+	  }
+	}
 
-        // an SDF light as a vsg light node, placed by the light's own pose. The node is
-        // attached to a frame (the owning link's frame, or the scene world), so it
-        // follows the model at runtime; the recorded ancestor transform places it.
-        // The SDF <direction> is expressed in the light's own frame and aims the spot:
-        // with the default identity pose and direction (1, 0, 0) the lamp shines
-        // along the frame's +X (a vehicle's front).
-        vsg::ref_ptr<vsg::Light> buildLight(const sdf::Light& light)
-        {
-            const auto pose = resolvedPose(light.SemanticPose(), light.Name());
+	// an SDF light as a vsg light node, placed by the light's own pose. The node is
+	// attached to a frame (the owning link's frame, or the scene world), so it
+	// follows the model at runtime; the recorded ancestor transform places it.
+	// The SDF <direction> is expressed in the light's own frame and aims the spot:
+	// with the default identity pose and direction (1, 0, 0) the lamp shines
+	// along the frame's +X (a vehicle's front).
+	vsg::ref_ptr<vsg::Light> buildLight(const sdf::Light& light)
+	{
+	  const auto pose = resolvedPose(light.SemanticPose(), light.Name());
 
-            vsg::ref_ptr<vsg::Light> node;
-            switch (light.Type())
-            {
-            case sdf::LightType::POINT:
-                node = vsg::PointLight::create();
-                break;
-            case sdf::LightType::SPOT:
-                node = vsg::SpotLight::create();
-                break;
-            case sdf::LightType::DIRECTIONAL:
-                node = vsg::DirectionalLight::create();
-                break;
-            default:
-                vsg::warn("vsgOcean::SDFLoader - unsupported light type in ", light.Name());
-                return {};
-            }
+	  vsg::ref_ptr<vsg::Light> node;
+	  switch (light.Type())
+	  {
+		case sdf::LightType::POINT:
+		  node = vsg::PointLight::create();
+		  break;
+		case sdf::LightType::SPOT:
+		  node = vsg::SpotLight::create();
+		  break;
+		case sdf::LightType::DIRECTIONAL:
+		  node = vsg::DirectionalLight::create();
+		  break;
+		default:
+		  vsg::warn("vsgOcean::SDFLoader - unsupported light type in ", light.Name());
+		  return {};
+	  }
 
-            node->name = light.Name();
-            const auto& diffuse = light.Diffuse();
-            node->color.set(static_cast<float>(diffuse.R()), static_cast<float>(diffuse.G()),
-                            static_cast<float>(diffuse.B()));
-            node->intensity = static_cast<float>(light.Intensity());
+	  node->name = light.Name();
+	  const auto& diffuse = light.Diffuse();
+	  node->color.set(static_cast<float>(diffuse.R()), static_cast<float>(diffuse.G()),
+					  static_cast<float>(diffuse.B()));
+	  node->intensity = static_cast<float>(light.Intensity());
 
-            // the aim direction, rotated from the light's frame into its parent frame
-            // (the pose translation must not apply to it)
-            auto rotation = pose;
-            rotation[3].set(0.0, 0.0, 0.0, 1.0);
-            const auto& dir = light.Direction();
-            const vsg::dvec3 direction = rotation * vsg::dvec3(dir.X(), dir.Y(), dir.Z());
+	  // the aim direction, rotated from the light's frame into its parent frame
+	  // (the pose translation must not apply to it)
+	  auto rotation = pose;
+	  rotation[3].set(0.0, 0.0, 0.0, 1.0);
+	  const auto& dir = light.Direction();
+	  const vsg::dvec3 direction = rotation * vsg::dvec3(dir.X(), dir.Y(), dir.Z());
 
-            // the cutoff radius of the distance falloff; vsg's radius 0 would extinguish
-            // the light entirely, so an unspecified SDF range (<range> 0) means "far"
-            const double range = light.AttenuationRange();
-            const double radius = range > 0.0 ? range : 1000.0;
+	  // the cutoff radius of the distance falloff; vsg's radius 0 would extinguish
+	  // the light entirely, so an unspecified SDF range (<range> 0) means "far"
+	  const double range = light.AttenuationRange();
+	  const double radius = range > 0.0 ? range : 1000.0;
 
-            if (auto point = node.cast<vsg::PointLight>())
-            {
-                point->position = pose * vsg::dvec3(0.0, 0.0, 0.0);
-                point->radius = radius;
-            }
-            else if (auto spot = node.cast<vsg::SpotLight>())
-            {
-                spot->position = pose * vsg::dvec3(0.0, 0.0, 0.0);
-                spot->direction = vsg::normalize(direction);
-                // the bright inner cone and the lit outer cone (the aperture), in
-                // radians from the SDF <spot> element; the outer cone must be the wider
-                spot->innerAngle = light.SpotInnerAngle().Radian();
-                spot->outerAngle = std::max(light.SpotOuterAngle().Radian(), spot->innerAngle + 0.01);
-                spot->radius = radius;
-            }
-            else if (auto directional = node.cast<vsg::DirectionalLight>())
-            {
-                directional->direction = vsg::normalize(direction);
-            }
+	  if (auto point = node.cast<vsg::PointLight>())
+	  {
+		point->position = pose * vsg::dvec3(0.0, 0.0, 0.0);
+		point->radius = radius;
+	  }
+	  else if (auto spot = node.cast<vsg::SpotLight>())
+	  {
+		spot->position = pose * vsg::dvec3(0.0, 0.0, 0.0);
+		spot->direction = vsg::normalize(direction);
+		// the bright inner cone and the lit outer cone (the aperture), in
+		// radians from the SDF <spot> element; the outer cone must be the wider
+		spot->innerAngle = light.SpotInnerAngle().Radian();
+		spot->outerAngle = std::max(light.SpotOuterAngle().Radian(), spot->innerAngle + 0.01);
+		spot->radius = radius;
+	  }
+	  else if (auto directional = node.cast<vsg::DirectionalLight>())
+	  {
+		directional->direction = vsg::normalize(direction);
+	  }
 
-            return node;
-        }
+	  return node;
+	}
 
-        vsg::ref_ptr<Model> loadModelFromSdf(const sdf::Model& sdfModel, const vsg::Path& baseDir,
-                                             const UriResolver& resolver, vsg::ref_ptr<vsg::Options> options)
-        {
-            auto model = Model::create(sdfModel.Name(), resolvedPose(sdfModel.SemanticPose(), sdfModel.Name()));
+	vsg::ref_ptr<Model> loadModelFromSdf(const sdf::Model& sdfModel, const vsg::Path& baseDir,
+										 const UriResolver& resolver, vsg::ref_ptr<vsg::Options> options)
+	{
+	  auto model = Model::create(sdfModel.Name(), resolvedPose(sdfModel.SemanticPose(), sdfModel.Name()));
 
-            for (size_t l = 0; l < sdfModel.LinkCount(); ++l)
-            {
-                const sdf::Link* link = sdfModel.LinkByIndex(l);
+	  for (size_t l = 0; l < sdfModel.LinkCount(); ++l)
+	  {
+		const sdf::Link* link = sdfModel.LinkByIndex(l);
 
-                // links are named frames whose pose can be changed at runtime
-                auto linkFrame = Frame::create(link->Name(), resolvedPose(link->SemanticPose(), link->Name()));
+		// links are named frames whose pose can be changed at runtime
+		auto linkFrame = Frame::create(link->Name(), resolvedPose(link->SemanticPose(), link->Name()));
 
-                for (size_t v = 0; v < link->VisualCount(); ++v)
-                {
-                    const sdf::Visual* visual = link->VisualByIndex(v);
-                    if (!visual->Geom()) continue;
+		for (size_t v = 0; v < link->VisualCount(); ++v)
+		{
+		  const sdf::Visual* visual = link->VisualByIndex(v);
+		  if (!visual->Geom()) continue;
 
-                    const auto visualMatrix = resolvedPose(visual->SemanticPose(), visual->Name());
+		  const auto visualMatrix = resolvedPose(visual->SemanticPose(), visual->Name());
 
-                    vsg::ref_ptr<vsg::Node> node;
-                    if (visual->Geom()->Type() == sdf::GeometryType::MESH)
-                    {
-                        // meshes load through vsgXchange; the mesh scale applies in
-                        // the visual frame, on top of the visual pose
-                        auto mesh = visual->Geom()->MeshShape();
-                        if (!mesh || mesh->Uri().empty()) continue;
+		  vsg::ref_ptr<vsg::Node> node;
+		  if (visual->Geom()->Type() == sdf::GeometryType::MESH)
+		  {
+			// meshes load through vsgXchange; the mesh scale applies in
+			// the visual frame, on top of the visual pose
+			auto mesh = visual->Geom()->MeshShape();
+			if (!mesh || mesh->Uri().empty()) continue;
 
-                        node = loadMeshNode(mesh->Uri(), baseDir, resolver, options);
-                        if (!node) continue;
+			node = loadMeshNode(mesh->Uri(), baseDir, resolver, options);
+			if (!node) continue;
 
-                        const auto& scale = mesh->Scale();
-                        const auto meshMatrix = visualMatrix * vsg::scale(scale.X(), scale.Y(), scale.Z());
+			const auto& scale = mesh->Scale();
+			const auto meshMatrix = visualMatrix * vsg::scale(scale.X(), scale.Y(), scale.Z());
 
-                        auto visualTransform = vsg::MatrixTransform::create(meshMatrix);
-                        visualTransform->addChild(node);
-                        linkFrame->addChild(visualTransform);
-                        continue;
-                    }
+			auto visualTransform = vsg::MatrixTransform::create(meshMatrix);
+			visualTransform->addChild(node);
+			linkFrame->addChild(visualTransform);
+			continue;
+		  }
 
-                    // primitive geometries are built in the visual's colour
-                    node = buildPrimitive(visual, options);
-                    if (!node) continue;
+		  // primitive geometries are built in the visual's colour
+		  node = buildPrimitive(visual, options);
+		  if (!node) continue;
 
-                    auto visualTransform = vsg::MatrixTransform::create(visualMatrix);
-                    visualTransform->addChild(node);
-                    linkFrame->addChild(visualTransform);
-                }
+		  auto visualTransform = vsg::MatrixTransform::create(visualMatrix);
+		  visualTransform->addChild(node);
+		  linkFrame->addChild(visualTransform);
+		}
 
-                // link lights: lamps, beacons... attached to the link frame, so they
-                // follow the model and any runtime link pose
-                for (size_t li = 0; li < link->LightCount(); ++li)
-                {
-                    if (const sdf::Light* light = link->LightByIndex(li))
-                    {
-                        if (auto lightNode = buildLight(*light)) linkFrame->addChild(lightNode);
-                    }
-                }
+		// link lights: lamps, beacons... attached to the link frame, so they
+		// follow the model and any runtime link pose
+		for (size_t li = 0; li < link->LightCount(); ++li)
+		{
+		  if (const sdf::Light* light = link->LightByIndex(li))
+		  {
+			if (auto lightNode = buildLight(*light)) linkFrame->addChild(lightNode);
+		  }
+		}
 
-                model->addFrame(linkFrame);
-            }
+		model->addFrame(linkFrame);
+	  }
 
-            // nested models become submodels of this model
-            for (size_t m = 0; m < sdfModel.ModelCount(); ++m)
-            {
-                if (auto nested = loadModelFromSdf(*sdfModel.ModelByIndex(m), baseDir, resolver, options))
-                {
-                    model->addModel(nested);
-                }
-            }
+	  // nested models become submodels of this model
+	  for (size_t m = 0; m < sdfModel.ModelCount(); ++m)
+	  {
+		if (auto nested = loadModelFromSdf(*sdfModel.ModelByIndex(m), baseDir, resolver, options))
+		{
+		  model->addModel(nested);
+		}
+	  }
 
-            return model;
-        }
-    }
+	  return model;
+	}
+	}
 
-    std::vector<vsg::Path> readMeshPaths(const vsg::Path& sdfPath)
-    {
-        std::vector<vsg::Path> meshPaths;
+	std::vector<vsg::Path> readMeshPaths(const vsg::Path& sdfPath)
+	{
+	  std::vector<vsg::Path> meshPaths;
 
-        sdf::Root root;
-        const auto errors = root.Load(sdfPath.string());
-        if (!errors.empty())
-        {
-            vsg::warn("Failed to read SDF: ", sdfPath);
-            for (const auto& error : errors)
-            {
-                vsg::warn("  Error: ", error.Message());
-            }
-            return meshPaths;
-        }
+	  sdf::Root root;
+	  const auto errors = root.Load(sdfPath.string());
+	  if (!errors.empty())
+	  {
+		vsg::warn("Failed to read SDF: ", sdfPath);
+		for (const auto& error : errors)
+		{
+		  vsg::warn("  Error: ", error.Message());
+		}
+		return meshPaths;
+	  }
 
-        for (size_t w = 0; w < root.WorldCount(); ++w)
-        {
-            const sdf::World* world = root.WorldByIndex(w);
+	  for (size_t w = 0; w < root.WorldCount(); ++w)
+	  {
+		const sdf::World* world = root.WorldByIndex(w);
 
-            for (size_t m = 0; m < world->ModelCount(); ++m)
-            {
-                const sdf::Model* model = world->ModelByIndex(m);
+		for (size_t m = 0; m < world->ModelCount(); ++m)
+		{
+		  const sdf::Model* model = world->ModelByIndex(m);
 
-                for (size_t l = 0; l < model->LinkCount(); ++l)
-                {
-                    const sdf::Link* link = model->LinkByIndex(l);
+		  for (size_t l = 0; l < model->LinkCount(); ++l)
+		  {
+			const sdf::Link* link = model->LinkByIndex(l);
 
-                    for (size_t v = 0; v < link->VisualCount(); ++v)
-                    {
-                        const sdf::Visual* visual = link->VisualByIndex(v);
+			for (size_t v = 0; v < link->VisualCount(); ++v)
+			{
+			  const sdf::Visual* visual = link->VisualByIndex(v);
 
-                        if (!visual->Geom() || visual->Geom()->Type() != sdf::GeometryType::MESH) continue;
+			  if (!visual->Geom() || visual->Geom()->Type() != sdf::GeometryType::MESH) continue;
 
-                        auto mesh = visual->Geom()->MeshShape();
-                        if (!mesh || mesh->Uri().empty()) continue;
+			  auto mesh = visual->Geom()->MeshShape();
+			  if (!mesh || mesh->Uri().empty()) continue;
 
-                        vsg::debug("Found mesh: ", mesh->Uri());
-                        meshPaths.push_back(vsg::Path(mesh->Uri()));
-                    }
-                }
-            }
-        }
+			  vsg::debug("Found mesh: ", mesh->Uri());
+			  meshPaths.push_back(vsg::Path(mesh->Uri()));
+			}
+		  }
+		}
+	  }
 
-        // standalone model SDF files (no world element)
-        if (const sdf::Model* model = root.Model())
-        {
-            for (size_t l = 0; l < model->LinkCount(); ++l)
-            {
-                const sdf::Link* link = model->LinkByIndex(l);
+	  // standalone model SDF files (no world element)
+	  if (const sdf::Model* model = root.Model())
+	  {
+		for (size_t l = 0; l < model->LinkCount(); ++l)
+		{
+		  const sdf::Link* link = model->LinkByIndex(l);
 
-                for (size_t v = 0; v < link->VisualCount(); ++v)
-                {
-                    const sdf::Visual* visual = link->VisualByIndex(v);
+		  for (size_t v = 0; v < link->VisualCount(); ++v)
+		  {
+			const sdf::Visual* visual = link->VisualByIndex(v);
 
-                    if (!visual->Geom() || visual->Geom()->Type() != sdf::GeometryType::MESH) continue;
+			if (!visual->Geom() || visual->Geom()->Type() != sdf::GeometryType::MESH) continue;
 
-                    auto mesh = visual->Geom()->MeshShape();
-                    if (!mesh || mesh->Uri().empty()) continue;
+			auto mesh = visual->Geom()->MeshShape();
+			if (!mesh || mesh->Uri().empty()) continue;
 
-                    vsg::debug("Found mesh: ", mesh->Uri());
-                    meshPaths.push_back(vsg::Path(mesh->Uri()));
-                }
-            }
-        }
+			vsg::debug("Found mesh: ", mesh->Uri());
+			meshPaths.push_back(vsg::Path(mesh->Uri()));
+		  }
+		}
+	  }
 
-        if (meshPaths.empty())
-        {
-            vsg::warn("No mesh found in SDF: ", sdfPath);
-        }
+	  if (meshPaths.empty())
+	  {
+		vsg::warn("No mesh found in SDF: ", sdfPath);
+	  }
 
-        return meshPaths;
-    }
+	  return meshPaths;
+	}
 
-    void loadScene(const vsg::Path& sdfPath, const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Options> options)
-    {
+	void loadScene(const vsg::Path& sdfPath, const vsg::ref_ptr<Scene>& scene, vsg::ref_ptr<vsg::Options> options)
+	{
+	  sdf::Root root;
+	  const UriResolver resolver;
+	  sdf::setFindCallback([&resolver](const std::string &file){return resolver.resolve(file);});
+	  const auto errors = root.Load(sdfPath.string());
+	  if (!errors.empty())
+	  {
+		vsg::warn("Failed to read SDF: ", sdfPath);
+		for (const auto& error : errors)
+		{
+		  vsg::warn("  Error: ", error.Message());
+		}
+		return;
+	  }
 
-        sdf::Root root;
-        const auto errors = root.Load(sdfPath.string());
-        if (!errors.empty())
-        {
-            vsg::warn("Failed to read SDF: ", sdfPath);
-            for (const auto& error : errors)
-            {
-                vsg::warn("  Error: ", error.Message());
-            }
-            return;
-        }
+	  const auto baseDir = vsg::filePath(sdfPath);
+	  const auto addSdfModel = [&](const sdf::Model& sdfModel)
+	  {
+		if (auto model = loadModelFromSdf(sdfModel, baseDir, resolver, options))
+		{
+		  scene->addModel(model);
+		}
+	  };
 
-        const auto baseDir = vsg::filePath(sdfPath);
-        const UriResolver resolver;
+	  for (size_t w = 0; w < root.WorldCount(); ++w)
+	  {
+		const sdf::World* world = root.WorldByIndex(w);
 
-        const auto addSdfModel = [&](const sdf::Model& sdfModel)
-        {
-            if (auto model = loadModelFromSdf(sdfModel, baseDir, resolver, options))
-            {
-                scene->addModel(model);
-            }
-        };
+		// geolocation of the scene, when the world provides spherical coordinates
+		if (const auto* spherical = world->SphericalCoordinates())
+		{
+		  scene->environment()->setLatitude(spherical->LatitudeReference().Degree());
+		  scene->environment()->setLongitude(spherical->LongitudeReference().Degree());
+		}
 
-        for (size_t w = 0; w < root.WorldCount(); ++w)
-        {
-            const sdf::World* world = root.WorldByIndex(w);
+		// world lights: static lights placed in the world frame
+		for (size_t li = 0; li < world->LightCount(); ++li)
+		{
+		  if (const sdf::Light* light = world->LightByIndex(li))
+		  {
+			if (auto lightNode = buildLight(*light)) scene->world()->addChild(lightNode);
+		  }
+		}
 
-            // geolocation of the scene, when the world provides spherical coordinates
-            if (const auto* spherical = world->SphericalCoordinates())
-            {
-                scene->environment()->setLatitude(spherical->LatitudeReference().Degree());
-                scene->environment()->setLongitude(spherical->LongitudeReference().Degree());
-            }
+		for (size_t m = 0; m < world->ModelCount(); ++m)
+		{
+		  auto model = *world->ModelByIndex(m);
+		  addSdfModel(*world->ModelByIndex(m));
+		}
+	  }
 
-            // world lights: static lights placed in the world frame
-            for (size_t li = 0; li < world->LightCount(); ++li)
-            {
-                if (const sdf::Light* light = world->LightByIndex(li))
-                {
-                    if (auto lightNode = buildLight(*light)) scene->world()->addChild(lightNode);
-                }
-            }
+	  // standalone model SDF files (no world element)
+	  if (const sdf::Model* model = root.Model())
+	  {
+		addSdfModel(*model);
+	  }
 
-            for (size_t m = 0; m < world->ModelCount(); ++m)
-            {
-                addSdfModel(*world->ModelByIndex(m));
-            }
-        }
-
-        // standalone model SDF files (no world element)
-        if (const sdf::Model* model = root.Model())
-        {
-            addSdfModel(*model);
-        }
-
-        if (scene->world()->children.empty())
-        {
-            vsg::warn("No model found in SDF: ", sdfPath);
-        }
-
-
-    }
+	  if (scene->world()->children.empty())
+	  {
+		vsg::warn("No model found in SDF: ", sdfPath);
+	  }
+	}
 }
